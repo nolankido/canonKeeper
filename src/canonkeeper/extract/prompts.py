@@ -83,10 +83,16 @@ missed in these categories, which is where continuity errors hide:
   life state:           dead, alive, died, killed, married_to, engaged_to, residence
   family:               parent_of, child_of, sibling_of
 
-Read every sentence. Any sentence — including an aside, a single line of dialogue, or a
-description buried in a paragraph about someone else — that states one of these facts about
-a named person or animal produces a claim. The speaker of a quoted line is its subject.
-Do not reason about importance; transcribe.
+Method: scan the chunk sentence by sentence for these cue words and phrases, and examine every
+sentence that contains one —
+  eyes, eyed, hair, haired, lock of, tall, short, stout, thin, years old, aged, scar, wound,
+  wounded, limp, born, by birth, native of, a Scot/Irishman/Welshman/German/American/etc.,
+  called, named, known as, nicknamed, died, dead, killed, buried, widow, married, wife,
+  husband, engaged, son, daughter, father, mother, brother, sister, lives at, lodgings
+— and any aside, single line of dialogue, or description buried in a paragraph about someone
+else that states one of these facts about a named person or animal produces a claim. The
+speaker of a quoted line is its subject ("I was born in X," said Y → Y.birthplace = X).
+Do not reason about importance; transcribe. Expect 5 to 25 claims per chunk.
 
 Return ONLY JSON: {"aliases": {}, "claims": [{"kind": "...", "subject": "...", "predicate":
 "...", "object": "...", "story_time": null, "confidence": 0.9, "quote": "verbatim passage from
