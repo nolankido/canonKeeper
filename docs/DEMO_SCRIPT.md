@@ -26,11 +26,13 @@ six novels, $X to judge." Then show one adjudication prompt in the cache folder 
 count — make the 1M context visible, not just claimed.
 
 ## 1:25 — The author's workflow (Impact, Demo)
-`canonkeeper check evals/corpora/sherlock-holmes/series.json drafts/book-07.md` on a short
-fake "book seven" with three planted slips: an eye colour, a dead character acting, and a
-*deliberate* reveal (a character lied about their birthplace, explained in the text). Report
-shows two contradictions with suggested fixes **to the new book**, and the reveal classified as
-`deliberate` with the explanation. That classification is the whole point; linger on it.
+`canonkeeper check` on an unpublished draft. The Saltmarsh demo already ships one
+(`draft-04-the-ledger.txt`: an eye-colour slip, a birthplace slip, and a *deliberate* reveal —
+a character's grey eyes were tinted glasses, explained in the text). For the video, prefer a
+Holmes "book seven" draft with the same three shapes so the whole demo stays on one corpus.
+Report shows two contradictions with suggested fixes **to the new book**, and the reveal
+classified as `deliberate` with Wonder's explanation. That classification is the whole point;
+linger on it.
 
 ## 1:55 — Does it work? (Technical depth)
 Show the README benchmark table and the `eval` command. One sentence on seeded-defect injection

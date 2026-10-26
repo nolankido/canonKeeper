@@ -70,13 +70,57 @@ def extract(text: str) -> dict:
 
 
 _CAND = re.compile(r"^## Candidate (\d+) \((\w+)\)\n(.*?)$", re.M)
+_BLOCKS = re.compile(r"(?=^## Candidate \d+ )", re.M)
+
+# Phrases that, when they appear in the *later* passage, mark an in-text explanation. A real
+# adjudicator reads the whole chapter; the stand-in just looks for the author saying so.
+_REVEAL_MARKERS = (
+    "had been a trick",
+    "had always been",
+    "had lied",
+    "the truth was",
+    "had never really been",
+    "all along",
+)
 
 
-def adjudicate(user: str) -> dict:
-    """Fixed policy: 'may be change over time' → deliberate, everything else → contradiction."""
+_QUOTE = re.compile(r"quote: “(.*?)”")
+
+
+def _explained_nearby(block: str, context: str, window: int = 400) -> bool:
+    """True if any quoted passage is followed, in the same paragraph of the series text and
+    within `window` chars, by an explicit explanation marker."""
+    for q in _QUOTE.findall(block):
+        i = context.find(q)
+        if i == -1:
+            continue
+        start = i + len(q)
+        end = context.find("\n\n", start)
+        end = start + window if end == -1 else min(end, start + window)
+        tail = context[start:end].lower()
+        if any(marker in tail for marker in _REVEAL_MARKERS):
+            return True
+    return False
+
+
+def adjudicate(user: str, context: str = "") -> dict:
+    """Fixed policy: an explanation marker right after a quoted passage (in the series text) or
+    'may be change over time' in the reason → deliberate; everything else → contradiction."""
     verdicts = []
+    blocks = {int(m.group(1)): b for b in _BLOCKS.split(user) if (m := _CAND.match(b))}
     for m in _CAND.finditer(user):
         cid, heuristic, reason = int(m.group(1)), m.group(2), m.group(3)
+        block = blocks.get(cid, "")
+        if _explained_nearby(block, context):
+            verdicts.append(
+                {
+                    "id": cid,
+                    "verdict": "deliberate",
+                    "severity": "low",
+                    "explanation": "The later passage explains the change explicitly.",
+                }
+            )
+            continue
         if "may be change over time" in reason:
             verdicts.append(
                 {
@@ -106,7 +150,8 @@ def handler(model: str, messages: list[dict[str, str]]) -> str:
         chunk = user.split("<chunk>", 1)[1].split("</chunk>", 1)[0]
         return json.dumps(extract(chunk))
     if "## Candidate" in user:
-        return json.dumps(adjudicate(user))
+        context = messages[1]["content"] if len(messages) > 2 else ""
+        return json.dumps(adjudicate(user, context))
     return "{}"
 
 

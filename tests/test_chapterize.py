@@ -1,29 +1,156 @@
+"""Chapterizer tests. Each fixture mimics the exact layout of one Project Gutenberg Sherlock
+Holmes volume (headings, contents block, stray all-caps lines), with filler bodies."""
+
 from canonkeeper.corpus.chapterize import chapterize
 from canonkeeper.corpus.gutenberg import strip_boilerplate
 
+BODY = ("Lorem ipsum dolor sit amet, consectetur adipiscing elit. " * 6 + "\n\n") * 4
 
-def test_chapter_headings_detected():
+
+def test_study_in_scarlet_layout_parts_contents_and_split_titles():
     text = (
-        "CHAPTER I\n\n"
-        + "word " * 500
-        + "\n\nCHAPTER II\n\n"
-        + "more " * 500
-        + "\n\nIII.\n\n"
-        + "last " * 500
+        "A STUDY IN SCARLET\n\nBy A. Conan Doyle\n\n\nCONTENTS\n\n A STUDY IN SCARLET.\n\n PART I.\n"
+        " CHAPTER I. MR. SHERLOCK HOLMES.\n CHAPTER II. THE SCIENCE OF DEDUCTION.\n\n"
+        " PART II. THE COUNTRY OF THE SAINTS\n CHAPTER I. ON THE GREAT ALKALI PLAIN.\n"
+        " CHAPTER II. THE FLOWER OF UTAH.\n\n\n\n\nA STUDY IN SCARLET.\n\n\n\n\nPART I.\n\n\n"
+        "(_Being a reprint from the Reminiscences of_ JOHN H. WATSON, M.D.)\n\n\n\n\n"
+        "CHAPTER I.\nMR. SHERLOCK HOLMES.\n\n\n"
+        + BODY
+        + "\n\nRACHE.\n\n"
+        + BODY
+        + "\n\n\nCHAPTER II.\nTHE SCIENCE OF DEDUCTION.\n\n\n"
+        + BODY
+        + "\n\n\nPART II.\n\n\nCHAPTER I.\nON THE GREAT ALKALI PLAIN.\n\n\n"
+        + BODY
+        + "\n\n\nCHAPTER II.\nTHE FLOWER OF UTAH.\n\n\n"
+        + BODY
     )
     chs = chapterize(text, min_chars=100)
-    assert [c.title for c in chs] == ["CHAPTER I", "CHAPTER II", "III."]
-    assert chs[0].char_start == 0
+    assert [c.title for c in chs] == [
+        "CHAPTER I. MR. SHERLOCK HOLMES.",
+        "CHAPTER II. THE SCIENCE OF DEDUCTION.",
+        "CHAPTER I. ON THE GREAT ALKALI PLAIN.",
+        "CHAPTER II. THE FLOWER OF UTAH.",
+    ]
+    assert "RACHE." in chs[0].text  # shouted body line did not split the chapter
+    assert "CONTENTS" not in "".join(c.text for c in chs)  # front matter excluded
     assert chs[-1].char_end == len(text)
-    # spans tile the text exactly
-    assert "".join(c.text for c in chs) == text
+    for c in chs:
+        assert text[c.char_start : c.char_end] == c.text
+
+
+def test_sign_of_four_layout_title_on_next_line_no_period():
+    text = (
+        "The Sign of the Four\n\nby Arthur Conan Doyle\n\n\nContents\n\n"
+        "   Chapter I. The Science of Deduction\n   Chapter II. The Statement of the Case\n"
+        "   Chapter III. In Quest of a Solution\n\n\n\n\nChapter I\nThe Science of Deduction\n\n\n"
+        + BODY
+        + "\n\nI nodded, to show that I followed his reasoning.\n\n"
+        + BODY
+        + "\n\n\nChapter II\nThe Statement of the Case\n\n\n"
+        + BODY
+        + "\n\n\nChapter III\nIn Quest of a Solution\n\n\n"
+        + BODY
+    )
+    chs = chapterize(text, min_chars=100)
+    assert [c.title for c in chs] == [
+        "Chapter I The Science of Deduction",
+        "Chapter II The Statement of the Case",
+        "Chapter III In Quest of a Solution",
+    ]
+
+
+def test_hound_layout_arabic_numbers_with_period():
+    text = (
+        "The Hound of the Baskervilles\n\n\nContents\n\n Chapter 1  Mr. Sherlock Holmes\n"
+        " Chapter 2  The Curse of the Baskervilles\n Chapter 3  The Problem\n\n\n\n\n"
+        "Chapter 1.\nMr. Sherlock Holmes\n\n\n"
+        + BODY
+        + "\n\n\nChapter 2.\nThe Curse of the Baskervilles\n\n\n"
+        + BODY
+        + "\n\n\nChapter 3.\nThe Problem\n\n\n"
+        + BODY
+    )
+    chs = chapterize(text, min_chars=100)
+    assert [c.title for c in chs] == [
+        "Chapter 1. Mr. Sherlock Holmes",
+        "Chapter 2. The Curse of the Baskervilles",
+        "Chapter 3. The Problem",
+    ]
+
+
+def test_adventures_layout_numbered_titles_with_bare_subparts():
+    text = (
+        "The Adventures of Sherlock Holmes\n\n\nContents\n\n   I.     A Scandal in Bohemia\n"
+        "   II.    The Red-Headed League\n   III.   A Case of Identity\n\n\n\n\n"
+        "I. A SCANDAL IN BOHEMIA\n\n\nI.\n\n"
+        + BODY
+        + "\n\nII.\n\n"
+        + BODY
+        + "\n\n“IRENE NORTON, _née_ ADLER.”\n\n\n\nII. THE RED-HEADED LEAGUE\n\n\n"
+        + BODY
+        + "\n\n\nIII. A CASE OF IDENTITY\n\n\n"
+        + BODY
+    )
+    chs = chapterize(text, min_chars=100)
+    assert [c.title for c in chs] == [
+        "I. A SCANDAL IN BOHEMIA",
+        "II. THE RED-HEADED LEAGUE",
+        "III. A CASE OF IDENTITY",
+    ]
+    assert "\nII.\n" in chs[0].text  # bare sub-part numerals stay inside the story
+
+
+def test_return_layout_unnumbered_caps_titles_from_contents():
+    text = (
+        "The Return of Sherlock Holmes\n\n\nContents\n\n The Adventure of the Empty House\n"
+        " The Adventure of Black Peter.\n The Adventure of the Second Stain\n\n\n\n\n"
+        "THE ADVENTURE OF THE EMPTY HOUSE\n\n\n"
+        + BODY
+        + "\n\n\nTHE ADVENTURE OF BLACK PETER\n\n\n"
+        + BODY
+        + "\n\n\nTHE ADVENTURE OF THE SECOND STAIN\n\n\n"
+        + BODY
+        + "\n\n\nTHE END\n"
+    )
+    chs = chapterize(text, min_chars=100)
+    assert [c.title for c in chs] == [
+        "THE ADVENTURE OF THE EMPTY HOUSE",
+        "THE ADVENTURE OF BLACK PETER",
+        "THE ADVENTURE OF THE SECOND STAIN",
+    ]
+    assert "THE END" in chs[-1].text
+
+
+def test_no_contents_falls_back_to_heading_family():
+    text = "CHAPTER I\n\n" + BODY + "\n\nCHAPTER II\n\n" + BODY + "\n\nIII.\n\n" + BODY
+    chs = chapterize(text, min_chars=100)
+    # The CHAPTER family wins; the lone "III." is not of that family and stays in chapter II.
+    assert [c.title for c in chs] == ["CHAPTER I", "CHAPTER II"]
+    assert "III." in chs[1].text
+
+
+def test_part_prefix_without_contents():
+    text = (
+        "PART I.\n\nCHAPTER I.\nTHE START\n\n"
+        + BODY
+        + "\n\nPART II.\n\nCHAPTER I.\nTHE MIDDLE\n\n"
+        + BODY
+    )
+    chs = chapterize(text, min_chars=100)
+    assert [c.title for c in chs] == [
+        "Part I · CHAPTER I. THE START",
+        "Part II · CHAPTER I. THE MIDDLE",
+    ]
 
 
 def test_tiny_fragment_glued_to_previous():
-    text = "CHAPTER I\n\n" + "a " * 1000 + "\n\nPART TWO\n\nCHAPTER II\n\n" + "b " * 1000
+    text = (
+        "CHAPTER I\n\n" + "a " * 1000 + "\n\nCHAPTER II\n\nshort\n\nCHAPTER III\n\n" + "b " * 1000
+    )
     chs = chapterize(text, min_chars=200)
-    assert len(chs) == 2
-    assert "PART TWO" in chs[0].text
+    assert [c.title for c in chs] == ["CHAPTER I", "CHAPTER III"]
+    assert "short" in chs[0].text
 
 
 def test_fallback_windows_when_no_headings():
@@ -35,5 +162,8 @@ def test_fallback_windows_when_no_headings():
 
 
 def test_strip_gutenberg_boilerplate():
-    raw = "junk\n*** START OF THE PROJECT GUTENBERG EBOOK FOO ***\nbody text\n*** END OF THE PROJECT GUTENBERG EBOOK FOO ***\nlicence"
+    raw = (
+        "junk\n*** START OF THE PROJECT GUTENBERG EBOOK FOO ***\nbody text\n"
+        "*** END OF THE PROJECT GUTENBERG EBOOK FOO ***\nlicence"
+    )
     assert strip_boilerplate(raw) == "body text"

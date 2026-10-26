@@ -88,3 +88,23 @@ def test_bible_command_requires_bible(tmp_path):
     m = _write_series(tmp_path)
     r = runner.invoke(app, ["bible", str(m), "--workdir", str(tmp_path / "wd")])
     assert r.exit_code == 2
+
+
+def test_demo_check_separates_slips_from_deliberate_reveal(tmp_path):
+    r = runner.invoke(app, ["demo", "--dest", str(tmp_path / "demo")])
+    assert r.exit_code == 0, r.output
+    check = json.loads(next((tmp_path / "demo").rglob("check/report.json")).read_text())
+    by_verdict = {}
+    for f in check["findings"]:
+        subj = f["candidate"]["claims"][0]["subject"]
+        pred = f["candidate"]["claims"][0]["predicate"]
+        by_verdict.setdefault(f["verdict"], set()).add((subj, pred))
+    assert ("Hester Vale", "eye_color") in by_verdict["deliberate"]
+    assert ("Ivy Marlowe", "eye_color") in by_verdict["contradiction"]
+    assert ("Tobias Crane", "birthplace") in by_verdict["contradiction"]
+    assert ("Hester Vale", "eye_color") not in by_verdict["contradiction"]
+    # Every finding in a check touches the draft; published-vs-published conflicts are excluded.
+    assert all(
+        any(c["provenance"]["book"].startswith("04-") for c in f["candidate"]["claims"])
+        for f in check["findings"]
+    )

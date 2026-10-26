@@ -98,14 +98,44 @@ PLANTED = [
     ("Oswin Reed", "dead", "dies in book 2, walks in book 3"),
 ]
 
+# --- the unpublished draft, for `canonkeeper check` -----------------------------------------
+# Three things for the checker to find: two slips and one deliberate reveal. The reveal is the
+# whole point of the adjudication stage — the text *explains* the change, so a good editor
+# flags it as intentional rather than as an error.
+
+DRAFT4 = f"""CHAPTER I. THE LEDGER
+
+Ivy Marlowe has brown eyes. Ivy Marlowe walked to Saltmarsh. Hester Vale walked to Saltmarsh.
+
+{_PAD}
+
+Tobias Crane was born in Portmouth. Tobias Crane walked to Saltmarsh.
+
+CHAPTER II. THE GLASS
+
+Hester Vale's eyes were brown. The grey had been a trick of the tinted glasses she had worn
+since girlhood, and she had put them away for good the week the ledger was found.
+
+{_PAD}
+
+Ivy Marlowe walked to Kelby.
+"""
+
+DRAFT_PLANTED = [
+    ("Ivy Marlowe", "eye_color", "slip: green → brown"),
+    ("Tobias Crane", "birthplace", "slip: Kelby → Portmouth"),
+    ("Hester Vale", "eye_color", "deliberate reveal: grey → brown, explained in the text"),
+]
+
 
 def write_demo_series(dest: Path) -> Path:
-    """Write the three books and a manifest under `dest`; return the manifest path."""
+    """Write the three books, the unpublished draft, and a manifest; return the manifest path."""
     books = dest / "books"
     books.mkdir(parents=True, exist_ok=True)
     (books / "01-the-harbour.txt").write_text(BOOK1, encoding="utf-8")
     (books / "02-the-wreck.txt").write_text(BOOK2, encoding="utf-8")
     (books / "03-the-return.txt").write_text(BOOK3, encoding="utf-8")
+    (dest / "draft-04-the-ledger.txt").write_text(DRAFT4, encoding="utf-8")
     manifest = {
         "series": SERIES_NAME,
         "books": [

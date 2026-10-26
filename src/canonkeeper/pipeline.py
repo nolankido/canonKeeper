@@ -43,3 +43,48 @@ def audit(
         },
         cost_usd=None if settings.provider == "mock" else round(llm.usage.cost_usd, 4),
     )
+
+
+def check_manuscript(
+    series: Series,
+    store: CanonStore,
+    manuscript: Path,
+    llm: LLM,
+    settings: Settings,
+    *,
+    progress: bool = True,
+) -> AuditReport:
+    """Audit a new, unpublished manuscript against the existing bible.
+
+    The new book is extracted into a scratch copy of the store, so the published bible is never
+    modified by a draft. Only findings that touch the new book are returned: pre-existing
+    contradictions between published books are the `audit` command's business, not the draft's.
+    """
+    from canonkeeper.corpus.chapterize import chapterize
+    from canonkeeper.corpus.loaders import Book, load_text
+
+    text = load_text(manuscript)
+    new_book = Book(
+        key=f"{len(series.books) + 1:02d}-{manuscript.stem}",
+        title=manuscript.stem,
+        index=len(series.books),
+        text=text,
+        chapters=chapterize(text),
+    )
+    extended = Series(series.name, [*series.books, new_book])
+
+    scratch = CanonStore(store.path.with_suffix(".check.jsonl"))
+    scratch.register_aliases(store.aliases)
+    for c in store.claims:
+        scratch.add(c)
+    ext = Extractor(llm, settings)
+    scratch.ingest(ext.extract_series(Series(series.name, [new_book]), progress=progress))
+
+    report = audit(extended, scratch, llm, settings, progress=progress)
+    report.findings = [
+        f
+        for f in report.findings
+        if any(c.provenance.book == new_book.key for c in f.candidate.claims)
+    ]
+    report.books = [*report.books[:-1], f"{new_book.key} (draft)"]
+    return report

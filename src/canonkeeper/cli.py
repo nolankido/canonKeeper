@@ -22,8 +22,6 @@ from rich.table import Table
 from canonkeeper import __version__
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.corpus import Series, SeriesManifest, load_series
-from canonkeeper.corpus.chapterize import chapterize
-from canonkeeper.corpus.loaders import Book, load_text
 from canonkeeper.llm import make_llm
 from canonkeeper.models import AuditReport
 
@@ -142,9 +140,9 @@ def demo(
     open_report: bool = False,
 ) -> None:
     """Run the whole pipeline offline on an invented three-book series with five planted errors."""
-    from canonkeeper.demo import PLANTED, write_demo_series
+    from canonkeeper.demo import DRAFT_PLANTED, PLANTED, write_demo_series
     from canonkeeper.pipeline import audit as run_audit
-    from canonkeeper.pipeline import build_bible
+    from canonkeeper.pipeline import build_bible, check_manuscript
     from canonkeeper.report import write_report
     from canonkeeper.report.bible import write_bible
 
@@ -171,6 +169,21 @@ def demo(
     console.print()
     _print_summary(report)
     console.print(f"\n[green]report:[/green] {html}\n[green]bible: [/green] {bible_html}")
+
+    draft = dest / "draft-04-the-ledger.txt"
+    console.rule(f"[bold]check[/bold] — unpublished draft {draft.name} against the bible")
+    console.print("planted in the draft:")
+    for who, what, how in DRAFT_PLANTED:
+        console.print(f"  • {who} · {what}: {how}")
+    check_report = check_manuscript(series, store, draft, llm, settings)
+    check_html, _ = write_report(check_report, report_dir / "check")
+    console.print()
+    _print_summary(check_report)
+    for f in check_report.findings:
+        if f.verdict == "deliberate":
+            console.print(f"[bold green]DELIBERATE[/bold green] {f.candidate.reason}")
+            console.print(f"   {f.explanation}")
+    console.print(f"\n[green]check report:[/green] {check_html}")
     console.print("[dim]provider=mock: rule-based stand-in, no API calls were made[/dim]")
     if open_report:
         typer.launch(str(html))
@@ -233,8 +246,7 @@ def check(
 ) -> None:
     """Audit a new manuscript (next book in the series) against the existing bible."""
     from canonkeeper.canon import CanonStore
-    from canonkeeper.extract import Extractor
-    from canonkeeper.pipeline import audit as run_audit
+    from canonkeeper.pipeline import check_manuscript
     from canonkeeper.report import write_report
 
     settings = _settings(provider, workdir)
@@ -243,31 +255,9 @@ def check(
     if not bible_path.exists():
         console.print("[red]no bible yet — run `canonkeeper build` first[/red]")
         raise typer.Exit(2)
-    text = load_text(manuscript)
-    new_book = Book(
-        key=f"{len(series.books) + 1:02d}-{manuscript.stem}",
-        title=manuscript.stem,
-        index=len(series.books),
-        text=text,
-        chapters=chapterize(text),
-    )
-    extended = Series(series.name, [*series.books, new_book])
-
     store = CanonStore.load(bible_path)
     llm = make_llm(settings)
-    # Extract only the new book into a scratch copy of the store; the published bible is not modified.
-    scratch = CanonStore(bible_path.with_suffix(".check.jsonl"))
-    for c in store.claims:
-        scratch.add(c)
-    scratch.register_aliases(store.aliases)
-    scratch.ingest(Extractor(llm, settings).extract_series(Series(series.name, [new_book])))
-    report = run_audit(extended, scratch, llm, settings)
-    # Only findings that touch the new book are interesting here.
-    report.findings = [
-        f
-        for f in report.findings
-        if any(c.provenance.book == new_book.key for c in f.candidate.claims)
-    ]
+    report = check_manuscript(series, store, manuscript, llm, settings)
     html, _ = write_report(report, report_dir / "check")
     _print_summary(report)
     console.print(f"[green]report:[/green] {html}")

@@ -31,6 +31,11 @@ imprints.
                                     (Muse Wonder)    (local heuristics, $0)
 ```
 
+0. **Chapterize.** Headings are taken from the book's own Contents list when it has one, so a
+   `CHAPTER I.` with its title on the next line, a `I. A SCANDAL IN BOHEMIA`, or an unnumbered
+   `THE ADVENTURE OF THE EMPTY HOUSE` all resolve to the right chapter, and the Contents block,
+   `PART` dividers and shouted body lines (`RACHE.`) do not split anything. Tuned against the
+   actual Project Gutenberg layouts of all six Holmes volumes.
 1. **Extract.** Each chapter goes to `muse-spark-1.3` with a strict schema: atomic claims
    (`Watson · wound_location = shoulder`), a fixed predicate vocabulary, and a **verbatim quote**
    for every claim. Claims whose quote cannot be found in the source chunk are dropped — that is
@@ -62,6 +67,9 @@ canonkeeper demo --open-report
 
 That writes an invented three-book series with five planted continuity errors, runs the whole
 pipeline against a deterministic rule-based stand-in, and opens the report. All five are found.
+It then checks an unpublished fourth-book draft against the bible: two slips come back as
+contradictions with fixes, and one change the draft *explains* (a character's eye colour was a
+trick of tinted glasses) comes back as `deliberate`. That distinction is the whole point.
 It is the same code path the real models use; only the provider differs.
 
 ## Quickstart with Meta Model API
@@ -163,8 +171,9 @@ Scaffold + working offline pipeline. Hackathon build runs **Oct 26 – Nov 4, 20
 - [x] seeded-defect eval harness
 - [x] offline demo with a rule-based provider
 - [x] CLI, tests, CI
+- [x] chapterizer verified against the real Gutenberg layouts of all six Holmes volumes
+- [x] `check` on an unpublished draft, with the deliberate-reveal case in the demo
 - [ ] prompt tuning on Sherlock Holmes; publish benchmark numbers
-- [ ] `check` UX for a new manuscript (diff view against the bible)
 - [ ] open-weights mode verified on a hosted Muse Spark Open endpoint
 - [ ] Muse Image reference cards
 - [ ] demo video

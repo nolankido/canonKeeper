@@ -27,6 +27,20 @@ Finding { candidate, verdict, severity, explanation, suggested_fix, adjudicator_
 - `story_time` is free text. It is passed through to the adjudicator rather than parsed, except
   for four-digit years in the `timeline` heuristic.
 
+## Stage 0 — chapterizing
+
+`corpus/chapterize.py`. Provenance points at chapters, and the adjudicator prioritises
+chapters, so getting boundaries right matters. The six Holmes volumes on Gutenberg use five
+different heading conventions (documented at the top of the module), every one of them has a
+Contents block whose entries look like headings, and most have all-caps lines in the body.
+
+Order of attack: (1) if a Contents block exists, its entries are ground truth and the body is
+scanned for lines — or a numeral line plus the next line — that normalise to an entry;
+(2) otherwise the strongest heading *family* present (`CHAPTER n` / `n. TITLE`) is used alone,
+so bare sub-part numerals inside a story do not split it, and `PART` lines set a prefix rather
+than a boundary; (3) otherwise fixed windows. Front matter before the first heading is not a
+chapter, so a title page never becomes canon.
+
 ## Stage 1 — extraction (Muse Spark, `muse-spark-1.3`)
 
 Per chapter (split at ~6k tokens on paragraph boundaries). The prompt pins a predicate
@@ -92,7 +106,10 @@ unknown manuscript. Both bias recall upward, so report numbers as an upper bound
 
 `llm/rules.py` is a rule-based extractor and adjudicator that recognises ~20 sentence shapes
 (the same shapes the eval harness's injection templates produce) and judges every candidate
-with a fixed policy. It exists so that the entire pipeline — build, bible, audit, check, eval,
+with a fixed policy: a contradiction, unless the series text right after a quoted passage
+carries an explicit explanation ("had been a trick of…", "had lied", "all along"), in which
+case `deliberate`. That is a caricature of what Wonder does with the whole chapter, and it is
+enough for the demo's reveal case to show the verdict category exists. It exists so that the entire pipeline — build, bible, audit, check, eval,
 report — runs deterministically with no key in CI, in tests, and in `canonkeeper demo`. It is
 not a model and does not pretend to be; it is a harness for everything that is *not* the model.
 
