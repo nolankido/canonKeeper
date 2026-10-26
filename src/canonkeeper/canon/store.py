@@ -26,6 +26,7 @@ class CanonStore:
         self._alias_to_canon: dict[str, str] = {}
         self._by_slot: dict[tuple[str, str], list[Claim]] = defaultdict(list)
         self._ids: set[str] = set()
+        self.last_extract_stats: object | None = None
 
     # --- persistence -----------------------------------------------------------------------
     @classmethod

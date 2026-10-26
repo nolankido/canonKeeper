@@ -81,30 +81,53 @@ def _norm(s: str) -> str:
 
 
 def _contents_entries(lines: list[_Line]) -> tuple[list[str], int] | None:
-    """Return (normalised entry titles, index of the line after the block) or None."""
+    """Return (normalised entry titles, index of the line after the block) or None.
+
+    Gutenberg indents Contents entries and starts body text at column 0, so an indented block
+    ends at the first non-blank, non-indented line. Non-indented lists end after a long blank
+    run instead. The book's own title is dropped only when it is the first entry (Study in
+    Scarlet lists it; Hound's last chapter *is* the title and must be kept)."""
     title_norm = next((_norm(ln.s) for ln in lines[:50] if ln.s), "")
     for i, ln in enumerate(lines[:400]):
         if not _CONTENTS.match(ln.text):
             continue
-        entries: list[str] = []
+        raw: list[str] = []
+        indented: bool | None = None
         blank_run = 0
         j = i + 1
         while j < len(lines):
-            s = lines[j].s
+            text = lines[j].text
+            s = text.strip()
             if not s:
                 blank_run += 1
-                if entries and blank_run >= 2:
+                if raw and indented is False and blank_run >= 3:
                     break
             else:
                 blank_run = 0
-                if len(s) <= 90 and not _PART.match(s):
-                    n = _norm(s)
-                    if n and n != title_norm and not _BARE_NUMERAL.match(s):
-                        entries.append(n)
+                is_indented = text[:1] in (" ", "\t")
+                if indented is None:
+                    indented = is_indented
+                if indented and not is_indented:
+                    break
+                if len(s) <= 90:
+                    raw.append(s)
             j += 1
+        entries: list[str] = []
+        for k, s in enumerate(raw):
+            if _PART.match(s) or _BARE_NUMERAL.match(s):
+                continue
+            n = _norm(s)
+            if not n or (k == 0 and n == title_norm):
+                continue
+            entries.append(n)
         if len(entries) >= 2:
             return entries, j
     return None
+
+
+def _unbalanced_quotes(s: str) -> bool:
+    """A dialogue fragment like `Sir Henry Baskerville.”` is not a heading."""
+    return s.count("“") != s.count("”") or s.count('"') % 2 == 1
 
 
 def _match_contents(
@@ -117,7 +140,7 @@ def _match_contents(
     i = body_start
     while i < len(lines):
         s = lines[i].s
-        if s and len(s) <= 90 and (i == 0 or not lines[i - 1].s):
+        if s and len(s) <= 90 and (i == 0 or not lines[i - 1].s) and not _unbalanced_quotes(s):
             cands: list[tuple[str, str]] = [(_norm(s), s)]
             # Heading number on one line, title on the next ("CHAPTER I." / "MR. SHERLOCK HOLMES.").
             if i + 1 < len(lines) and lines[i + 1].s and len(lines[i + 1].s) <= 90:

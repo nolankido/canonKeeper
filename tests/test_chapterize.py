@@ -1,6 +1,10 @@
 """Chapterizer tests. Each fixture mimics the exact layout of one Project Gutenberg Sherlock
 Holmes volume (headings, contents block, stray all-caps lines), with filler bodies."""
 
+from pathlib import Path
+
+import pytest
+
 from canonkeeper.corpus.chapterize import chapterize
 from canonkeeper.corpus.gutenberg import strip_boilerplate
 
@@ -167,3 +171,23 @@ def test_strip_gutenberg_boilerplate():
         "*** END OF THE PROJECT GUTENBERG EBOOK FOO ***\nlicence"
     )
     assert strip_boilerplate(raw) == "body text"
+
+
+_GUTENBERG = Path(".canonkeeper/cache/gutenberg")
+_REAL = [(244, 14), (2097, 12), (1661, 12), (834, 12), (2852, 15), (108, 13)]
+
+
+@pytest.mark.skipif(
+    not _GUTENBERG.exists(), reason="run `canonkeeper fetch` on the Holmes manifest first"
+)
+@pytest.mark.parametrize("pg,expected", _REAL)
+def test_real_gutenberg_files_split_into_the_right_number_of_chapters(pg, expected):
+    p = _GUTENBERG / f"pg{pg}.txt"
+    if not p.exists():
+        pytest.skip(f"{p} not cached")
+    chs = chapterize(p.read_text(encoding="utf-8"))
+    assert len(chs) == expected, [c.title for c in chs]
+    # chapters tile the body exactly and none is suspiciously huge
+    for a, b in zip(chs, chs[1:], strict=False):
+        assert a.char_end == b.char_start
+    assert max(len(c.text) for c in chs) < 120_000

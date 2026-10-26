@@ -36,7 +36,21 @@ SINGLE_VALUED = {
     "father",
     "parent_of",
 }
-MULTI_VALUED_OK = {"alias", "nickname", "friend_of", "location", "residence", "occupation"}
+MULTI_VALUED_OK = {
+    "alias",
+    "nickname",
+    "friend_of",
+    "colleague_of",
+    "location",
+    "residence",
+    "occupation",
+    "possession",
+    "habit",
+    "skill",
+    "illness",
+    "education",
+    "member_of",
+}
 
 _NUM = re.compile(r"\b(1[5-9]\d\d|20\d\d|\d{1,3})\b")
 

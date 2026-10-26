@@ -21,6 +21,7 @@ def build_bible(
     result = ext.extract_series(series, progress=progress)
     store.ingest(result)
     store.save()
+    store.last_extract_stats = ext.stats
     return store
 
 

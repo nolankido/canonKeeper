@@ -91,8 +91,9 @@ class Settings(BaseSettings):
     """Adjudication is where thinking pays. Raise to "high" for the final run."""
 
     # --- budgets ---------------------------------------------------------------------------
-    extract_chunk_tokens: int = 6000
-    """Chapters longer than this are split before extraction."""
+    extract_chunk_tokens: int = 3500
+    """Chapters longer than this are split before extraction. Smaller chunks get denser
+    extraction from Flash-class models; with Flash-Lite at ~2 s a call the extra calls are cheap."""
     adjudicate_context_tokens: int = 900_000
     """Hard ceiling on series text passed to the adjudicator (1M-context models).
     Lower it (e.g. 150000) while iterating; raise it for the final run."""

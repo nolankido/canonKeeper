@@ -308,6 +308,13 @@ def build(
     console.print(
         f"[green]bible:[/green] {bible_path}  ({len(store)} claims, {len(store.entities())} entities)"
     )
+    st = store.last_extract_stats
+    if st is not None:
+        console.print(
+            f"[dim]extraction: {st.chunks} chunks · {st.claims_raw} claims returned · "  # type: ignore[attr-defined]
+            f"{st.claims_kept} grounded · {st.dropped_ungrounded} dropped (quote not in text) · "  # type: ignore[attr-defined]
+            f"{st.dropped_invalid} invalid[/dim]"  # type: ignore[attr-defined]
+        )
     console.print(
         f"[dim]cost ${llm.usage.cost_usd:.3f} · {llm.usage.calls} calls ({llm.usage.cached_calls} cached)[/dim]"
     )
