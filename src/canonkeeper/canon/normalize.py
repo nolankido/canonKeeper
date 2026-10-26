@@ -99,6 +99,20 @@ def normalize_predicate(p: str) -> str:
     return PREDICATE_SYNONYMS.get(p, p)
 
 
+def normalize_claim(predicate: str, value: str) -> tuple[str, str]:
+    """Predicate + value together, for the few cases where one changes the other:
+    alive=false ≡ dead=true (and vice versa), so the death heuristics see one slot."""
+    p = normalize_predicate(predicate)
+    v = normalize_value(value, p)
+    if p == "alive" and v == "false":
+        return "dead", "true"
+    if p == "dead" and v == "false":
+        return "alive", "true"
+    if p in {"dead", "alive", "died"} and v in {"", "none", "null"}:
+        return p, "true"
+    return p, v
+
+
 def normalize_value(v: str, predicate: str | None = None) -> str:
     v = v.strip()
     if not v:

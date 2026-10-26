@@ -115,3 +115,42 @@ def test_grounder_handles_line_wraps_splices_and_near_misses():
     # garbage does not
     assert g.find("Holmes played the violin badly all afternoon") is None
     assert g.find("") is None
+
+
+def test_repair_claim_recovers_predicate_as_key_and_empty_death_objects():
+    from canonkeeper.extract.extractor import repair_claim
+
+    c = repair_claim(
+        {"kind": "possession", "subject": "Drebber", "possession": "gold watch", "quote": "q"}
+    )
+    assert (
+        c["predicate"] == "possession" and c["object"] == "gold watch" and c["kind"] == "attribute"
+    )
+    c = repair_claim({"kind": "occupation", "subject": "Hope", "object": "cabman", "quote": "q"})
+    assert c["predicate"] == "occupation"
+    c = repair_claim(
+        {"kind": "event", "subject": "Drebber", "predicate": "died", "object": None, "quote": "q"}
+    )
+    assert c["object"] == "true"
+    assert (
+        repair_claim(
+            {
+                "kind": "attribute",
+                "subject": "X",
+                "predicate": "eye_color",
+                "object": None,
+                "quote": "q",
+            }
+        )
+        is None
+    )
+    assert repair_claim({"subject": "X", "quote": "q"}) is None
+
+
+def test_alive_false_normalises_to_dead_true():
+    from canonkeeper.canon.normalize import normalize_claim
+
+    assert normalize_claim("alive", "false") == ("dead", "true")
+    assert normalize_claim("dead", "False") == ("alive", "true")
+    assert normalize_claim("died", "none") == ("died", "true")
+    assert normalize_claim("eye colour", "Gray") == ("eye_color", "grey")

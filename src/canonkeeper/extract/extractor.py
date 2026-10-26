@@ -55,6 +55,42 @@ def _collapse(text: str) -> tuple[str, list[int]]:
     return "".join(out), idx
 
 
+_STANDARD_KEYS = {"kind", "subject", "predicate", "object", "story_time", "confidence", "quote"}
+_KINDS = {k.value for k in ClaimKind}
+
+
+def repair_claim(c: dict) -> dict | None:
+    """Models sometimes emit the predicate as the key: {"kind": "possession", "subject": …,
+    "possession": "gold watch"}. Recover predicate/object from the one unexpected key, and
+    when `kind` is really a predicate name, use it. Returns None if unrecoverable."""
+    c = dict(c)
+    if "predicate" not in c or "object" not in c:
+        extra = [k for k in c if k not in _STANDARD_KEYS]
+        if len(extra) == 1:
+            c.setdefault("predicate", extra[0])
+            c.setdefault("object", c[extra[0]])
+        elif c.get("kind") and str(c["kind"]).lower() not in _KINDS and "predicate" not in c:
+            # e.g. {"kind": "occupation", "object": "cabman"}
+            c["predicate"] = str(c["kind"])
+    if str(c.get("kind", "")).lower() not in _KINDS:
+        c["kind"] = "attribute"
+    if "subject" not in c or "predicate" not in c:
+        return None
+    if c.get("object") is None or str(c.get("object")).strip().lower() in {"", "none", "null"}:
+        if str(c["predicate"]).lower() in {
+            "dead",
+            "alive",
+            "died",
+            "married",
+            "injured",
+            "imprisoned",
+        }:
+            c["object"] = "true"
+        else:
+            return None
+    return c
+
+
 class Grounder:
     """Locates verbatim quotes in a chunk. One instance per chunk; the collapsed text is
     computed once."""
@@ -145,8 +181,12 @@ class Extractor:
 
         claims: list[Claim] = []
         grounder = Grounder(text)
-        for c in data.get("claims", []) or []:
+        for raw_claim in data.get("claims", []) or []:
             self.stats.claims_raw += 1
+            c = repair_claim(raw_claim) if isinstance(raw_claim, dict) else None
+            if c is None:
+                self.stats.dropped_invalid += 1
+                continue
             hit = grounder.find(str(c.get("quote", "")))
             if hit is None:
                 self.stats.dropped_ungrounded += 1
