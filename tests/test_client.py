@@ -316,3 +316,37 @@ def test_reasoning_effort_is_part_of_the_cache_key_except_the_default(tmp_path):
     med._client = low._client
     assert med.complete("m", msgs) == "medium"  # a different effort is a different answer
     assert calls["n"] == 2
+
+
+def test_daily_quota_switches_model_then_raises_with_reset_time(tmp_path):
+    body = {
+        "error": {
+            "code": 429,
+            "message": "You exceeded your current quota. * Quota exceeded for metric: generate_content_free_tier_requests, limit: 500, model: lite, description: Generate content requests per day limit exceeded on Free Tier.\nPlease retry in 7h53m34.2s.",
+            "status": "RESOURCE_EXHAUSTED",
+        }
+    }
+    from canonkeeper.llm.client import DailyQuotaExhausted
+
+    seen: list[str] = []
+
+    def create(**kwargs):
+        seen.append(kwargs["model"])
+        raise RateLimitError("quota", response=_resp(429), body=body)
+
+    clk = FakeClock()
+    llm = OpenAICompatibleLLM(
+        "k",
+        "https://e.test/v1",
+        cache_dir=tmp_path / "c",
+        sleep=clk.sleep,
+        model_fallbacks={"lite": ["flash"]},
+        request_log=tmp_path / "r.jsonl",
+    )
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    with pytest.raises(DailyQuotaExhausted) as ei:
+        llm.complete("lite", [{"role": "user", "content": "a"}])
+    assert seen == ["lite", "flash"]  # one attempt each, no backoff dance
+    assert clk.slept == []
+    assert 7 * 3600 < ei.value.resets_in_s < 8 * 3600
+    assert "7h53m" in str(ei.value) and "cached" in str(ei.value)

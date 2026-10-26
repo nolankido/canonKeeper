@@ -181,6 +181,43 @@ class _Overloaded(Exception):
     """Raised inside the retry loop when a model has hit the 503 threshold and a fallback exists."""
 
 
+class DailyQuotaExhausted(RuntimeError):
+    """The free tier's requests-per-day cap is spent for every model on the ladder.
+    `resets_in_s` is the provider's own estimate; the cache means a later run resumes."""
+
+    def __init__(self, model: str, resets_in_s: float | None) -> None:
+        self.model = model
+        self.resets_in_s = resets_in_s
+        when = f"in {_fmt_duration(resets_in_s)}" if resets_in_s else "later today"
+        super().__init__(
+            f"daily request quota exhausted for {model} (and every fallback). It resets {when}; "
+            "run the same command again then — finished chunks are cached and are not re-sent."
+        )
+
+
+_RETRY_IN = re.compile(r"retry in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?", re.I)
+
+
+def _fmt_duration(sec: float | None) -> str:
+    if not sec:
+        return "?"
+    h, rem = divmod(int(sec), 3600)
+    m = rem // 60
+    return f"{h}h{m:02d}m" if h else f"{m}m"
+
+
+def _daily_quota_hit(exc: Exception) -> float | None:
+    """If this 429 is the per-day cap, return the provider's retry-in seconds (or 0)."""
+    text = str(getattr(exc, "body", None) or exc)
+    if "PerDay" not in text and "per day" not in text.lower():
+        return None
+    m = _RETRY_IN.search(text)
+    if not m:
+        return 0.0
+    h, mi, sec = (float(x) if x else 0.0 for x in m.groups())
+    return h * 3600 + mi * 60 + sec
+
+
 class OpenAICompatibleLLM:
     """Works against Gemini, Meta Model API, or any OpenAI-compatible endpoint."""
 
@@ -286,6 +323,18 @@ class OpenAICompatibleLLM:
                     error=f"{type(exc).__name__}: {detail[:1200]}",
                     latency_s=round(time.monotonic() - t0, 1),
                 )
+                daily = _daily_quota_hit(exc) if status == 429 else None
+                if daily is not None:
+                    self._overloaded.add(model)
+                    self._log(
+                        model=model,
+                        ok=False,
+                        status=429,
+                        error=f"daily quota exhausted; resets in {_fmt_duration(daily)}",
+                    )
+                    if self._next_model(model):
+                        raise _Overloaded(model) from exc
+                    raise DailyQuotaExhausted(model, daily) from exc
                 if status in (429, 503):
                     # Both mean "not now" on a free tier; after a few in a row, move down
                     # the ladder rather than burning the whole retry budget on one model.

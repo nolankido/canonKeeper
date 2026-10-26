@@ -30,6 +30,28 @@ from canonkeeper.models import AuditReport
 app = typer.Typer(add_completion=False, no_args_is_help=True, help=__doc__)
 
 
+def _today_usage(settings: Settings) -> dict[str, int]:
+    """Successful requests per model today (provider-local day ≈ Pacific for Gemini), from the
+    request log. Free tiers cap requests per day per model, so this is the number that matters."""
+    import json
+    from datetime import UTC, datetime, timedelta
+
+    log = settings.workdir / "requests.jsonl"
+    if not log.exists():
+        return {}
+    # Gemini's day boundary is midnight Pacific (UTC-7/-8); use UTC-8 as the conservative one.
+    today = (datetime.now(UTC) - timedelta(hours=8)).date().isoformat()
+    counts: dict[str, int] = {}
+    for line in log.read_text(encoding="utf-8").splitlines():
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if d.get("ok") and d.get("ts", "").startswith(today) and "latency_s" in d:
+            counts[d["model"]] = counts.get(d["model"], 0) + 1
+    return counts
+
+
 def _utf8_stdio() -> None:
     """Windows consoles default to a legacy code page; make stdout/stderr UTF-8 so Rich output
     (arrows, middle dots, curly quotes in quoted passages) never raises UnicodeEncodeError."""
@@ -46,6 +68,17 @@ console = Console()
 _DEMO_DEST = typer.Option(Path(".canonkeeper/demo"), help="Where to write the demo series")
 
 ManifestArg = Annotated[Path, typer.Argument(help="Path to series.json manifest")]
+
+
+def _run_or_explain(fn, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
+    """Run a pipeline step; on a spent daily quota print what to do instead of a traceback."""
+    from canonkeeper.llm.client import DailyQuotaExhausted
+
+    try:
+        return fn(*args, **kwargs)
+    except DailyQuotaExhausted as e:
+        console.print(f"[yellow]stopped:[/yellow] {e}")
+        raise typer.Exit(3) from None
 
 
 def _llm(settings: Settings, *, sends_text: bool = True):  # noqa: ANN202
@@ -120,6 +153,16 @@ def doctor(provider: str | None = None, workdir: Path | None = None) -> None:
         console.print(f"[red]key:[/red] {e}")
         raise typer.Exit(1) from None
     console.print("key:               present")
+    usage = _today_usage(settings)
+    if usage:
+        console.print(
+            "today's requests:  " + " · ".join(f"{m} {n}" for m, n in sorted(usage.items()))
+        )
+        if settings.provider == "gemini":
+            console.print(
+                "[dim]free-tier daily caps seen so far: flash-lite 500, 3.6/3.8 flash 20 per model; "
+                "reset at midnight Pacific[/dim]"
+            )
     import time
 
     for role, model in (
@@ -305,17 +348,17 @@ def build(
     series = _select_books(series, books)
     bible_path, _ = _paths(settings, m)
     llm = _llm(settings)
-    store = build_bible(series, llm, settings, bible_path)
+    store = _run_or_explain(build_bible, series, llm, settings, bible_path)
     console.print(
         f"[green]bible:[/green] {bible_path}  ({len(store)} claims, {len(store.entities())} entities)"
     )
     st = store.last_extract_stats
     if st is not None:
         console.print(
-            f"[dim]extraction: {st.chunks} chunks · {st.claims_raw} claims returned · "  # type: ignore[attr-defined]
-            f"{st.claims_kept} grounded · {st.dropped_ungrounded} dropped (quote not in text) · "  # type: ignore[attr-defined]
-            f"{st.dropped_invalid} invalid · {st.json_repaired} JSON repaired · "  # type: ignore[attr-defined]
-            f"{st.json_failed} chunks unreadable[/dim]"  # type: ignore[attr-defined]
+            f"[dim]extraction: {st.chunks} chunks · {st.claims_raw} claims returned · "
+            f"{st.claims_kept} grounded · {st.dropped_ungrounded} dropped (quote not in text) · "
+            f"{st.dropped_invalid} invalid · {st.json_repaired} JSON repaired · "
+            f"{st.json_failed} chunks unreadable[/dim]"
         )
     console.print(
         f"[dim]cost ${llm.usage.cost_usd:.3f} · {llm.usage.calls} calls ({llm.usage.cached_calls} cached)[/dim]"
@@ -342,7 +385,7 @@ def audit(
         raise typer.Exit(2)
     store = CanonStore.load(bible_path)
     llm = _llm(settings)
-    report = run_audit(series, store, llm, settings)
+    report = _run_or_explain(run_audit, series, store, llm, settings)
     html, _ = write_report(report, report_dir)
     _print_summary(report)
     console.print(f"[green]report:[/green] {html}")
@@ -372,7 +415,7 @@ def check(
         raise typer.Exit(2)
     store = CanonStore.load(bible_path)
     llm = _llm(settings)
-    report = check_manuscript(series, store, manuscript, llm, settings)
+    report = _run_or_explain(check_manuscript, series, store, manuscript, llm, settings)
     html, _ = write_report(report, report_dir / "check")
     _print_summary(report)
     console.print(f"[green]report:[/green] {html}")
@@ -403,7 +446,7 @@ def eval_cmd(
     llm = _llm(settings)
 
     console.rule("baseline (clean series)")
-    baseline = run_audit(series, clean_store, llm, settings)
+    baseline = _run_or_explain(run_audit, series, clean_store, llm, settings)
     baseline_ids = {finding_key(f) for f in baseline.errors}
     console.print(f"pre-existing contradictions in source: {len(baseline_ids)}")
 
@@ -416,8 +459,10 @@ def eval_cmd(
 
     eval_dir = report_dir / f"eval-seed{seed}"
     eval_dir.mkdir(parents=True, exist_ok=True)
-    mutated_store = build_bible(iset.series, llm, settings, eval_dir / "bible.jsonl", progress=True)
-    report = run_audit(iset.series, mutated_store, llm, settings)
+    mutated_store = _run_or_explain(
+        build_bible, iset.series, llm, settings, eval_dir / "bible.jsonl", progress=True
+    )
+    report = _run_or_explain(run_audit, iset.series, mutated_store, llm, settings)
     s = score(iset.injections, report.findings, baseline_ids=baseline_ids)
 
     console.rule("result")
