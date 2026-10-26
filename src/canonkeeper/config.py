@@ -53,7 +53,7 @@ class ProviderDefaults:
     # Free-tier Flash models also meter input tokens per minute (not published per model;
     # 250k is the historical figure). Stay under it so a long adjudication call is not
     # followed by a 429 for the next one.
-    tokens_per_minute: dict[str, int] = {"gemini": 200_000, "meta": 0, "openweights": 0, "mock": 0}
+    tokens_per_minute: dict[str, int] = {"gemini": 150_000, "meta": 0, "openweights": 0, "mock": 0}
     # Free-tier Gemini prompts are "used to improve our products" (pricing page). Public-domain
     # corpora: fine. Private manuscripts: not fine. The CLI warns when this is true.
     trains_on_prompts: dict[str, bool] = {
@@ -98,7 +98,7 @@ class Settings(BaseSettings):
     extract_chunk_tokens: int = 3500
     """Chapters longer than this are split before extraction. Smaller chunks get denser
     extraction from Flash-class models; with Flash-Lite at ~2 s a call the extra calls are cheap."""
-    adjudicate_context_tokens: int = 120_000
+    adjudicate_context_tokens: int = 60_000
     """Ceiling on series text passed to the adjudicator per call. 1M-context models can take a
     whole series, but free tiers also cap tokens per minute, so the default stays well under
     that; the chapters each batch's quotes came from always go in first. Raise it (up to

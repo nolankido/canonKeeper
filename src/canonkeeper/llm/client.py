@@ -272,7 +272,9 @@ class OpenAICompatibleLLM:
                     error=f"{type(exc).__name__}: {detail[:1200]}",
                     latency_s=round(time.monotonic() - t0, 1),
                 )
-                if status == 503:
+                if status in (429, 503):
+                    # Both mean "not now" on a free tier; after a few in a row, move down
+                    # the ladder rather than burning the whole retry budget on one model.
                     n = self._consecutive_503.get(model, 0) + 1
                     self._consecutive_503[model] = n
                     if n >= self._overload_threshold and self._next_model(model):
@@ -280,8 +282,8 @@ class OpenAICompatibleLLM:
                         self._log(
                             model=model,
                             ok=False,
-                            status=503,
-                            error="overloaded; switching to fallback model",
+                            status=status,
+                            error="unavailable; switching to fallback model",
                         )
                         raise _Overloaded(model) from exc
                 else:

@@ -241,6 +241,31 @@ def test_overloaded_model_falls_down_the_ladder(tmp_path):
     assert "switching to fallback" in (tmp_path / "r.jsonl").read_text()
 
 
+def test_mixed_429_and_503_still_climb_down_the_ladder(tmp_path):
+    calls = {"n": 0}
+
+    def create(**kwargs):
+        if kwargs["model"] == "busy":
+            calls["n"] += 1
+            if calls["n"] % 2:
+                raise InternalServerError("x", response=_resp(503), body=None)
+            raise RateLimitError("x", response=_resp(429), body=None)
+        return _completion("{}")
+
+    clk = FakeClock()
+    llm = OpenAICompatibleLLM(
+        "k",
+        "https://example.test/v1",
+        cache_dir=tmp_path / "c",
+        sleep=clk.sleep,
+        model_fallbacks={"busy": ["calm"]},
+        overload_threshold=3,
+    )
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    assert llm.complete("busy", [{"role": "user", "content": "a"}]) == "{}"
+    assert calls["n"] == 3
+
+
 def test_no_fallback_means_503s_surface_after_retries(tmp_path):
     def create(**kwargs):
         raise InternalServerError("overloaded", response=_resp(503), body=None)
