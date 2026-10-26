@@ -10,14 +10,18 @@ Show a one-star review complaining about a continuity slip. (Use a real but anon
 a paraphrase.)
 
 ## 0:20 — The famous one (Demo)
-Terminal. `canonkeeper audit evals/corpora/sherlock-holmes/series.json` on a pre-built bible with
-cache warm, so it finishes in seconds. Open the report. First finding:
+Terminal. `canonkeeper audit evals/corpora/sherlock-holmes/series.json` on the built bible with
+cache warm, so it finishes in seconds. Open the report. The only contradiction, severity high:
 
-> **Watson · wound_location** — "shoulder" (*A Study in Scarlet*, Part I, Ch. I) vs "leg"
-> (*The Sign of the Four*, Ch. I). Verdict: contradiction, high.
+> **John Watson · wound_location** — "struck on the shoulder by a Jezail bullet" (*A Study in
+> Scarlet*) · "His left arm has been injured" (*A Study in Scarlet*) · "sat nursing my wounded
+> leg" (*The Sign of the Four*) · "the jezail bullet which I had brought back in one of my
+> limbs" (*The Noble Bachelor*). Fix: in *The Sign of the Four*, "wounded leg" → "wounded arm".
 
-Say: "Readers have argued about this since 1890. It found it in under a minute, and it quotes
-both lines." Scroll to the John/James Watson finding and the Mrs. Hudson/Mrs. Turner finding.
+Say: "Readers have argued about this since 1890. Out of 2,331 facts and 26 suspects it found
+exactly this one, and it quotes all four lines." Then scroll to the *deliberate* verdicts: Holmes's
+dark eyes — "he is in disguise as an old master mariner; his true eye colour is grey." That is
+the judgement a spreadsheet can't make.
 
 ## 0:55 — How it works (Meta tooling, Technical depth)
 Architecture slide for 10 seconds: Spark extracts with mandatory quotes → local screen →

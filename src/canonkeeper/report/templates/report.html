@@ -53,7 +53,7 @@
     <div class="stat"><b>{{ r.candidates_total }}</b><span>candidates screened</span></div>
     <div class="stat"><b>{{ errors | length }}</b><span>contradictions</span></div>
     <div class="stat"><b>{{ r.findings | selectattr('verdict', 'equalto', 'deliberate') | list | length }}</b><span>deliberate reveals</span></div>
-    {% if r.cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % r.cost_usd }}</b><span>API cost</span></div>{% endif %}
+    {% if r.cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % r.cost_usd }}</b><span>list-price API cost</span></div>{% endif %}
   </div>
 
   <h2>Contradictions</h2>

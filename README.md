@@ -99,6 +99,25 @@ host — the right choice for manuscripts that must not leave your machine.
 > time it sends text through it. Public-domain corpora: fine. Unpublished manuscripts: use a
 > paid tier or a local model.
 
+## What it found in Sherlock Holmes
+
+Six Conan Doyle volumes from Project Gutenberg (457,890 words, 630k tokens), on the Gemini
+free tier, with no hints:
+
+| | |
+|---|---|
+| facts extracted | 2,331 across 420 entities (99.2% of returned claims grounded to a verbatim passage) |
+| candidate conflicts screened | 26 |
+| **contradiction** | **1, high: Watson's war wound** — "struck on the shoulder by a Jezail bullet" (*A Study in Scarlet*) vs "sat nursing my wounded leg" (*The Sign of the Four*) vs "the jezail bullet which I had brought back in one of my limbs" (*The Noble Bachelor*). Suggested fix, to the later book: change "wounded leg" to "wounded arm". |
+| deliberate | 2 — Holmes's "dark" eyes in *The Sign of the Four* (he is disguised as an old sailor); Lucy Ferrier's hair, golden at five and chestnut as a young woman |
+| not a conflict | 20 — flashbacks after a death, synonyms ("flaxen" / "fair"), and the bible's own mislabels, each explained |
+| list-price cost | $0.74 to read, $0.21 to judge |
+
+That is the continuity error readers have argued about since 1890, found unassisted, with both
+passages on the page. The two famous name slips are also captured as facts (Mrs. Hudson and
+Mrs. Turner are both recorded as the landlady; Mary Watson calls her husband James) but need
+heuristics the screen does not have yet.
+
 ## Does it actually work? The seeded-defect benchmark
 
 Eyeballing output is not evidence. `canonkeeper eval` takes a clean series and its bible,
@@ -112,12 +131,17 @@ from the false-positive count.
 canonkeeper eval evals/corpora/sherlock-holmes/series.json --n 20 --seed 0
 ```
 
-| corpus | injected | reported | TP | FP | FN | precision | recall | F1 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Sherlock Holmes (4 novels) | — | — | — | — | — | — | — | — |
+| corpus | run | injected | reported | TP | FP | FN | precision | recall | F1 |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Sherlock Holmes (6 volumes) | general pass only, low effort | 20 | 1 | 1 | 0 | 19 | 1.00 | 0.05 | 0.10 |
+| Sherlock Holmes (6 volumes) | + descriptive sweep, medium effort | *(running)* | | | | | | | |
 
-*Results land here once the extraction prompts are tuned; the harness is in place and runs green
-against the mock provider in CI.*
+The first number is bad, and it is the reason the harness exists: every one of the 19 misses
+was lost at **extraction**, not at judgement — a single planted sentence in a chapter about
+someone else was skipped by the general pass. A second, narrow extraction pass over
+descriptive facts and a higher reasoning budget took extraction recall on the planted chunks
+from 7/20 to 15/20 (`scripts/probe_extraction.py` measures that in two minutes without a
+full audit). The second row is the full pipeline with those changes.
 
 ## Project layout
 
