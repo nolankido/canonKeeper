@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 
@@ -26,24 +27,85 @@ class ExtractStats:
     dropped_invalid: int = 0
 
 
-def _ground(quote: str, text: str) -> tuple[int, int] | None:
-    """Return the char span of `quote` in `text`, exact first then fuzzy-window. None if absent."""
-    if not quote:
+_ELLIPSIS = re.compile(r"\s*(?:\[\s*\.\.\.\s*\]|\.\.\.|…)\s*")
+_WS = re.compile(r"\s+")
+
+
+def _collapse(text: str) -> tuple[str, list[int]]:
+    """Whitespace-collapsed copy of `text` plus a map from collapsed index → original index.
+    Gutenberg hard-wraps lines, so a quote that is verbatim in meaning still differs in
+    whitespace; matching on the collapsed form keeps the guard strict about words while
+    ignoring line breaks."""
+    out: list[str] = []
+    idx: list[int] = []
+    in_ws = False
+    for i, ch in enumerate(text):
+        if ch.isspace():
+            if not in_ws and out:
+                out.append(" ")
+                idx.append(i)
+            in_ws = True
+        else:
+            out.append(ch)
+            idx.append(i)
+            in_ws = False
+    if out and out[-1] == " ":
+        out.pop()
+        idx.pop()
+    return "".join(out), idx
+
+
+class Grounder:
+    """Locates verbatim quotes in a chunk. One instance per chunk; the collapsed text is
+    computed once."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.collapsed, self._idx = _collapse(text)
+
+    def _span(self, start: int, length: int) -> tuple[int, int]:
+        return self._idx[start], self._idx[start + length - 1] + 1
+
+    def find(self, quote: str) -> tuple[int, int, str] | None:
+        """Return (char_start, char_end, verbatim_quote) or None.
+
+        Order: exact → whitespace-collapsed exact → longest segment of an ellipsis-spliced
+        quote → fuzzy window (ratio ≥ 92) on the collapsed text. The returned quote is always
+        text that actually appears in the chunk (modulo line wrapping)."""
+        q = quote.strip()
+        if not q:
+            return None
+        i = self.text.find(q)
+        if i != -1:
+            return i, i + len(q), q
+        cq = _WS.sub(" ", q)
+        j = self.collapsed.find(cq)
+        if j != -1:
+            a, b = self._span(j, len(cq))
+            return a, b, cq
+        # Spliced quote ("…" / "[...]"): ground the longest segment we can.
+        segs = [x.strip() for x in _ELLIPSIS.split(cq) if len(x.strip()) >= 12]
+        for seg in sorted(segs, key=len, reverse=True):
+            k = self.collapsed.find(seg)
+            if k != -1:
+                a, b = self._span(k, len(seg))
+                return a, b, seg
+        # Fuzzy: best local alignment of the quote inside the collapsed text. Accepting a
+        # near miss is safe because the stored quote is the text at the aligned span, not the
+        # model's version of it.
+        if len(cq) < 20:
+            return None
+        al = fuzz.partial_ratio_alignment(cq, self.collapsed)
+        if al is not None and al.score >= 88 and al.dest_end > al.dest_start:
+            a, b = self._span(al.dest_start, al.dest_end - al.dest_start)
+            return a, b, self.collapsed[al.dest_start : al.dest_end]
         return None
-    i = text.find(quote)
-    if i != -1:
-        return i, i + len(quote)
-    # Fuzzy: scan windows of the same length in steps; accept >= 90 partial ratio.
-    n = len(quote)
-    step = max(20, n // 4)
-    best, best_i = 0.0, -1
-    for start in range(0, max(1, len(text) - n), step):
-        score = fuzz.ratio(quote, text[start : start + n])
-        if score > best:
-            best, best_i = score, start
-    if best >= 90:
-        return best_i, best_i + n
-    return None
+
+
+def _ground(quote: str, text: str) -> tuple[int, int] | None:
+    """Back-compat shim: span only."""
+    hit = Grounder(text).find(quote)
+    return (hit[0], hit[1]) if hit else None
 
 
 def _chunks(chapter: Chapter, settings: Settings) -> Iterator[tuple[str, int, str]]:
@@ -82,13 +144,15 @@ class Extractor:
         self.stats.chunks += 1
 
         claims: list[Claim] = []
+        grounder = Grounder(text)
         for c in data.get("claims", []) or []:
             self.stats.claims_raw += 1
-            quote = str(c.get("quote", "")).strip()
-            span = _ground(quote, text)
-            if span is None:
+            hit = grounder.find(str(c.get("quote", "")))
+            if hit is None:
                 self.stats.dropped_ungrounded += 1
                 continue
+            span = (hit[0], hit[1])
+            quote = hit[2]
             try:
                 kind = ClaimKind(str(c.get("kind", "attribute")).lower())
             except ValueError:

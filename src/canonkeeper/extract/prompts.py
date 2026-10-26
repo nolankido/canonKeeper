@@ -66,7 +66,7 @@ Semantics that matter
   "I" is the narrator's canonical name when known (e.g. John Watson).
 - The quote MUST appear verbatim in the chunk, exactly as written, including punctuation. If
   you cannot quote it, do not claim it. Keep quotes short: the sentence or clause that carries
-  the fact.
+  the fact. Never join two passages with "..." — one continuous passage per claim.
 - Skip only genuinely generic text: weather, unnamed passers-by, figures of speech.
 """
 

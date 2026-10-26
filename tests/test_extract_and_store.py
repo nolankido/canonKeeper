@@ -86,3 +86,32 @@ def test_store_dedupes_identical_claims(tmp_path):
     assert store.add(c) is True
     assert store.add(c) is False
     assert len(store) == 1
+
+
+def test_grounder_handles_line_wraps_splices_and_near_misses():
+    from canonkeeper.extract.extractor import Grounder
+
+    text = (
+        "There I was struck on the shoulder by a Jezail bullet, which\n"
+        "shattered the bone and grazed the subclavian artery. I should have\n"
+        "fallen into the hands of the murderous Ghazis had it not been for the\n"
+        "devotion and courage shown by Murray, my orderly.\n\n"
+        "Worn with pain, I was removed to the base hospital at Peshawar."
+    )
+    g = Grounder(text)
+    # exact
+    assert g.find("Murray, my orderly")[2] == "Murray, my orderly"
+    # the model writes a space where Gutenberg wrapped the line
+    a, b, q = g.find("a Jezail bullet, which shattered the bone")
+    assert text[a:b] == "a Jezail bullet, which\nshattered the bone"
+    assert q == "a Jezail bullet, which shattered the bone"
+    # spliced with an ellipsis: the longest verbatim segment is grounded and becomes the quote
+    a, b, q = g.find("struck on the shoulder by a Jezail bullet... base hospital at Peshawar")
+    assert q == "struck on the shoulder by a Jezail bullet"
+    assert text[a:b] == q
+    # a near miss (one wrong word) still grounds, and the stored quote is the real text
+    hit = g.find("grazed the subclavian vein. I should have fallen")
+    assert hit is not None and "artery" in hit[2]
+    # garbage does not
+    assert g.find("Holmes played the violin badly all afternoon") is None
+    assert g.find("") is None
