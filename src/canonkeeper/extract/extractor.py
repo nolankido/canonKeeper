@@ -13,7 +13,7 @@ from canonkeeper.config import Settings
 from canonkeeper.corpus import Book, Chapter, Series
 from canonkeeper.extract import prompts
 from canonkeeper.llm import LLM
-from canonkeeper.llm.client import parse_json
+from canonkeeper.llm.client import parse_json, repair_json
 from canonkeeper.models import Claim, ClaimKind, ExtractionResult, Provenance
 from canonkeeper.tokens import count_tokens, split_by_tokens
 
@@ -25,6 +25,8 @@ class ExtractStats:
     claims_kept: int = 0
     dropped_ungrounded: int = 0
     dropped_invalid: int = 0
+    json_repaired: int = 0
+    json_failed: int = 0
 
 
 _ELLIPSIS = re.compile(r"\s*(?:\[\s*\.\.\.\s*\]|\.\.\.|…)\s*")
@@ -190,7 +192,17 @@ class Extractor:
             json_mode=True,
             reasoning_effort=reasoning_effort or self.settings.extract_reasoning_effort,
         )
-        data = parse_json(raw)
+        try:
+            data = parse_json(raw)
+        except ValueError:
+            data = repair_json(self.llm, self.settings.extract_model, raw)
+            if data is None:
+                self.stats.json_failed += 1
+                self.stats.chunks += 1
+                return ExtractionResult(claims=[], aliases={})
+            self.stats.json_repaired += 1
+        if not isinstance(data, dict):
+            data = {}
         self.stats.chunks += 1
 
         claims: list[Claim] = []

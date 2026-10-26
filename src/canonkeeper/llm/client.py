@@ -446,16 +446,42 @@ def make_llm(settings: Settings, *, mock_handler: Callable[..., str] | None = No
 
 
 _FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
+_TRAILING_COMMA = re.compile(r",(\s*[}\]])")
+_CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 
 def parse_json(text: str) -> Any:
-    """Tolerant JSON parse: strips code fences and leading prose, finds the outermost object."""
+    """Tolerant JSON parse: strips code fences and surrounding prose, finds the outermost
+    object, removes trailing commas and stray control characters. Raises ValueError when the
+    text cannot be read as JSON at all."""
     cleaned = _FENCE.sub("", text.strip())
+    candidates = [cleaned]
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start != -1 and end > start:
+        candidates.append(cleaned[start : end + 1])
+    last: Exception | None = None
+    for cand in candidates:
+        for attempt in (cand, _TRAILING_COMMA.sub(r"\1", _CONTROL.sub("", cand))):
+            try:
+                return json.loads(attempt, strict=False)
+            except json.JSONDecodeError as e:
+                last = e
+    raise ValueError(f"not JSON: {last}")
+
+
+REPAIR_PROMPT = (
+    "The following was supposed to be a single valid JSON object but is malformed. Return the "
+    "same content as valid JSON and nothing else — no commentary, no code fences. Fix only "
+    "the syntax (quotes, commas, brackets, escaping); do not change or drop any values.\n\n"
+)
+
+
+def repair_json(llm: LLM, model: str, broken: str) -> Any | None:
+    """One cheap call asking the model to fix its own JSON. None if that fails too."""
     try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        start = cleaned.find("{")
-        end = cleaned.rfind("}")
-        if start == -1 or end == -1:
-            raise
-        return json.loads(cleaned[start : end + 1])
+        fixed = llm.complete(
+            model, [{"role": "user", "content": REPAIR_PROMPT + broken[:60_000]}], json_mode=True
+        )
+        return parse_json(fixed)
+    except Exception:  # noqa: BLE001 - the caller counts and skips
+        return None

@@ -313,7 +313,8 @@ def build(
         console.print(
             f"[dim]extraction: {st.chunks} chunks · {st.claims_raw} claims returned · "  # type: ignore[attr-defined]
             f"{st.claims_kept} grounded · {st.dropped_ungrounded} dropped (quote not in text) · "  # type: ignore[attr-defined]
-            f"{st.dropped_invalid} invalid[/dim]"  # type: ignore[attr-defined]
+            f"{st.dropped_invalid} invalid · {st.json_repaired} JSON repaired · "  # type: ignore[attr-defined]
+            f"{st.json_failed} chunks unreadable[/dim]"  # type: ignore[attr-defined]
         )
     console.print(
         f"[dim]cost ${llm.usage.cost_usd:.3f} · {llm.usage.calls} calls ({llm.usage.cached_calls} cached)[/dim]"

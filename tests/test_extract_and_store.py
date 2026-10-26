@@ -154,3 +154,37 @@ def test_alive_false_normalises_to_dead_true():
     assert normalize_claim("dead", "False") == ("alive", "true")
     assert normalize_claim("died", "none") == ("died", "true")
     assert normalize_claim("eye colour", "Gray") == ("eye_color", "grey")
+
+
+def test_parse_json_tolerates_fences_prose_trailing_commas():
+    from canonkeeper.llm.client import parse_json
+
+    assert parse_json('```json\n{"a": 1}\n```') == {"a": 1}
+    assert parse_json('Sure! Here it is: {"a": [1, 2,], "b": {"c": 3,},}') == {
+        "a": [1, 2],
+        "b": {"c": 3},
+    }
+    assert parse_json('{"q": "line\nbreak"}') == {"q": "line\nbreak"}
+    import pytest
+
+    with pytest.raises(ValueError):
+        parse_json("{'single': 'quotes'")
+
+
+def test_extractor_repairs_bad_json_via_model_and_skips_hopeless_chunks(series, settings):
+    calls = {"n": 0}
+
+    def handler(model, messages):
+        calls["n"] += 1
+        content = messages[-1]["content"]
+        if content.startswith("The following was supposed to be"):
+            return '{"claims": [], "aliases": {}}'  # the repair call
+        if "Alice Grey has green eyes." in content:
+            return "{'claims': broken"  # malformed → repaired
+        return "total garbage"  # malformed, and the repair handler returns garbage too? no: repair returns valid
+
+    ext = Extractor(MockLLM(handler), settings)
+    ext.extract_series(series, progress=False)
+    assert ext.stats.json_repaired >= 1
+    assert ext.stats.json_failed == 0
+    assert ext.stats.chunks > 0
