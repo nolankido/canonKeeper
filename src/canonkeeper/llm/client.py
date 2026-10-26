@@ -77,8 +77,15 @@ class LLM(Protocol):
     def complete(self, model: str, messages: list[Message], *, json_mode: bool = False) -> str: ...
 
 
-def _cache_key(model: str, messages: list[Message], json_mode: bool) -> str:
-    raw = json.dumps({"m": model, "msgs": messages, "j": json_mode}, sort_keys=True)
+def _cache_key(
+    model: str, messages: list[Message], json_mode: bool, effort: str | None = None
+) -> str:
+    """Cache key over everything that changes the answer. The default effort ("low" or unset)
+    is left out of the key so entries written before effort was configurable stay valid."""
+    payload: dict[str, Any] = {"m": model, "msgs": messages, "j": json_mode}
+    if effort and effort != "low":
+        payload["e"] = effort
+    raw = json.dumps(payload, sort_keys=True)
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -311,9 +318,11 @@ class OpenAICompatibleLLM:
 
     def complete(self, model: str, messages: list[Message], *, json_mode: bool = False) -> str:
         # Cache: the requested model first, then anything on its ladder we may have used before.
+        effort_req = self._reasoning_effort.get(model)
         if self._cache_dir:
             for m in [model, *self._fallbacks.get(model, [])]:
-                hit = self._cache_dir / f"{_cache_key(m, messages, json_mode)}.json"
+                e = self._reasoning_effort.get(m) or effort_req
+                hit = self._cache_dir / f"{_cache_key(m, messages, json_mode, e)}.json"
                 if hit.exists():
                     data = json.loads(hit.read_text(encoding="utf-8"))
                     self.usage.add(m, 0, 0, cached=True)
@@ -340,7 +349,7 @@ class OpenAICompatibleLLM:
                 if not nxt:
                     raise
                 model = nxt
-        key = _cache_key(model, messages, json_mode)
+        key = _cache_key(model, messages, json_mode, effort)
         content = resp.choices[0].message.content or ""
         usage = resp.usage
         self.usage.add(

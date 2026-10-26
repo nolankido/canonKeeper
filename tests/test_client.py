@@ -283,3 +283,36 @@ def test_rate_limiter_meters_tokens_too():
     assert rl.wait(30_000) > 59  # would exceed 100k in the window → waits for the first to age out
     assert rl.wait(150_000) > 59  # waits for the window to empty, then an oversized call may go
     assert rl.wait(5_000) > 59  # ...and the next one waits for it to age out again
+
+
+def test_reasoning_effort_is_part_of_the_cache_key_except_the_default(tmp_path):
+    calls = {"n": 0}
+
+    def create(**kwargs):
+        calls["n"] += 1
+        return _completion(kwargs.get("reasoning_effort", "none"))
+
+    clk = FakeClock()
+    msgs = [{"role": "user", "content": "x"}]
+    low = OpenAICompatibleLLM(
+        "k",
+        "https://e.test/v1",
+        cache_dir=tmp_path / "c",
+        sleep=clk.sleep,
+        reasoning_effort={"m": "low"},
+    )
+    low._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    assert low.complete("m", msgs) == "low"
+    none = OpenAICompatibleLLM("k", "https://e.test/v1", cache_dir=tmp_path / "c", sleep=clk.sleep)
+    none._client = low._client
+    assert none.complete("m", msgs) == "low"  # default effort shares the key with "low"
+    med = OpenAICompatibleLLM(
+        "k",
+        "https://e.test/v1",
+        cache_dir=tmp_path / "c",
+        sleep=clk.sleep,
+        reasoning_effort={"m": "medium"},
+    )
+    med._client = low._client
+    assert med.complete("m", msgs) == "medium"  # a different effort is a different answer
+    assert calls["n"] == 2
