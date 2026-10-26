@@ -131,3 +131,121 @@ def normalize_value(v: str, predicate: str | None = None) -> str:
     if m:
         return m.group(1)
     return VALUE_SYNONYMS.get(low, low)
+
+
+# Demonym → country/region, for comparing `nationality` against `birthplace`. Small on purpose:
+# a conflict is only raised when both sides map to a known place and the places differ.
+DEMONYMS: dict[str, str] = {
+    "english": "england",
+    "englishman": "england",
+    "englishwoman": "england",
+    "scottish": "scotland",
+    "scot": "scotland",
+    "scotsman": "scotland",
+    "welsh": "wales",
+    "welshman": "wales",
+    "irish": "ireland",
+    "irishman": "ireland",
+    "british": "britain",
+    "briton": "britain",
+    "american": "united states",
+    "yankee": "united states",
+    "french": "france",
+    "frenchman": "france",
+    "german": "germany",
+    "italian": "italy",
+    "spanish": "spain",
+    "spaniard": "spain",
+    "russian": "russia",
+    "greek": "greece",
+    "dutch": "netherlands",
+    "dutchman": "netherlands",
+    "swiss": "switzerland",
+    "norwegian": "norway",
+    "swedish": "sweden",
+    "danish": "denmark",
+    "australian": "australia",
+    "canadian": "canada",
+    "indian": "india",
+    "chinese": "china",
+    "japanese": "japan",
+    "bohemian": "bohemia",
+}
+
+# Places inside a country, so "born in Pershore" does not contradict "an Englishman".
+REGIONS: dict[str, str] = {
+    "england": "england",
+    "london": "england",
+    "worcestershire": "england",
+    "pershore": "england",
+    "devonshire": "england",
+    "devon": "england",
+    "norfolk": "england",
+    "sussex": "england",
+    "yorkshire": "england",
+    "kent": "england",
+    "surrey": "england",
+    "hampshire": "england",
+    "portsmouth": "england",
+    "birmingham": "england",
+    "chesterfield": "england",
+    "wales": "wales",
+    "cardiff": "wales",
+    "swansea": "wales",
+    "scotland": "scotland",
+    "edinburgh": "scotland",
+    "glasgow": "scotland",
+    "aberdeen": "scotland",
+    "ireland": "ireland",
+    "dublin": "ireland",
+    "belfast": "ireland",
+    "britain": "britain",
+    "great britain": "britain",
+    "united states": "united states",
+    "america": "united states",
+    "usa": "united states",
+    "cleveland": "united states",
+    "ohio": "united states",
+    "utah": "united states",
+    "california": "united states",
+    "pennsylvania": "united states",
+    "new york": "united states",
+    "france": "france",
+    "paris": "france",
+    "montpellier": "france",
+    "germany": "germany",
+    "berlin": "germany",
+    "frankfort": "germany",
+    "australia": "australia",
+    "ballarat": "australia",
+    "victoria": "australia",
+    "greece": "greece",
+    "athens": "greece",
+    "india": "india",
+    "bombay": "india",
+    "agra": "india",
+}
+
+_COUNTRY_OF = {"england": "britain", "wales": "britain", "scotland": "britain"}
+
+
+def place_country(value: str) -> str | None:
+    """Country for a birthplace or nationality value, or None if unknown."""
+    v = value.strip().lower()
+    for part in [v, *v.replace(",", " ").split()]:
+        if part in DEMONYMS:
+            return DEMONYMS[part]
+        if part in REGIONS:
+            return REGIONS[part]
+    return None
+
+
+def same_country(a: str, b: str) -> bool | None:
+    """True/False when both map to a known country; None when either is unknown.
+    England/Wales/Scotland each count as agreeing with Britain."""
+    ca, cb = place_country(a), place_country(b)
+    if ca is None or cb is None:
+        return None
+    if ca == cb:
+        return True
+    return _COUNTRY_OF.get(ca, ca) == _COUNTRY_OF.get(cb, cb) and "britain" in (ca, cb)

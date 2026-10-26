@@ -74,7 +74,14 @@ class Usage:
 class LLM(Protocol):
     usage: Usage
 
-    def complete(self, model: str, messages: list[Message], *, json_mode: bool = False) -> str: ...
+    def complete(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        json_mode: bool = False,
+        reasoning_effort: str | None = None,
+    ) -> str: ...
 
 
 def _cache_key(
@@ -316,12 +323,19 @@ class OpenAICompatibleLLM:
                     delay = min(60.0, 2.0**attempt) + random.uniform(0, 1)
                 self._sleep(delay)
 
-    def complete(self, model: str, messages: list[Message], *, json_mode: bool = False) -> str:
+    def complete(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        json_mode: bool = False,
+        reasoning_effort: str | None = None,
+    ) -> str:
         # Cache: the requested model first, then anything on its ladder we may have used before.
-        effort_req = self._reasoning_effort.get(model)
+        effort_req = reasoning_effort or self._reasoning_effort.get(model)
         if self._cache_dir:
             for m in [model, *self._fallbacks.get(model, [])]:
-                e = self._reasoning_effort.get(m) or effort_req
+                e = reasoning_effort or self._reasoning_effort.get(m) or effort_req
                 hit = self._cache_dir / f"{_cache_key(m, messages, json_mode, e)}.json"
                 if hit.exists():
                     data = json.loads(hit.read_text(encoding="utf-8"))
@@ -338,7 +352,11 @@ class OpenAICompatibleLLM:
             }
             if json_mode and self._json_mode_supported is not False:
                 kwargs["response_format"] = {"type": "json_object"}
-            effort = self._reasoning_effort.get(model) or self._reasoning_effort.get(requested)
+            effort = (
+                reasoning_effort
+                or self._reasoning_effort.get(model)
+                or self._reasoning_effort.get(requested)
+            )
             if effort and self._reasoning_supported is not False:
                 kwargs["reasoning_effort"] = effort
             try:
@@ -378,7 +396,14 @@ class MockLLM:
         self.usage = Usage()
         self.calls: list[tuple[str, list[Message]]] = []
 
-    def complete(self, model: str, messages: list[Message], *, json_mode: bool = False) -> str:
+    def complete(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        json_mode: bool = False,
+        reasoning_effort: str | None = None,
+    ) -> str:
         self.calls.append((model, messages))
         out = self._handler(model, messages)
         self.usage.add(model, sum(len(m["content"]) // 4 for m in messages), len(out) // 4, False)

@@ -52,11 +52,20 @@ def _hit(inj: Injection, f: Finding) -> bool:
         return f.candidate.heuristic == "dead_speaks" or any(
             c.predicate in {"dead", "died"} for c in f.candidate.claims
         )
-    pred_ok = any(c.predicate == inj.predicate for c in f.candidate.claims)
-    val_ok = any(
-        fuzz.partial_ratio(c.object.lower(), inj.injected.lower()) >= 85 for c in f.candidate.claims
-    )
-    return pred_ok and val_ok
+    from canonkeeper.canon.normalize import same_country
+
+    origin = {"nationality", "birthplace"}
+    for c in f.candidate.claims:
+        pred_ok = c.predicate == inj.predicate or (
+            c.predicate in origin and inj.predicate in origin
+        )
+        if not pred_ok:
+            continue
+        if fuzz.partial_ratio(c.object.lower(), inj.injected.lower()) >= 85:
+            return True
+        if inj.predicate in origin and same_country(c.object, inj.injected) is True:
+            return True
+    return False
 
 
 def score(

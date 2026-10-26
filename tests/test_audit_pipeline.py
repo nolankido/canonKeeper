@@ -58,3 +58,57 @@ def test_eval_harness_scores_injected_defects(series, settings, mock_llm, tmp_pa
     # so everything plantable in this fixture should be recovered.
     assert s.recall == 1.0, (s.missed, [f.candidate.reason for f in report.findings])
     assert "| injected |" in s.markdown()
+
+
+def test_origin_mismatch_compares_nationality_with_birthplace_by_country(tmp_path):
+    from canonkeeper.audit.candidates import origin_mismatch
+    from canonkeeper.canon import CanonStore
+    from canonkeeper.canon.normalize import same_country
+    from canonkeeper.models import Claim, ClaimKind, Provenance
+
+    assert same_country("Welsh", "Cardiff") is True
+    assert same_country("an Englishman", "Pershore") is True
+    assert same_country("English", "Britain") is True
+    assert same_country("German", "Wales") is False
+    assert same_country("Martian", "Wales") is None
+
+    store = CanonStore(tmp_path / "b.jsonl")
+    prov = Provenance(book="01", book_index=0, chapter="I", chapter_index=0, quote="q")
+    store.add(
+        Claim(
+            kind=ClaimKind.ATTRIBUTE,
+            subject="Dr. Becher",
+            predicate="nationality",
+            object="german",
+            provenance=prov,
+        )
+    )
+    store.add(
+        Claim(
+            kind=ClaimKind.ATTRIBUTE,
+            subject="Dr. Becher",
+            predicate="birthplace",
+            object="wales",
+            provenance=prov.model_copy(update={"quote": "q2", "book": "02", "book_index": 1}),
+        )
+    )
+    store.add(
+        Claim(
+            kind=ClaimKind.ATTRIBUTE,
+            subject="Jonathan Small",
+            predicate="nationality",
+            object="englishman",
+            provenance=prov,
+        )
+    )
+    store.add(
+        Claim(
+            kind=ClaimKind.ATTRIBUTE,
+            subject="Jonathan Small",
+            predicate="birthplace",
+            object="pershore",
+            provenance=prov.model_copy(update={"quote": "q3"}),
+        )
+    )
+    hits = origin_mismatch(store)
+    assert len(hits) == 1 and hits[0].claims[0].subject == "Dr. Becher"

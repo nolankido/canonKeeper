@@ -167,6 +167,7 @@ class Extractor:
         note: str,
         *,
         system: str = prompts.SYSTEM,
+        reasoning_effort: str | None = None,
     ) -> ExtractionResult:
         messages = [
             {"role": "system", "content": system},
@@ -183,7 +184,12 @@ class Extractor:
                 ),
             },
         ]
-        raw = self.llm.complete(self.settings.extract_model, messages, json_mode=True)
+        raw = self.llm.complete(
+            self.settings.extract_model,
+            messages,
+            json_mode=True,
+            reasoning_effort=reasoning_effort or self.settings.extract_reasoning_effort,
+        )
         data = parse_json(raw)
         self.stats.chunks += 1
 
@@ -241,12 +247,21 @@ class Extractor:
             for book in series.books:
                 for chapter in book.chapters:
                     for text, offset, note in _chunks(chapter, self.settings):
-                        passes = [prompts.SYSTEM]
+                        passes = [(prompts.SYSTEM, self.settings.extract_reasoning_effort)]
                         if self.settings.extract_sweep:
-                            passes.append(prompts.SWEEP_SYSTEM)
-                        for system in passes:
+                            passes.append(
+                                (prompts.SWEEP_SYSTEM, self.settings.extract_sweep_reasoning_effort)
+                            )
+                        for system, effort in passes:
                             res = self.extract_chunk(
-                                series.name, book, chapter, text, offset, note, system=system
+                                series.name,
+                                book,
+                                chapter,
+                                text,
+                                offset,
+                                note,
+                                system=system,
+                                reasoning_effort=effort,
                             )
                             all_claims.extend(res.claims)
                             for k, v in res.aliases.items():

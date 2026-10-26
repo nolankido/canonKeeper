@@ -67,8 +67,13 @@ def main() -> None:
             continue
         ch, text, offset = target
         row: dict[str, bool] = {"found_chunk": True}
-        for name, system in (("general", prompts.SYSTEM), ("sweep", prompts.SWEEP_SYSTEM)):
-            res = ext.extract_chunk(series.name, book, ch, text, offset, "", system=system)
+        for name, system, effort in (
+            ("general", prompts.SYSTEM, settings.extract_reasoning_effort),
+            ("sweep", prompts.SWEEP_SYSTEM, settings.extract_sweep_reasoning_effort),
+        ):
+            res = ext.extract_chunk(
+                series.name, book, ch, text, offset, "", system=system, reasoning_effort=effort
+            )
             hit = False
             for c in res.claims:
                 pred, val = normalize_claim(c.predicate, c.object)

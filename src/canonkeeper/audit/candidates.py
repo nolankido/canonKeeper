@@ -63,8 +63,12 @@ def _norm(v: str) -> str:
 
 
 def _same_value(a: str, b: str) -> bool:
+    from canonkeeper.canon.normalize import same_country
+
     na, nb = _norm(a), _norm(b)
     if na == nb:
+        return True
+    if same_country(na, nb) is True:
         return True
     if na in nb or nb in na:  # "shoulder" vs "left shoulder" is not a contradiction
         return True
@@ -197,8 +201,49 @@ def name_drift(store: CanonStore) -> list[Candidate]:
     return out
 
 
+def origin_mismatch(store: CanonStore) -> list[Candidate]:
+    """`nationality` says one country, `birthplace` says another. Different slots, so the
+    slot screen never compares them; a demonym table does. Also catches a nationality that
+    disagrees with another nationality claim by country ("Welsh" vs "German")."""
+    from canonkeeper.canon.normalize import same_country
+
+    out: list[Candidate] = []
+    slots = store.slots()
+    for entity in store.entities():
+        key = entity.lower()
+        origin = [c for p in ("nationality", "birthplace") for c in slots.get((key, p), [])]
+        if len(origin) < 2:
+            continue
+        seen: set[frozenset[str]] = set()
+        for a, b in combinations(origin, 2):
+            if a.predicate == b.predicate == "birthplace":
+                continue  # slot_mismatch already covers two birthplaces
+            pair = frozenset((a.id, b.id))
+            if pair in seen:
+                continue
+            seen.add(pair)
+            if same_country(a.object, b.object) is False:
+                out.append(
+                    Candidate(
+                        claims=[a, b],
+                        reason=(
+                            f"{a.subject}.{a.predicate} is '{a.object}' ({a.provenance.locator}) "
+                            f"but {b.predicate} is '{b.object}' ({b.provenance.locator})"
+                        ),
+                        heuristic="origin_mismatch",
+                    )
+                )
+    return out
+
+
 def find_candidates(store: CanonStore) -> list[Candidate]:
-    cands = slot_mismatch(store) + dead_speaks(store) + timeline(store) + name_drift(store)
+    cands = (
+        slot_mismatch(store)
+        + dead_speaks(store)
+        + timeline(store)
+        + name_drift(store)
+        + origin_mismatch(store)
+    )
     # De-duplicate on the claim-id pair.
     seen: set[frozenset[str]] = set()
     uniq: list[Candidate] = []

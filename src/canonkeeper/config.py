@@ -92,9 +92,12 @@ class Settings(BaseSettings):
     """Run a second, narrow extraction pass per chunk for descriptive/origin/life-state facts.
     The general pass alone missed most single-sentence facts planted by the benchmark;
     the sweep roughly doubles extraction calls, which on Flash-Lite is cheap."""
-    extract_reasoning_effort: str = "low"
-    """`reasoning_effort` sent with extraction calls. Extraction is transcription, not
-    reasoning; a thinking model left on its default budget spends minutes per chunk."""
+    extract_reasoning_effort: str = "medium"
+    """`reasoning_effort` for the general extraction pass. On the Holmes benchmark, medium
+    doubled recall of planted single-sentence facts over low (14/20 vs 7/20) at ~10 s a call
+    on Flash-Lite; the model's default budget is far slower still."""
+    extract_sweep_reasoning_effort: str = "low"
+    """Effort for the narrow sweep pass, which is a scan rather than a judgement."""
     adjudicate_reasoning_effort: str = "medium"
     """Adjudication is where thinking pays. Raise to "high" for the final run."""
 
