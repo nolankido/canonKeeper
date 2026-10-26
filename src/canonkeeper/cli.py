@@ -27,6 +27,20 @@ from canonkeeper.llm import make_llm
 from canonkeeper.models import AuditReport
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, help=__doc__)
+
+
+def _utf8_stdio() -> None:
+    """Windows consoles default to a legacy code page; make stdout/stderr UTF-8 so Rich output
+    (arrows, middle dots, curly quotes in quoted passages) never raises UnicodeEncodeError."""
+    import contextlib
+    import sys
+
+    for stream in (sys.stdout, sys.stderr):
+        with contextlib.suppress(AttributeError, ValueError):
+            stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+
+
+_utf8_stdio()
 console = Console()
 _DEMO_DEST = typer.Option(Path(".canonkeeper/demo"), help="Where to write the demo series")
 
