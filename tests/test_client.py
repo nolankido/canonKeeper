@@ -249,3 +249,12 @@ def test_no_fallback_means_503s_surface_after_retries(tmp_path):
     with pytest.raises(InternalServerError):
         llm.complete("m", [{"role": "user", "content": "a"}])
     assert len(clk.slept) == 2
+
+
+def test_rate_limiter_meters_tokens_too():
+    clk = FakeClock()
+    rl = RateLimiter(10, 100_000, clock=clk.now, sleep=clk.sleep)
+    assert rl.wait(80_000) == 0.0
+    assert rl.wait(30_000) > 59  # would exceed 100k in the window → waits for the first to age out
+    assert rl.wait(150_000) > 59  # waits for the window to empty, then an oversized call may go
+    assert rl.wait(5_000) > 59  # ...and the next one waits for it to age out again

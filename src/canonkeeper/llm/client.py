@@ -83,37 +83,52 @@ def _cache_key(model: str, messages: list[Message], json_mode: bool) -> str:
 
 
 class RateLimiter:
-    """Sliding-window limiter: at most `rpm` calls in any 60 s window. Thread-safe."""
+    """Sliding-window limiter on requests per minute and tokens per minute. Thread-safe.
+
+    Free tiers meter both. A 150k-token adjudication call is one request but most of a
+    minute's token budget, so a second one right behind it gets a 429 even at 2 RPM."""
 
     def __init__(
         self,
         rpm: int,
+        tpm: int = 0,
         *,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.rpm = rpm
+        self.tpm = tpm
         self._clock = clock
         self._sleep = sleep
-        self._times: deque[float] = deque()
+        self._events: deque[tuple[float, int]] = deque()  # (time, tokens)
         self._lock = threading.Lock()
 
-    def wait(self) -> float:
-        """Block until a call is allowed; return seconds slept."""
-        if self.rpm <= 0:
+    def wait(self, tokens: int = 0) -> float:
+        """Block until a call of `tokens` input tokens is allowed; return seconds slept."""
+        if self.rpm <= 0 and self.tpm <= 0:
             return 0.0
         slept = 0.0
         with self._lock:
             while True:
                 now = self._clock()
-                while self._times and now - self._times[0] >= 60.0:
-                    self._times.popleft()
-                if len(self._times) < self.rpm:
-                    self._times.append(now)
+                while self._events and now - self._events[0][0] >= 60.0:
+                    self._events.popleft()
+                n = len(self._events)
+                used = sum(t for _, t in self._events)
+                rpm_ok = self.rpm <= 0 or n < self.rpm
+                tpm_ok = self.tpm <= 0 or used + tokens <= self.tpm or (n == 0)
+                if rpm_ok and tpm_ok:
+                    self._events.append((now, tokens))
                     return slept
-                delay = 60.0 - (now - self._times[0]) + 0.05
+                delay = 60.0 - (now - self._events[0][0]) + 0.05
                 self._sleep(delay)
                 slept += delay
+
+
+def _approx_tokens(messages: list[Message]) -> int:
+    from canonkeeper.tokens import count_tokens
+
+    return sum(count_tokens(m.get("content", "")) for m in messages) + 16 * len(messages)
 
 
 def _retry_after_seconds(exc: Exception) -> float | None:
@@ -164,6 +179,7 @@ class OpenAICompatibleLLM:
         temperature: float = 0.0,
         timeout_s: float = 180.0,
         requests_per_minute: int = 0,
+        tokens_per_minute: int = 0,
         max_retries: int = 6,
         reasoning_effort: dict[str, str] | None = None,
         request_log: Path | None = None,
@@ -177,7 +193,7 @@ class OpenAICompatibleLLM:
         self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout_s, max_retries=0)
         self._cache_dir = cache_dir
         self._temperature = temperature
-        self._limiter = RateLimiter(requests_per_minute, sleep=sleep)
+        self._limiter = RateLimiter(requests_per_minute, tokens_per_minute, sleep=sleep)
         self._max_retries = max_retries
         self._sleep = sleep
         self._json_mode_supported: bool | None = None
@@ -226,8 +242,9 @@ class OpenAICompatibleLLM:
     def _create(self, kwargs: dict[str, Any]) -> Any:
         attempt = 0
         model = kwargs.get("model", "?")
+        approx = _approx_tokens(kwargs.get("messages", []))
         while True:
-            waited = self._limiter.wait()
+            waited = self._limiter.wait(approx)
             t0 = time.monotonic()
             try:
                 resp = self._client.chat.completions.create(**kwargs)
@@ -252,7 +269,7 @@ class OpenAICompatibleLLM:
                     attempt=attempt,
                     ok=False,
                     status=status,
-                    error=f"{type(exc).__name__}: {detail[:300]}",
+                    error=f"{type(exc).__name__}: {detail[:1200]}",
                     latency_s=round(time.monotonic() - t0, 1),
                 )
                 if status == 503:
@@ -381,6 +398,7 @@ def make_llm(settings: Settings, *, mock_handler: Callable[..., str] | None = No
         temperature=settings.temperature,
         timeout_s=settings.request_timeout_s,
         requests_per_minute=settings.requests_per_minute,
+        tokens_per_minute=settings.tokens_per_minute,
         max_retries=settings.max_retries,
         reasoning_effort={
             settings.extract_model: settings.extract_reasoning_effort,
