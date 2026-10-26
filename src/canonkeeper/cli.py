@@ -32,6 +32,18 @@ _DEMO_DEST = typer.Option(Path(".canonkeeper/demo"), help="Where to write the de
 ManifestArg = Annotated[Path, typer.Argument(help="Path to series.json manifest")]
 
 
+def _llm(settings: Settings, *, sends_text: bool = True):  # noqa: ANN202
+    """Build the LLM and, when the provider may train on prompts, say so once per command."""
+    llm = make_llm(settings)
+    if sends_text and settings.trains_on_prompts:
+        console.print(
+            "[yellow]note:[/yellow] the Gemini free tier may use prompts to improve Google's "
+            "products. Fine for public-domain corpora; do not send unpublished manuscripts "
+            "through it. Use a paid tier or --provider openweights (Ollama / LM Studio) for those."
+        )
+    return llm
+
+
 def _settings(provider: str | None, workdir: Path | None) -> Settings:
     overrides: dict[str, object] = {}
     if provider:
@@ -65,6 +77,63 @@ def _main(
     version: bool = typer.Option(False, "--version", callback=_version, is_eager=True),
 ) -> None:
     """Series-continuity engine: give it the whole series, it finds the contradictions."""
+
+
+@app.command()
+def doctor(provider: str | None = None, workdir: Path | None = None) -> None:
+    """Check the configured provider: key present, endpoint reachable, model answers, pacing."""
+    settings = _settings(provider, workdir)
+    console.print(f"provider:          {settings.provider}")
+    console.print(f"base url:          {settings.base_url or '(none)'}")
+    console.print(f"extract model:     {settings.extract_model}")
+    console.print(f"adjudicate model:  {settings.adjudicate_model}")
+    console.print(
+        f"pacing:            {settings.requests_per_minute or 'unlimited'} requests/min · "
+        f"{settings.max_retries} retries with backoff"
+    )
+    if settings.trains_on_prompts:
+        console.print(
+            "prompt privacy:    [yellow]free tier may train on prompts — public-domain text only[/yellow]"
+        )
+    if settings.provider == "mock":
+        console.print("[green]ok[/green] mock provider needs nothing")
+        return
+    try:
+        llm = make_llm(settings)
+    except RuntimeError as e:
+        console.print(f"[red]key:[/red] {e}")
+        raise typer.Exit(1) from None
+    console.print("key:               present")
+    import time
+
+    for role, model in (
+        ("extract", settings.extract_model),
+        ("adjudicate", settings.adjudicate_model),
+    ):
+        t0 = time.monotonic()
+        try:
+            out = llm.complete(
+                model,
+                [
+                    {
+                        "role": "user",
+                        "content": 'Reply with exactly this JSON and nothing else: {"ok": true}',
+                    }
+                ],
+                json_mode=True,
+            )
+        except Exception as e:  # noqa: BLE001
+            console.print(f"[red]{role} ({model}) failed:[/red] {type(e).__name__}: {e}")
+            raise typer.Exit(1) from None
+        ms = (time.monotonic() - t0) * 1000
+        ok = '"ok"' in out
+        console.print(
+            f"[{'green' if ok else 'yellow'}]{role} ({model}):[/{'green' if ok else 'yellow'}] "
+            f"{'answered' if ok else 'answered oddly'} in {ms:.0f} ms → {out.strip()[:60]!r}"
+        )
+    console.print(
+        f"[dim]list-price cost of this check: ${llm.usage.cost_usd:.5f} · retries: {llm.usage.retries}[/dim]"
+    )
 
 
 @app.command()
@@ -152,7 +221,7 @@ def demo(
     bible_path, report_dir = _paths(settings, m)
     if bible_path.exists():
         bible_path.unlink()
-    llm = make_llm(settings)
+    llm = _llm(settings)
 
     console.rule(f"[bold]{m.series}[/bold] — {len(series.books)} books, {series.words:,} words")
     console.print("planted errors:")
@@ -197,7 +266,7 @@ def build(manifest: ManifestArg, provider: str | None = None, workdir: Path | No
     settings = _settings(provider, workdir)
     m, series = _load(manifest, settings)
     bible_path, _ = _paths(settings, m)
-    llm = make_llm(settings)
+    llm = _llm(settings)
     store = build_bible(series, llm, settings, bible_path)
     console.print(
         f"[green]bible:[/green] {bible_path}  ({len(store)} claims, {len(store.entities())} entities)"
@@ -226,7 +295,7 @@ def audit(
         console.print("[red]no bible yet — run `canonkeeper build` first[/red]")
         raise typer.Exit(2)
     store = CanonStore.load(bible_path)
-    llm = make_llm(settings)
+    llm = _llm(settings)
     report = run_audit(series, store, llm, settings)
     html, _ = write_report(report, report_dir)
     _print_summary(report)
@@ -256,7 +325,7 @@ def check(
         console.print("[red]no bible yet — run `canonkeeper build` first[/red]")
         raise typer.Exit(2)
     store = CanonStore.load(bible_path)
-    llm = make_llm(settings)
+    llm = _llm(settings)
     report = check_manuscript(series, store, manuscript, llm, settings)
     html, _ = write_report(report, report_dir / "check")
     _print_summary(report)
@@ -285,7 +354,7 @@ def eval_cmd(
         console.print("[red]no bible yet — run `canonkeeper build` first[/red]")
         raise typer.Exit(2)
     clean_store = CanonStore.load(bible_path)
-    llm = make_llm(settings)
+    llm = _llm(settings)
 
     console.rule("baseline (clean series)")
     baseline = run_audit(series, clean_store, llm, settings)

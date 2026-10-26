@@ -44,4 +44,9 @@ def fetch_gutenberg(book_id: int, cache_dir: Path) -> str:
                 return text
         except httpx.HTTPError as e:  # pragma: no cover - network
             last_err = e
-    raise RuntimeError(f"could not fetch Gutenberg #{book_id}: {last_err}")
+    raise RuntimeError(
+        f"could not fetch Project Gutenberg #{book_id} ({last_err or 'no usable response'}). "
+        f"If this machine cannot reach gutenberg.org, download "
+        f"https://www.gutenberg.org/cache/epub/{book_id}/pg{book_id}.txt by hand and save it as "
+        f"{cached}"
+    )

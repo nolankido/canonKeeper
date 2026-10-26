@@ -41,12 +41,13 @@ so bare sub-part numerals inside a story do not split it, and `PART` lines set a
 than a boundary; (3) otherwise fixed windows. Front matter before the first heading is not a
 chapter, so a title page never becomes canon.
 
-## Stage 1 — extraction (Muse Spark, `muse-spark-1.3`)
+## Stage 1 — extraction (cheap long-context model; `gemini-3.8-flash` by default)
 
 Per chapter (split at ~6k tokens on paragraph boundaries). The prompt pins a predicate
 vocabulary so the same fact lands in the same slot across books, and asks for normalised values.
-Spark is used because extraction is wide and shallow: thousands of calls, each needing care but
-not deep reasoning, at $1.25/M input. A six-novel series is roughly 1M tokens → about $2.
+A Flash-class model is used because extraction is wide and shallow: hundreds of calls, each
+needing care but not deep reasoning. On the Gemini free tier that is $0 and about half an hour
+at the paced rate; at list price a six-novel series is under a dollar.
 
 Alias resolution happens at ingest: the extractor returns `{"Sherlock Holmes": ["Holmes", ...]}`
 per chunk, the store merges them, and subjects are canonicalised (exact alias table, then fuzzy
@@ -68,7 +69,7 @@ Before screening, `canon/normalize.py` folds predicate synonyms (`eyes`, `eye_co
 `eye_color`) and value spellings (`gray` → `grey`, `30 years old` → `30`) at ingest, so the slot
 index is the only join the screen needs. `max_candidates_per_run` caps spend.
 
-## Stage 3 — adjudication (Muse Wonder, `muse-wonder-1.0`)
+## Stage 3 — adjudication (stronger model; `gemini-3.8-flash` free, `gemini-4-argon` paid)
 
 Candidates are judged in batches (`adjudicate_batch_size`, default 8). Each call is three
 messages, in this order for a reason:
@@ -108,16 +109,22 @@ unknown manuscript. Both bias recall upward, so report numbers as an upper bound
 (the same shapes the eval harness's injection templates produce) and judges every candidate
 with a fixed policy: a contradiction, unless the series text right after a quoted passage
 carries an explicit explanation ("had been a trick of…", "had lied", "all along"), in which
-case `deliberate`. That is a caricature of what Wonder does with the whole chapter, and it is
+case `deliberate`. That is a caricature of what the real adjudicator does with the whole chapter, and it is
 enough for the demo's reveal case to show the verdict category exists. It exists so that the entire pipeline — build, bible, audit, check, eval,
 report — runs deterministically with no key in CI, in tests, and in `canonkeeper demo`. It is
 not a model and does not pretend to be; it is a harness for everything that is *not* the model.
 
-## Open-weights mode
+## Providers and free-tier behaviour
 
-`CANONKEEPER_PROVIDER=openweights` points the same client at any OpenAI-compatible host serving
-Muse Spark Open or Muse Glimmer. Extraction works unchanged. Adjudication with full-series
-context depends on the host's context limit; the budget setting handles that.
+Every provider is an OpenAI-compatible chat endpoint; `config.ProviderDefaults` holds the base
+URL, default models and pacing per provider. The client (`llm/client.py`) is written for free
+tiers: a sliding-window limiter keeps under the published RPM, 429/5xx responses are retried with
+exponential backoff (Retry-After honoured), and if a server rejects `response_format` the client
+remembers and stops sending it — `parse_json` already tolerates fenced or prose-wrapped JSON.
+
+`CANONKEEPER_PROVIDER=openweights` points the same client at Ollama, LM Studio, vLLM or a hosted
+open-weights endpoint. Adjudication with full-series context depends on the host's context
+limit; the budget setting handles that. This is the mode for private manuscripts.
 
 ## What is intentionally not here
 

@@ -1,18 +1,24 @@
 """Thin provider-agnostic chat client.
 
-Meta Model API is OpenAI-SDK compatible (base URL https://api.meta.ai/v1, bearer key), and so are
-the open-weights hosts (Baseten / Modal / Fireworks / vLLM). One client class covers all of them;
-the `MockLLM` lets the whole pipeline run offline in tests and demos.
+Gemini (via its OpenAI-compatible endpoint), Meta Model API, and local or hosted open-weights
+servers (Ollama, LM Studio, vLLM, Baseten, Modal, Fireworks) all speak the OpenAI chat API.
+One client class covers all of them; `MockLLM` lets the whole pipeline run offline.
 
-Every call is cached on disk by (model, messages) so re-running a series costs nothing, and
-usage is tallied so the report can print a real dollar figure.
+Built for free tiers: client-side request pacing, retries with exponential backoff on 429/5xx
+(honouring Retry-After), a JSON-mode fallback for servers that reject `response_format`, and a
+disk cache keyed on (model, messages) so a re-run costs nothing. Usage is tallied at list price
+so the report can print what the run *would* cost on a paid tier.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import random
 import re
+import threading
+import time
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,9 +26,16 @@ from typing import Any, Protocol
 
 from canonkeeper.config import Settings
 
-# USD per 1M tokens, Standard mode, as published on dev.meta.ai/docs/pricing-rate-limits
-# (2026-10). Unknown models cost 0 so the tally never crashes.
+# USD per 1M tokens (input, output) at list price, 2026-10. Gemini free tier bills $0; the
+# figure shown is what the same run costs on the paid tier. Unknown models cost 0.
 PRICING: dict[str, tuple[float, float]] = {
+    # Gemini — https://ai.google.dev/gemini-api/docs/pricing
+    "gemini-4-argon": (2.00, 10.00),
+    "gemini-3.8-flash": (0.75, 3.75),
+    "gemini-3.6-flash": (0.75, 3.75),
+    "gemini-3.5-flash-lite": (0.30, 2.50),
+    "gemini-3.1-flash-lite": (0.25, 1.50),
+    # Meta — https://dev.meta.ai/docs/pricing-rate-limits
     "muse-spark-1.3": (1.25, 4.25),
     "muse-spark-1.2": (1.25, 4.25),
     "muse-spark-1.1": (1.25, 4.25),
@@ -38,6 +51,7 @@ class Usage:
     completion_tokens: int = 0
     calls: int = 0
     cached_calls: int = 0
+    retries: int = 0
     cost_usd: float = 0.0
     by_model: dict[str, dict[str, float]] = field(default_factory=dict)
 
@@ -68,8 +82,74 @@ def _cache_key(model: str, messages: list[Message], json_mode: bool) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+class RateLimiter:
+    """Sliding-window limiter: at most `rpm` calls in any 60 s window. Thread-safe."""
+
+    def __init__(
+        self,
+        rpm: int,
+        *,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        self.rpm = rpm
+        self._clock = clock
+        self._sleep = sleep
+        self._times: deque[float] = deque()
+        self._lock = threading.Lock()
+
+    def wait(self) -> float:
+        """Block until a call is allowed; return seconds slept."""
+        if self.rpm <= 0:
+            return 0.0
+        slept = 0.0
+        with self._lock:
+            while True:
+                now = self._clock()
+                while self._times and now - self._times[0] >= 60.0:
+                    self._times.popleft()
+                if len(self._times) < self.rpm:
+                    self._times.append(now)
+                    return slept
+                delay = 60.0 - (now - self._times[0]) + 0.05
+                self._sleep(delay)
+                slept += delay
+
+
+def _retry_after_seconds(exc: Exception) -> float | None:
+    resp = getattr(exc, "response", None)
+    headers = getattr(resp, "headers", None)
+    if not headers:
+        return None
+    val = headers.get("retry-after") or headers.get("Retry-After")
+    if not val:
+        return None
+    try:
+        return float(val)
+    except ValueError:
+        return None
+
+
+def _is_retryable(exc: Exception) -> bool:
+    status = getattr(exc, "status_code", None)
+    if status in (408, 409, 425, 429, 500, 502, 503, 504):
+        return True
+    name = type(exc).__name__
+    return name in {
+        "APIConnectionError",
+        "APITimeoutError",
+        "RateLimitError",
+        "InternalServerError",
+    }
+
+
+def _rejects_response_format(exc: Exception) -> bool:
+    status = getattr(exc, "status_code", None)
+    return status == 400 and "response_format" in str(exc).lower()
+
+
 class OpenAICompatibleLLM:
-    """Works against Meta Model API or any OpenAI-compatible endpoint."""
+    """Works against Gemini, Meta Model API, or any OpenAI-compatible endpoint."""
 
     def __init__(
         self,
@@ -78,16 +158,45 @@ class OpenAICompatibleLLM:
         *,
         cache_dir: Path | None = None,
         temperature: float = 0.0,
-        timeout_s: float = 120.0,
+        timeout_s: float = 180.0,
+        requests_per_minute: int = 0,
+        max_retries: int = 6,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         from openai import OpenAI  # local import keeps the mock path dependency-free
 
-        self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout_s)
+        # Our own retry loop handles backoff; the SDK's built-in retries would double up.
+        self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout_s, max_retries=0)
         self._cache_dir = cache_dir
         self._temperature = temperature
+        self._limiter = RateLimiter(requests_per_minute, sleep=sleep)
+        self._max_retries = max_retries
+        self._sleep = sleep
+        self._json_mode_supported: bool | None = None
         self.usage = Usage()
         if cache_dir:
             cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # --- one request with retries ----------------------------------------------------------
+    def _create(self, kwargs: dict[str, Any]) -> Any:
+        attempt = 0
+        while True:
+            self._limiter.wait()
+            try:
+                return self._client.chat.completions.create(**kwargs)
+            except Exception as exc:
+                if "response_format" in kwargs and _rejects_response_format(exc):
+                    self._json_mode_supported = False
+                    kwargs = {k: v for k, v in kwargs.items() if k != "response_format"}
+                    continue
+                if attempt >= self._max_retries or not _is_retryable(exc):
+                    raise
+                attempt += 1
+                self.usage.retries += 1
+                delay = _retry_after_seconds(exc)
+                if delay is None:
+                    delay = min(60.0, 2.0**attempt) + random.uniform(0, 1)
+                self._sleep(delay)
 
     def complete(self, model: str, messages: list[Message], *, json_mode: bool = False) -> str:
         key = _cache_key(model, messages, json_mode)
@@ -103,9 +212,9 @@ class OpenAICompatibleLLM:
             "messages": messages,
             "temperature": self._temperature,
         }
-        if json_mode:
+        if json_mode and self._json_mode_supported is not False:
             kwargs["response_format"] = {"type": "json_object"}
-        resp = self._client.chat.completions.create(**kwargs)
+        resp = self._create(kwargs)
         content = resp.choices[0].message.content or ""
         usage = resp.usage
         self.usage.add(
@@ -140,33 +249,31 @@ class MockLLM:
         return out
 
 
+_KEY_HELP = {
+    "gemini": "GEMINI_API_KEY is not set. Create a free key at https://aistudio.google.com/apikey "
+    "(no card needed) and put it in .env, or run with --provider mock.",
+    "meta": "MODEL_API_KEY is not set. Create a key at https://dev.meta.ai and put it in .env.",
+    "openweights": "provider=openweights needs CANONKEEPER_OPENWEIGHTS_BASE_URL "
+    "(e.g. http://localhost:11434/v1 for Ollama, http://localhost:1234/v1 for LM Studio).",
+}
+
+
 def make_llm(settings: Settings, *, mock_handler: Callable[..., str] | None = None) -> LLM:
     if settings.provider == "mock":
         return MockLLM(mock_handler)
-    if settings.provider == "openweights":
-        if not settings.openweights_base_url or not settings.openweights_api_key:
-            raise RuntimeError(
-                "provider=openweights needs CANONKEEPER_OPENWEIGHTS_BASE_URL and "
-                "CANONKEEPER_OPENWEIGHTS_API_KEY"
-            )
-        return OpenAICompatibleLLM(
-            settings.openweights_api_key,
-            settings.openweights_base_url,
-            cache_dir=settings.cache_dir,
-            temperature=settings.temperature,
-            timeout_s=settings.request_timeout_s,
-        )
-    if not settings.meta_api_key:
-        raise RuntimeError(
-            "MODEL_API_KEY is not set. Create a key at https://dev.meta.ai and put it in .env, "
-            "or run with CANONKEEPER_PROVIDER=mock."
-        )
+    if settings.provider == "openweights" and not settings.base_url:
+        raise RuntimeError(_KEY_HELP["openweights"])
+    key = settings.api_key
+    if not key:
+        raise RuntimeError(_KEY_HELP[settings.provider])
     return OpenAICompatibleLLM(
-        settings.meta_api_key,
-        settings.meta_base_url,
+        key,
+        settings.base_url,
         cache_dir=settings.cache_dir,
         temperature=settings.temperature,
         timeout_s=settings.request_timeout_s,
+        requests_per_minute=settings.requests_per_minute,
+        max_retries=settings.max_retries,
     )
 
 
