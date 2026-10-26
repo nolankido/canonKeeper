@@ -1,0 +1,92 @@
+"""Render the series bible as a browsable HTML page: one card per entity, facts grouped by
+predicate, every fact linked to its book/chapter/quote, slots with disagreeing values flagged."""
+
+from __future__ import annotations
+
+from collections import defaultdict
+from dataclasses import dataclass
+from pathlib import Path
+
+from jinja2 import Environment, PackageLoader, select_autoescape
+
+from canonkeeper.audit.candidates import _NAME_PREDS, SINGLE_VALUED
+from canonkeeper.canon import CanonStore
+from canonkeeper.models import Claim
+
+_DISPUTABLE = SINGLE_VALUED | _NAME_PREDS
+
+_env = Environment(
+    loader=PackageLoader("canonkeeper.report", "templates"),
+    autoescape=select_autoescape(["html"]),
+)
+
+
+@dataclass
+class SlotView:
+    predicate: str
+    values: list[tuple[str, list[Claim]]]  # value -> supporting claims
+
+    @property
+    def disputed(self) -> bool:
+        return self.predicate in _DISPUTABLE and len(self.values) > 1
+
+
+@dataclass
+class EntityView:
+    name: str
+    aliases: list[str]
+    n_claims: int
+    first_seen: str
+    slots: list[SlotView]
+
+    @property
+    def disputed(self) -> int:
+        return sum(1 for s in self.slots if s.disputed)
+
+
+def build_views(store: CanonStore, *, min_claims: int = 1) -> list[EntityView]:
+    views: list[EntityView] = []
+    for name in store.entities():
+        claims = store.for_entity(name)
+        if len(claims) < min_claims:
+            continue
+        by_pred: dict[str, dict[str, list[Claim]]] = defaultdict(lambda: defaultdict(list))
+        for c in sorted(
+            claims, key=lambda c: (c.provenance.book_index, c.provenance.chapter_index)
+        ):
+            by_pred[c.predicate][c.object].append(c)
+        slots = [
+            SlotView(pred, sorted(vals.items(), key=lambda kv: -len(kv[1])))
+            for pred, vals in sorted(by_pred.items())
+        ]
+        first = min(claims, key=lambda c: (c.provenance.book_index, c.provenance.chapter_index))
+        views.append(
+            EntityView(
+                name=name,
+                aliases=store.aliases.get(name, []),
+                n_claims=len(claims),
+                first_seen=first.provenance.locator,
+                slots=slots,
+            )
+        )
+    views.sort(key=lambda v: (-v.n_claims, v.name))
+    return views
+
+
+def write_bible(
+    store: CanonStore, series_name: str, out_path: Path, *, min_claims: int = 1
+) -> Path:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    views = build_views(store, min_claims=min_claims)
+    tmpl = _env.get_template("bible.html")
+    out_path.write_text(
+        tmpl.render(
+            series=series_name,
+            entities=views,
+            n_claims=len(store),
+            n_entities=len(views),
+            n_disputed=sum(v.disputed for v in views),
+        ),
+        encoding="utf-8",
+    )
+    return out_path

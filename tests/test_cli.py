@@ -60,3 +60,31 @@ def test_build_then_audit_with_mock_provider(tmp_path, monkeypatch):
     assert r.exit_code == 0, r.output
     assert "contradiction" in r.output
     assert list((tmp_path / "wd").rglob("report.html"))
+
+
+def test_demo_runs_offline_and_finds_every_planted_error(tmp_path):
+    from canonkeeper.demo import PLANTED
+
+    r = runner.invoke(app, ["demo", "--dest", str(tmp_path / "demo")])
+    assert r.exit_code == 0, r.output
+    assert "no API calls were made" in r.output
+    report = json.loads(next((tmp_path / "demo").rglob("report.json")).read_text())
+    errors = [f for f in report["findings"] if f["verdict"] == "contradiction"]
+    assert len(errors) == len(PLANTED)
+    for who, what, _ in PLANTED:
+        assert any(
+            any(
+                c["subject"] == who and (c["predicate"] == what or what == "dead")
+                for c in f["candidate"]["claims"]
+            )
+            for f in errors
+        ), (who, what)
+    bible = next((tmp_path / "demo").rglob("bible.html")).read_text()
+    assert "Ivy Marlowe" in bible
+    assert 'class="slot disputed"' in bible
+
+
+def test_bible_command_requires_bible(tmp_path):
+    m = _write_series(tmp_path)
+    r = runner.invoke(app, ["bible", str(m), "--workdir", str(tmp_path / "wd")])
+    assert r.exit_code == 2

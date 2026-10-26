@@ -31,9 +31,6 @@ SINGLE_VALUED = {
     "nationality",
     "wound_location",
     "handedness",
-    "first_name",
-    "surname",
-    "full_name",
     "height",
     "mother",
     "father",
@@ -62,7 +59,7 @@ def _same_value(a: str, b: str) -> bool:
 
 def slot_mismatch(store: CanonStore) -> list[Candidate]:
     out: list[Candidate] = []
-    for (subject, predicate), claims in store.slots().items():
+    for (_subject, predicate), claims in store.slots().items():
         if predicate in MULTI_VALUED_OK or predicate not in SINGLE_VALUED:
             continue
         # Group by distinct value; one representative claim per value.
@@ -80,11 +77,11 @@ def slot_mismatch(store: CanonStore) -> list[Candidate]:
             a, b = g1[0], g2[0]
             if a.story_time and b.story_time and a.story_time != b.story_time:
                 reason = (
-                    f"{subject}.{predicate} is '{a.object}' at {a.story_time} but "
+                    f"{a.subject}.{predicate} is '{a.object}' at {a.story_time} but "
                     f"'{b.object}' at {b.story_time} (may be change over time)"
                 )
             else:
-                reason = f"{subject}.{predicate} is '{a.object}' and also '{b.object}'"
+                reason = f"{a.subject}.{predicate} is '{a.object}' and also '{b.object}'"
             out.append(Candidate(claims=[a, b], reason=reason, heuristic="slot_mismatch"))
     return out
 
@@ -129,7 +126,7 @@ def dead_speaks(store: CanonStore) -> list[Candidate]:
 
 def timeline(store: CanonStore) -> list[Candidate]:
     out: list[Candidate] = []
-    for (subject, predicate), claims in store.slots().items():
+    for (_subject, predicate), claims in store.slots().items():
         if predicate not in {"born", "birth_year", "died", "age"}:
             continue
         years: list[tuple[int, Claim]] = []
@@ -144,15 +141,49 @@ def timeline(store: CanonStore) -> list[Candidate]:
             out.append(
                 Candidate(
                     claims=[a, b],
-                    reason=f"{subject}.{predicate} has conflicting years {sorted(vals)}",
+                    reason=f"{a.subject}.{predicate} has conflicting years {sorted(vals)}",
                     heuristic="timeline",
                 )
             )
     return out
 
 
+_NAME_PREDS = {"first_name", "surname", "full_name"}
+
+
+def name_drift(store: CanonStore) -> list[Candidate]:
+    """One entity, two different first names / surnames (Watson: John in one story, James in
+    another). Separate from slot_mismatch so the adjudicator can be told this is a *name*,
+    where a nickname or a translation is the usual innocent explanation."""
+    out: list[Candidate] = []
+    for (_subject, predicate), claims in store.slots().items():
+        if predicate not in _NAME_PREDS:
+            continue
+        groups: dict[str, Claim] = {}
+        for c in claims:
+            key = _norm(c.object)
+            # Initials and abbreviations agree with the full form: "J." ~ "John", "Wm." ~ "William".
+            if any(
+                key.rstrip(".")[:1] == k[:1] and (key.endswith(".") or k.endswith("."))
+                for k in groups
+            ):
+                continue
+            groups.setdefault(key, c)
+        if len(groups) < 2:
+            continue
+        for a, b in combinations(groups.values(), 2):
+            out.append(
+                Candidate(
+                    claims=[a, b],
+                    reason=f"{a.subject}.{predicate} is '{a.object}' in {a.provenance.locator} but '{b.object}' in {b.provenance.locator}",
+                    heuristic="name_drift",
+                )
+            )
+    return out
+
+
 def find_candidates(store: CanonStore) -> list[Candidate]:
-    cands = slot_mismatch(store) + dead_speaks(store) + timeline(store)
+    cands = slot_mismatch(store) + dead_speaks(store) + timeline(store) + name_drift(store)
     # De-duplicate on the claim-id pair.
     seen: set[frozenset[str]] = set()
     uniq: list[Candidate] = []

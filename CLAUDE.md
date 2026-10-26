@@ -30,7 +30,8 @@ HTML report. `README.md` has the overview; `docs/ARCHITECTURE.md` has the reason
 pip install -e ".[dev]"
 pytest                      # offline, mock provider
 ruff check src tests && ruff format src tests && mypy
-canonkeeper fetch|estimate|build|audit|check|eval evals/corpora/sherlock-holmes/series.json
+canonkeeper demo            # offline, end to end
+canonkeeper fetch|estimate|build|bible|audit|check|eval evals/corpora/sherlock-holmes/series.json
 ```
 
 ## Layout
@@ -40,10 +41,15 @@ canonkeeper fetch|estimate|build|audit|check|eval evals/corpora/sherlock-holmes/
 - `src/canonkeeper/extract/` — prompts + extractor. Predicate vocabulary is in `prompts.py`;
   keep it in sync with `audit/candidates.py::SINGLE_VALUED`.
 - `src/canonkeeper/audit/candidates.py` — cheap heuristics; over-generate, let Wonder decide.
-- `src/canonkeeper/audit/adjudicate.py` — context assembly within token budget, verdict parsing.
+- `src/canonkeeper/audit/adjudicate.py` — batched adjudication; series text is user message #1
+  (stable, cacheable), candidates are message #2. Keep that order.
+- `src/canonkeeper/canon/normalize.py` — predicate/value synonym tables applied at ingest.
+- `src/canonkeeper/llm/rules.py` — the rule-based mock. When adding an injection template to
+  `eval/inject.py::TEMPLATES`, add a matching pattern here so the eval test keeps recall 1.0.
+- `src/canonkeeper/demo.py` — the invented Saltmarsh series; `canonkeeper demo` must keep
+  finding all five planted errors (tested).
 - `src/canonkeeper/eval/` — defect injection (`TEMPLATES`) and scoring.
-- `tests/conftest.py` — the rule-based mock extractor; extend it when adding predicates to
-  `TEMPLATES` so the harness test still reaches recall 1.0.
+- `tests/conftest.py` — fixture series with planted defects; imports the mock from `llm/rules.py`.
 
 ## Conventions
 

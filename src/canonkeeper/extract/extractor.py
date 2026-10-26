@@ -105,6 +105,7 @@ class Extractor:
                         provenance=Provenance(
                             book=book.key,
                             book_index=book.index,
+                            book_title=book.title,
                             chapter=chapter.title,
                             chapter_index=chapter.index,
                             quote=quote[:300],
@@ -137,16 +138,24 @@ class Extractor:
         return ExtractionResult(claims=all_claims, aliases=aliases)
 
 
-def estimate_cost(series: Series, settings: Settings) -> dict[str, float]:
-    """Rough pre-flight: input tokens for one extraction pass + one full-series adjudication."""
+def estimate_cost(series: Series, settings: Settings, *, candidates: int = 40) -> dict[str, float]:
+    """Rough pre-flight. Extraction reads every token once; adjudication reads the series
+    (capped at the context budget) once per *batch*, plus a few hundred output tokens per
+    candidate. `candidates` is a guess at how many conflicts the screen will raise."""
     from canonkeeper.llm.client import PRICING
 
     toks = sum(count_tokens(b.text) for b in series.books)
     overhead = 1.2  # prompt + JSON output overhead
     ex_in, ex_out = PRICING.get(settings.extract_model, (0, 0))
     ad_in, ad_out = PRICING.get(settings.adjudicate_model, (0, 0))
+    ctx = min(toks, settings.adjudicate_context_tokens)
+    batches = max(1, -(-candidates // max(1, settings.adjudicate_batch_size)))
+    per_batch_in = ctx + candidates / batches * 1500
+    per_batch_out = candidates / batches * 250
     return {
         "series_tokens": float(toks),
+        "context_tokens": float(ctx),
         "extract_usd": toks * overhead / 1e6 * ex_in + toks * 0.08 / 1e6 * ex_out,
-        "adjudicate_full_pass_usd": toks / 1e6 * ad_in + 4000 / 1e6 * ad_out,
+        "adjudicate_batches": float(batches),
+        "adjudicate_usd": batches * (per_batch_in / 1e6 * ad_in + per_batch_out / 1e6 * ad_out),
     }

@@ -1,53 +1,70 @@
 """Adjudication prompts (Muse Wonder).
 
-The adjudicator sees: the candidate pair with quotes, every other claim the store holds about
-the same entity, and — when the budget allows — the full text of the chapters involved, or the
-whole series. The 1M-token context is what makes "read both books and decide" feasible.
+Message layout is chosen for prompt caching and batching:
+
+    system   — static instructions
+    user #1  — the series text (large, identical across calls when the series fits the budget)
+    user #2  — a batch of candidate conflicts, each with quotes and the bible's other facts
+
+The large, unchanging prefix comes first so an OpenAI-compatible host can serve it from cache
+(Meta lists cached input at a fraction of the full price); the part that varies comes last.
+One call rules on many candidates, so the cost of reading the series is paid once per batch,
+not once per candidate.
 """
 
 from canonkeeper.models import Claim
 
-SYSTEM = """You are the senior continuity editor for a multi-book fiction series. You are shown
-two or more facts the series bible recorded about the same entity that appear to disagree, with
-their verbatim source passages, plus surrounding context. Decide what is going on.
+SYSTEM = """You are the senior continuity editor for a multi-book fiction series. You will be
+given the text of the series (or as much as fits), then a numbered list of candidate conflicts:
+sets of facts the series bible recorded about one entity that appear to disagree, with their
+verbatim source passages. For EACH candidate, decide what is going on.
 
 Verdicts
-- "contradiction": the passages cannot both be true as written; a reader would call it an error.
+- "contradiction": the passages cannot both be true as written; a careful reader would call it
+                   an error.
 - "deliberate":    the difference is explained by the story — a reveal, a lie by a character, a
-                   disguise, an unreliable narrator, a change over time that the text supports.
-- "ambiguous":     the passages differ but the text is vague enough that either could be read
-                   as consistent (e.g. "wounded in the leg" where the shoulder was hit earlier
-                   and a second injury is plausible but unstated).
-- "not_conflict":  the bible extraction was wrong — the facts are about different entities,
-                   the predicate was mislabelled, or the values are actually the same thing.
+                   disguise, an unreliable narrator, or a change over time the text supports.
+- "ambiguous":     the passages differ but the text is loose enough that either could be read
+                   as consistent.
+- "not_conflict":  the bible extraction was wrong — different entities, a mislabelled predicate,
+                   or two spellings of the same value.
 
-Severity (only meaningful for "contradiction")
-- high:   a fact readers track — deaths, family relations, names, origin, major injuries.
+Severity (meaningful for "contradiction")
+- high:   facts readers track — deaths, family, names, origins, major injuries.
 - medium: physical description, dates off by a little, geography.
-- low:    minor props, phrasing-level inconsistencies.
+- low:    minor props, phrasing-level slips.
 
-Be concrete. Quote the exact words that create the conflict. If "contradiction", propose the
-smallest edit to the LATER passage that fixes it (fix later books, never earlier ones — earlier
-books are already published).
+Be concrete: quote the exact words that create the conflict. For a "contradiction", propose the
+smallest edit to the LATER passage that fixes it. Earlier books are already published; never
+propose changing them.
 
-Return ONLY JSON:
-{"verdict": "...", "severity": "high|medium|low", "explanation": "...", "suggested_fix": "... or null"}
+Return ONLY JSON of this shape, one entry per candidate, using the candidate's id:
+{"verdicts": [
+  {"id": 1, "verdict": "contradiction|deliberate|ambiguous|not_conflict",
+   "severity": "high|medium|low", "explanation": "...", "suggested_fix": "... or null"}
+]}
 """
 
-USER_TEMPLATE = """Series: {series}
+CONTEXT_TEMPLATE = """Series: {series}
 
-## Candidate conflict ({heuristic})
+The series text follows, in reading order. Chapter headings are marked with `###`.
+
+{context_block}"""
+
+NO_CONTEXT = "(no source text available; judge from the quotes and the bible alone)"
+
+BATCH_TEMPLATE = """Now the candidates. Judge each one. Return JSON only.
+
+{candidates_block}"""
+
+CANDIDATE_TEMPLATE = """## Candidate {id} ({heuristic})
 {reason}
 
 {claims_block}
 
-## Everything else the bible knows about {entity}
+Other facts the bible holds about {entity}:
 {entity_block}
-
-## Context passages
-{context_block}
-
-Decide. JSON only."""
+"""
 
 
 def claim_line(i: int, c: Claim) -> str:

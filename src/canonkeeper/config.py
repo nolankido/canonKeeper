@@ -44,7 +44,11 @@ class Settings(BaseSettings):
     extract_chunk_tokens: int = 6000
     """Chapters longer than this are split before extraction."""
     adjudicate_context_tokens: int = 900_000
-    """Hard ceiling on evidence passed to the adjudicator (1,048,576 is the model max)."""
+    """Hard ceiling on series text passed to the adjudicator (1,048,576 is the model max).
+    Lower it (e.g. 150000) while iterating; raise it for the final run."""
+    adjudicate_batch_size: int = 8
+    """Candidates judged per adjudicator call. The series text is sent once per batch, so
+    this divides the dominant cost; 8 keeps each verdict list short enough to stay accurate."""
     max_candidates_per_run: int = 200
     temperature: float = 0.0
     request_timeout_s: float = 120.0

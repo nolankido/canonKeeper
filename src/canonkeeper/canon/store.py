@@ -14,6 +14,7 @@ from pathlib import Path
 
 from rapidfuzz import fuzz, process
 
+from canonkeeper.canon.normalize import normalize_predicate, normalize_value
 from canonkeeper.models import Claim, ExtractionResult
 
 
@@ -86,7 +87,14 @@ class CanonStore:
         self.register_aliases(result.aliases)
         added = 0
         for c in result.claims:
-            c = c.model_copy(update={"subject": self.canonical(c.subject)})
+            predicate = normalize_predicate(c.predicate)
+            c = c.model_copy(
+                update={
+                    "subject": self.canonical(c.subject),
+                    "predicate": predicate,
+                    "object": normalize_value(c.object, predicate),
+                }
+            )
             added += int(self.add(c))
         return added
 

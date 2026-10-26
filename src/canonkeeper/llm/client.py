@@ -123,10 +123,13 @@ class OpenAICompatibleLLM:
 
 class MockLLM:
     """Deterministic stand-in. Pass a `handler(model, messages) -> str`, or rely on the default
-    which returns an empty JSON object — enough for the pipeline to run end to end."""
+    rule-based handler in `canonkeeper.llm.rules`, which recognises a small set of sentence
+    shapes and judges candidates with a fixed policy — enough to run every command offline."""
 
     def __init__(self, handler: Callable[[str, list[Message]], str] | None = None) -> None:
-        self._handler = handler or (lambda _m, _msgs: "{}")
+        from canonkeeper.llm import rules
+
+        self._handler = handler or rules.handler
         self.usage = Usage()
         self.calls: list[tuple[str, list[Message]]] = []
 

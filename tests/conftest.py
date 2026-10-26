@@ -1,15 +1,13 @@
 """Shared fixtures.
 
-The mock LLM here is a tiny rule-based "extractor": it looks for sentences of the form
-`<Name> has <value> eyes.` / `<Name> was born in <place>.` / `<Name> died.` and emits claims
-with the exact sentence as the quote. That is enough to exercise grounding, slot indexing,
-candidate detection, adjudication plumbing, the report, and the eval harness without a key.
+The mock provider's rule-based extractor/adjudicator lives in `canonkeeper.llm.rules` so that
+`--provider mock` works for users too; tests import it from there. The fixture series below
+plants two defects (Alice's eye colour drifts in book 3; Carol dies in book 3 ch. 2 and acts in
+ch. 3) and one name drift (Bob is "Robert" in book 1 and "Bob" in book 3).
 """
 
 from __future__ import annotations
 
-import json
-import re
 from pathlib import Path
 
 import pytest
@@ -19,109 +17,9 @@ from canonkeeper.corpus import Series
 from canonkeeper.corpus.chapterize import chapterize
 from canonkeeper.corpus.loaders import Book
 from canonkeeper.llm import MockLLM
+from canonkeeper.llm.rules import handler as mock_handler
 
-_EYES = re.compile(r"([A-Z][a-z]+(?: [A-Z][a-z]+)?) (?:has|had) ([a-z]+) eyes\.")
-_BORN = re.compile(r"([A-Z][a-z]+(?: [A-Z][a-z]+)?) was born in ([A-Z][a-z]+)\.")
-_BORN_Q = re.compile(r"\"I was born in ([A-Z][a-z]+),\" said ([A-Z][a-z]+(?: [A-Z][a-z]+)?)")
-_EYES_INJ = re.compile(r"([A-Z][a-z]+(?: [A-Z][a-z]+)?) looked up, and the ([a-z]+) eyes")
-_DIED = re.compile(r"([A-Z][a-z]+(?: [A-Z][a-z]+)?) died\.")
-_DEAD_INJ = re.compile(r"since ([A-Z][a-z]+(?: [A-Z][a-z]+)?) had been laid in the ground")
-_WALK = re.compile(r"([A-Z][a-z]+(?: [A-Z][a-z]+)?) walked to ([A-Z][a-z]+)\.")
-
-
-def _extract(text: str) -> dict:
-    claims = []
-    for m in _EYES.finditer(text):
-        claims.append(
-            {
-                "kind": "attribute",
-                "subject": m.group(1),
-                "predicate": "eye_color",
-                "object": m.group(2),
-                "quote": m.group(0),
-            }
-        )
-    for m in _EYES_INJ.finditer(text):
-        claims.append(
-            {
-                "kind": "attribute",
-                "subject": m.group(1),
-                "predicate": "eye_color",
-                "object": m.group(2),
-                "quote": m.group(0),
-            }
-        )
-    for m in _BORN.finditer(text):
-        claims.append(
-            {
-                "kind": "attribute",
-                "subject": m.group(1),
-                "predicate": "birthplace",
-                "object": m.group(2),
-                "quote": m.group(0),
-            }
-        )
-    for m in _BORN_Q.finditer(text):
-        claims.append(
-            {
-                "kind": "attribute",
-                "subject": m.group(2),
-                "predicate": "birthplace",
-                "object": m.group(1),
-                "quote": m.group(0),
-            }
-        )
-    for m in _DIED.finditer(text):
-        claims.append(
-            {
-                "kind": "event",
-                "subject": m.group(1),
-                "predicate": "died",
-                "object": "true",
-                "quote": m.group(0),
-            }
-        )
-    for m in _DEAD_INJ.finditer(text):
-        claims.append(
-            {
-                "kind": "state",
-                "subject": m.group(1),
-                "predicate": "dead",
-                "object": "true",
-                "quote": m.group(0),
-            }
-        )
-    for m in _WALK.finditer(text):
-        claims.append(
-            {
-                "kind": "state",
-                "subject": m.group(1),
-                "predicate": "location",
-                "object": m.group(2),
-                "quote": m.group(0),
-            }
-        )
-    return {"claims": claims, "aliases": {}}
-
-
-def mock_handler(model: str, messages: list[dict[str, str]]) -> str:
-    user = messages[-1]["content"]
-    if "<chunk>" in user:
-        chunk = user.split("<chunk>", 1)[1].split("</chunk>", 1)[0]
-        return json.dumps(_extract(chunk))
-    # Adjudication: contradiction unless the reason mentions change over time.
-    if "may be change over time" in user:
-        return json.dumps(
-            {"verdict": "deliberate", "severity": "low", "explanation": "moved house"}
-        )
-    return json.dumps(
-        {
-            "verdict": "contradiction",
-            "severity": "high",
-            "explanation": "The two passages assert different values.",
-            "suggested_fix": "Change the later passage to match.",
-        }
-    )
+__all__ = ["mock_handler"]
 
 
 @pytest.fixture
@@ -147,7 +45,7 @@ Alice Grey walked to Dover. It was a long walk and nobody spoke of it afterwards
 
 CHAPTER II
 
-Bob Stone was born in Leeds. Bob Stone walked to York. The rain was steady.
+Bob Stone was born in Leeds. Bob Stone walked to York. Bob Stone was known to everyone as Robert. The rain was steady.
 
 The two of them sat for an hour and said very little that mattered to anyone.
 """
@@ -167,7 +65,7 @@ The evening passed in the usual way and the lamps were lit at six.
 
 BOOK3 = """CHAPTER I
 
-Alice Grey has blue eyes. Bob Stone walked to Leeds.
+Alice Grey has blue eyes. Bob Stone walked to Leeds. Bob Stone was known to everyone as Bob.
 
 Long paragraphs of nothing much, to give the chapter some body and some weight for splitting.
 

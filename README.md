@@ -38,26 +38,41 @@ imprints.
 2. **Screen.** Cheap local heuristics over-generate candidate conflicts: same entity + same
    single-valued predicate + different value; a character who dies and then acts; conflicting
    years; name drift. No model calls.
-3. **Adjudicate.** Each candidate goes to `muse-wonder-1.0` with the two quotes, everything else
-   the bible knows about that entity, and — because Wonder has a 1,048,576-token window — the
-   chapters involved and as much of the rest of the series as fits. The verdict is one of
+3. **Adjudicate.** Candidates go to `muse-wonder-1.0` **in batches**, with the series text sent
+   once per batch as a stable prefix (so a cache-aware host serves it cheaply) and the batch of
+   candidates last: each with its quotes and everything else the bible knows about that entity.
+   Because Wonder has a 1,048,576-token window, a typical series fits whole; when it doesn't,
+   the chapters the batch's quotes came from go in first. The verdict per candidate is one of
    `contradiction` / `deliberate` (a reveal, a lie, a disguise, change over time) / `ambiguous` /
    `not_conflict` (the bible was wrong), with severity, an explanation, and a minimal fix to the
    *later* book. Earlier books are published; you never edit those.
-4. **Report.** A single HTML page. Every finding opens to the lines that caused it.
+4. **Report.** Two HTML pages: the audit (every finding opens to the lines that caused it) and
+   the bible itself (one card per entity, every fact sourced, disputed slots flagged).
 
 The split is deliberate: Spark reads cheaply and widely; Wonder thinks expensively and only
-where it matters. A six-book series costs a few dollars to audit end to end.
+where it matters. Batching means the cost of reading the series is paid once per eight
+candidates, not once per candidate.
 
-## Quickstart
+## Try it in 30 seconds, no key
 
 ```bash
 pip install -e ".[dev]"
+canonkeeper demo --open-report
+```
+
+That writes an invented three-book series with five planted continuity errors, runs the whole
+pipeline against a deterministic rule-based stand-in, and opens the report. All five are found.
+It is the same code path the real models use; only the provider differs.
+
+## Quickstart with Meta Model API
+
+```bash
 cp .env.example .env            # add MODEL_API_KEY from https://dev.meta.ai
 
 canonkeeper fetch    evals/corpora/sherlock-holmes/series.json   # pulls the books from Project Gutenberg
 canonkeeper estimate evals/corpora/sherlock-holmes/series.json   # tokens + dollars before you spend any
 canonkeeper build    evals/corpora/sherlock-holmes/series.json   # extract the bible
+canonkeeper bible    evals/corpora/sherlock-holmes/series.json   # browse it
 canonkeeper audit    evals/corpora/sherlock-holmes/series.json   # find + adjudicate contradictions
 ```
 
@@ -67,8 +82,7 @@ Check your next manuscript against the bible without touching it:
 canonkeeper check evals/corpora/sherlock-holmes/series.json drafts/book-07.md
 ```
 
-No key? `--provider mock` runs the whole pipeline offline with a deterministic stand-in, which
-is also what the test suite uses.
+`--provider mock` works on any command and is what the test suite and `demo` use.
 
 ## Does it actually work? The seeded-defect benchmark
 
@@ -97,11 +111,12 @@ src/canonkeeper/
   corpus/      manifest, Gutenberg fetcher, chapterizer (offset-preserving)
   extract/     per-chunk claim extraction + quote grounding        (Muse Spark)
   canon/       JSONL bible with alias resolution and slot index
-  audit/       candidate heuristics + adjudicator with 1M-ctx assembly (Muse Wonder)
-  report/      HTML + JSON report
+  audit/       candidate heuristics + batched adjudicator with 1M-ctx assembly (Muse Wonder)
+  report/      audit report + bible viewer (HTML), JSON
+  demo.py      the invented Saltmarsh series with planted errors
   eval/        defect injection + precision/recall scoring
-  llm/         OpenAI-compatible client (Meta Model API / open-weights hosts / mock), disk cache, cost tally
-  cli.py       fetch · estimate · build · audit · check · eval
+  llm/         OpenAI-compatible client (Meta Model API / open-weights hosts), rule-based mock, disk cache, cost tally
+  cli.py       demo · fetch · estimate · build · bible · audit · check · eval
 evals/corpora/ public-domain series manifests used for benchmarking
 docs/          ARCHITECTURE.md · DEMO_SCRIPT.md
 ```
@@ -119,6 +134,20 @@ Everything is OpenAI-SDK compatible; set `CANONKEEPER_*` env vars or edit `.env`
 cached on disk by (model, prompt), so re-running an audit is free. Use Meta's **Standard** mode
 (default) — Contributor mode trains on your prompts, and your manuscript is your manuscript.
 
+### What it costs
+
+`canonkeeper estimate` prints this for your series before you spend anything. For a ~900k-token,
+six-novel series at the published Standard-mode prices:
+
+| step | reads | calls | ≈ cost |
+|---|---|---|---|
+| extraction (Spark, $1.25/M in) | every token once | ~250 chapters | $1.50 |
+| audit, 40 candidates (Wonder, $4/M in) | series once per batch of 8 | 5 | $18 |
+| same audit with `CANONKEEPER_ADJUDICATE_CONTEXT_TOKENS=150000` | 150k per batch | 5 | $3 |
+
+Iterate on prompts at the small context cap, run the full-context audit once for the demo,
+and let the disk cache do the rest.
+
 ## Status
 
 Scaffold + working offline pipeline. Hackathon build runs **Oct 26 – Nov 4, 2026**. See
@@ -127,10 +156,12 @@ Scaffold + working offline pipeline. Hackathon build runs **Oct 26 – Nov 4, 20
 - [x] corpus loading, chapterizing, provenance offsets
 - [x] claim extraction with quote grounding
 - [x] bible store, alias resolution, slot index
-- [x] candidate heuristics (slot mismatch, dead-speaks, timeline)
-- [x] adjudicator with full-series context assembly
-- [x] HTML/JSON report
+- [x] candidate heuristics (slot mismatch, dead-speaks, timeline, name drift)
+- [x] predicate / value normalisation at ingest
+- [x] batched adjudicator, series-as-prefix for prompt caching, budgeted context assembly
+- [x] audit report + bible viewer (HTML/JSON)
 - [x] seeded-defect eval harness
+- [x] offline demo with a rule-based provider
 - [x] CLI, tests, CI
 - [ ] prompt tuning on Sherlock Holmes; publish benchmark numbers
 - [ ] `check` UX for a new manuscript (diff view against the bible)

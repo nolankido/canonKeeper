@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ series }} — series bible</title>
+<style>
+  :root {
+    --bg: #faf8f3; --fg: #1d1a16; --muted: #6b655c; --card: #ffffff; --line: #e6e1d7;
+    --warn: #b26a00; --accent: #3b4f8a;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16140f; --fg: #ece7dc; --muted: #a39b8d; --card: #1f1c16; --line: #342f27;
+      --warn: #ffb14d; --accent: #9fb0e8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 var(--serif); }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin-bottom: 16px; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 24px; }
+  input[type=search] { flex: 1 1 240px; padding: 10px 12px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); }
+  label { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .ent { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin: 12px 0; }
+  .ent h2 { margin: 0; font-size: 20px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .ent h2 small { font: 13px var(--mono); color: var(--muted); margin-left: 6px; }
+  .aliases { color: var(--muted); font-size: 14px; margin: 2px 0 10px; }
+  .slot { display: grid; grid-template-columns: 160px 1fr; gap: 8px 14px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .slot .pred { font: 13px var(--mono); color: var(--muted); padding-top: 3px; }
+  .slot.disputed .pred { color: var(--warn); }
+  .slot.disputed .pred::before { content: "⚠ "; }
+  .val { margin-bottom: 4px; }
+  .val b { font-weight: 600; }
+  .val .n { font: 12px var(--mono); color: var(--muted); margin-left: 6px; }
+  details { margin-left: 4px; }
+  summary { font-size: 13px; color: var(--accent); cursor: pointer; }
+  .src { margin: 6px 0 6px 12px; padding-left: 10px; border-left: 2px solid var(--line); }
+  .src .loc { font: 12px var(--mono); color: var(--muted); }
+  .src q { display: block; font-style: italic; }
+  .hidden { display: none; }
+  @media (max-width: 600px) { .slot { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>{{ series }}</h1>
+  <div class="sub">series bible · {{ n_entities }} entities · {{ n_claims }} facts · {{ n_disputed }} slots with disagreeing values</div>
+
+  <div class="toolbar">
+    <input id="q" type="search" placeholder="filter entities…" autofocus>
+    <label><input id="only" type="checkbox"> only entities with disputed slots</label>
+  </div>
+
+  {% for e in entities %}
+  <section class="ent" data-name="{{ e.name | lower }}" data-disputed="{{ 1 if e.disputed else 0 }}">
+    <h2>{{ e.name }} <small>{{ e.n_claims }} facts · first seen {{ e.first_seen }}{% if e.disputed %} · {{ e.disputed }} disputed{% endif %}</small></h2>
+    {% if e.aliases %}<div class="aliases">also: {{ e.aliases | join(', ') }}</div>{% endif %}
+    {% for s in e.slots %}
+    <div class="slot{% if s.disputed %} disputed{% endif %}">
+      <div class="pred">{{ s.predicate }}</div>
+      <div>
+        {% for value, claims in s.values %}
+        <div class="val"><b>{{ value }}</b><span class="n">×{{ claims | length }}</span>
+          <details><summary>sources</summary>
+            {% for c in claims %}
+            <div class="src"><div class="loc">Book {{ c.provenance.book_index + 1 }} · {{ c.provenance.chapter }}{% if c.story_time %} · {{ c.story_time }}{% endif %}</div><q>{{ c.provenance.quote }}</q></div>
+            {% endfor %}
+          </details>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endfor %}
+</main>
+<script>
+  const q = document.getElementById('q'), only = document.getElementById('only');
+  const ents = Array.from(document.querySelectorAll('.ent'));
+  function apply() {
+    const term = q.value.trim().toLowerCase();
+    for (const e of ents) {
+      const ok = (!term || e.dataset.name.includes(term)) && (!only.checked || e.dataset.disputed === '1');
+      e.classList.toggle('hidden', !ok);
+    }
+  }
+  q.addEventListener('input', apply); only.addEventListener('change', apply);
+</script>
+</body>
+</html>

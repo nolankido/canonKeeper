@@ -48,26 +48,34 @@ WRatio ≥ 92 as a last resort). Mis-merges are a known failure mode and show up
 | `slot_mismatch` | single-valued predicate, ≥ 2 distinct normalised values (substring and token-set ≥ 90 count as same) |
 | `dead_speaks` | `dead`/`died` claim at position p, then a state/event claim at a later position |
 | `timeline` | different four-digit years for `born` / `birth_year` / `died` |
-| (planned) `name_drift` | first_name / surname differ for one entity |
+| `name_drift` | first_name / surname / full_name differ for one entity (initials agree with full forms) |
 
-Every candidate costs one adjudicator call, so `max_candidates_per_run` caps spend.
+Before screening, `canon/normalize.py` folds predicate synonyms (`eyes`, `eye_colour` →
+`eye_color`) and value spellings (`gray` → `grey`, `30 years old` → `30`) at ingest, so the slot
+index is the only join the screen needs. `max_candidates_per_run` caps spend.
 
 ## Stage 3 — adjudication (Muse Wonder, `muse-wonder-1.0`)
 
-For each candidate, the prompt contains: the claims with quotes; every other fact the bible holds
-about the entity (so "she dyed her hair in chapter 4" is visible); then source text, assembled
-greedily within `adjudicate_context_tokens` (default 900k): first the chapters the quotes came
-from, then the rest of the series in order until the budget is hit. On a typical series the whole
-thing fits — this is the capability the 1M context unlocks, and the reason the adjudicator can
-distinguish a planted twist from a slip.
+Candidates are judged in batches (`adjudicate_batch_size`, default 8). Each call is three
+messages, in this order for a reason:
 
-Verdicts are a closed set; anything unparseable degrades to `ambiguous` rather than crashing.
-Fixes are always to the later passage.
+1. **system** — the static instructions and the JSON contract (`{"verdicts": [{"id": …}]}`).
+2. **user** — the series text, assembled greedily within `adjudicate_context_tokens`. When the
+   whole series fits (the common case under the 1M window), this message is byte-identical
+   across every batch, so an OpenAI-compatible host with prefix caching serves it at the cached
+   rate. When it does not fit, the chapters the batch's quotes came from are selected first,
+   then the rest in reading order; selected chapters are always emitted in reading order so the
+   prefix stays as stable as possible.
+3. **user** — the batch: for each candidate, its id, the claims with quotes, and every other
+   fact the bible holds about that entity (so "she dyed her hair in chapter 4" is visible).
 
-Cost: input-dominated. ~$4 per full-context verdict at $4/M. A run with 30 candidates on a
-900k-token series is ~$100 — too much for a hackathon credit budget, so the default context cap
-should be lowered (`CANONKEEPER_ADJUDICATE_CONTEXT_TOKENS=150000`) for iteration and raised for
-the final demo run. Responses are cached on disk by prompt hash, so re-rendering is free.
+Verdicts are matched back by id; a missing or malformed entry degrades to `ambiguous` rather
+than crashing. Fixes are always to the later passage.
+
+Cost is input-dominated and the batch is the lever: reading a 900k-token series once per eight
+candidates instead of once per candidate is an 8× cut before any cache discount. For iteration,
+lower the context cap (`CANONKEEPER_ADJUDICATE_CONTEXT_TOKENS=150000`); for the final run, raise
+it. Responses are cached on disk by prompt hash, so re-rendering is free.
 
 ## Evaluation
 
@@ -79,6 +87,14 @@ of pre-existing contradictions so they are not counted as false positives.
 Known limitations of the harness: templates are stylistically uniform (a real slip is subtler);
 injection into prose a model has memorised (Conan Doyle) may be *easier* to spot than in an
 unknown manuscript. Both bias recall upward, so report numbers as an upper bound.
+
+## The mock provider
+
+`llm/rules.py` is a rule-based extractor and adjudicator that recognises ~20 sentence shapes
+(the same shapes the eval harness's injection templates produce) and judges every candidate
+with a fixed policy. It exists so that the entire pipeline — build, bible, audit, check, eval,
+report — runs deterministically with no key in CI, in tests, and in `canonkeeper demo`. It is
+not a model and does not pretend to be; it is a harness for everything that is *not* the model.
 
 ## Open-weights mode
 

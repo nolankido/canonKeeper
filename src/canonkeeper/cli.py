@@ -1,11 +1,13 @@
 """canonkeeper command line.
 
-canonkeeper fetch   series.json              # download / cache the books, show chapter stats
-canonkeeper build   series.json              # extract the bible (Muse Spark)
-canonkeeper audit   series.json              # find + adjudicate contradictions (Muse Wonder)
-canonkeeper check   series.json new.md       # audit one new manuscript against the bible
-canonkeeper eval    series.json --n 20       # seeded-defect benchmark → precision / recall
+canonkeeper demo                             # no key needed: invented series, full pipeline
+canonkeeper fetch    series.json             # download / cache the books, show chapter stats
 canonkeeper estimate series.json             # token + dollar pre-flight
+canonkeeper build    series.json             # extract the bible (Muse Spark)
+canonkeeper bible    series.json             # browsable HTML of the bible
+canonkeeper audit    series.json             # find + adjudicate contradictions (Muse Wonder)
+canonkeeper check    series.json new.md      # audit one new manuscript against the bible
+canonkeeper eval     series.json --n 20      # seeded-defect benchmark → precision / recall
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from canonkeeper.models import AuditReport
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, help=__doc__)
 console = Console()
+_DEMO_DEST = typer.Option(Path(".canonkeeper/demo"), help="Where to write the demo series")
 
 ManifestArg = Annotated[Path, typer.Argument(help="Path to series.json manifest")]
 
@@ -83,20 +86,94 @@ def fetch(manifest: ManifestArg, workdir: Path | None = None) -> None:
 
 
 @app.command()
-def estimate(manifest: ManifestArg, workdir: Path | None = None) -> None:
-    """Token count and approximate cost for one build + one full-context audit."""
+def estimate(
+    manifest: ManifestArg,
+    workdir: Path | None = None,
+    candidates: int = typer.Option(40, help="Expected number of candidate conflicts"),
+) -> None:
+    """Token count and approximate cost for one build + one batched audit."""
     from canonkeeper.extract import estimate_cost
 
     settings = _settings(None, workdir)
     _, series = _load(manifest, settings)
-    est = estimate_cost(series, settings)
-    console.print(f"series tokens:            {int(est['series_tokens']):,}")
+    est = estimate_cost(series, settings, candidates=candidates)
+    console.print(f"series tokens:     {int(est['series_tokens']):,}")
     console.print(
-        f"extraction pass:          ${est['extract_usd']:.2f}  ({settings.extract_model})"
+        f"context per batch: {int(est['context_tokens']):,} (cap {settings.adjudicate_context_tokens:,})"
+    )
+    console.print(f"extraction pass:   ${est['extract_usd']:.2f}  ({settings.extract_model})")
+    console.print(
+        f"audit, {candidates} candidates in {int(est['adjudicate_batches'])} batches of "
+        f"{settings.adjudicate_batch_size}: ${est['adjudicate_usd']:.2f}  ({settings.adjudicate_model})"
     )
     console.print(
-        f"one full-context verdict: ${est['adjudicate_full_pass_usd']:.2f}  ({settings.adjudicate_model})"
+        "[dim]lower CANONKEEPER_ADJUDICATE_CONTEXT_TOKENS or raise the batch size to spend less; "
+        "repeat runs hit the disk cache and cost nothing[/dim]"
     )
+
+
+@app.command()
+def bible(
+    manifest: ManifestArg,
+    workdir: Path | None = None,
+    min_claims: int = typer.Option(1, help="Hide entities with fewer facts than this"),
+    open_page: bool = False,
+) -> None:
+    """Render the bible as a browsable HTML page (one card per entity, every fact sourced)."""
+    from canonkeeper.canon import CanonStore
+    from canonkeeper.report.bible import write_bible
+
+    settings = _settings(None, workdir)
+    m = SeriesManifest.load(manifest)
+    bible_path, report_dir = _paths(settings, m)
+    if not bible_path.exists():
+        console.print("[red]no bible yet — run `canonkeeper build` first[/red]")
+        raise typer.Exit(2)
+    store = CanonStore.load(bible_path)
+    out = write_bible(store, m.series, report_dir / "bible.html", min_claims=min_claims)
+    console.print(f"[green]bible page:[/green] {out}  ({len(store.entities())} entities)")
+    if open_page:
+        typer.launch(str(out))
+
+
+@app.command()
+def demo(
+    dest: Path = _DEMO_DEST,
+    open_report: bool = False,
+) -> None:
+    """Run the whole pipeline offline on an invented three-book series with five planted errors."""
+    from canonkeeper.demo import PLANTED, write_demo_series
+    from canonkeeper.pipeline import audit as run_audit
+    from canonkeeper.pipeline import build_bible
+    from canonkeeper.report import write_report
+    from canonkeeper.report.bible import write_bible
+
+    settings = _settings("mock", dest)
+    manifest_path = write_demo_series(dest)
+    m, series = _load(manifest_path, settings)
+    bible_path, report_dir = _paths(settings, m)
+    if bible_path.exists():
+        bible_path.unlink()
+    llm = make_llm(settings)
+
+    console.rule(f"[bold]{m.series}[/bold] — {len(series.books)} books, {series.words:,} words")
+    console.print("planted errors:")
+    for who, what, how in PLANTED:
+        console.print(f"  • {who} · {what}: {how}")
+
+    store = build_bible(series, llm, settings, bible_path)
+    console.print(
+        f"\n[green]bible:[/green] {len(store)} facts about {len(store.entities())} entities"
+    )
+    bible_html = write_bible(store, m.series, report_dir / "bible.html")
+    report = run_audit(series, store, llm, settings)
+    html, _ = write_report(report, report_dir)
+    console.print()
+    _print_summary(report)
+    console.print(f"\n[green]report:[/green] {html}\n[green]bible: [/green] {bible_html}")
+    console.print("[dim]provider=mock: rule-based stand-in, no API calls were made[/dim]")
+    if open_report:
+        typer.launch(str(html))
 
 
 @app.command()

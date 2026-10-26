@@ -41,5 +41,5 @@ def audit(
             "adjudicate": settings.adjudicate_model,
             "provider": settings.provider,
         },
-        cost_usd=round(llm.usage.cost_usd, 4),
+        cost_usd=None if settings.provider == "mock" else round(llm.usage.cost_usd, 4),
     )

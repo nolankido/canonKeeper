@@ -22,7 +22,7 @@ def test_end_to_end_finds_planted_contradictions(series, settings, mock_llm, tmp
     report = audit(series, store, mock_llm, settings, progress=False)
     assert report.candidates_total == len(cands)
     reasons = " | ".join(f.candidate.reason for f in report.errors)
-    assert "alice grey.eye_color" in reasons
+    assert "Alice Grey.eye_color" in reasons
     assert "Carol Vane dies" in reasons
 
     html, js = write_report(report, tmp_path / "out")

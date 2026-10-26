@@ -21,6 +21,7 @@ class Provenance(BaseModel):
     book: str
     """Series-local book key, e.g. `01-a-study-in-scarlet`. Sort order is series order."""
     book_index: int
+    book_title: str | None = None
     chapter: str
     chapter_index: int
     quote: str = Field(description="Verbatim passage that supports the claim, <= ~300 chars.")
@@ -29,7 +30,7 @@ class Provenance(BaseModel):
 
     @property
     def locator(self) -> str:
-        return f"{self.book} / {self.chapter}"
+        return f"{self.book_title or self.book} · {self.chapter}"
 
 
 class ClaimKind(StrEnum):
