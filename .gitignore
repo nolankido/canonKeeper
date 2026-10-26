@@ -1,0 +1,25 @@
+# secrets
+.env
+
+# working data (bibles, caches, reports, downloaded corpora)
+.canonkeeper/
+drafts/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store

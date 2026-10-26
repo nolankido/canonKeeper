@@ -1,0 +1,11 @@
+{
+  "series": "Sherlock Holmes",
+  "books": [
+    { "key": "01-a-study-in-scarlet", "title": "A Study in Scarlet", "gutenberg_id": 244 },
+    { "key": "02-the-sign-of-the-four", "title": "The Sign of the Four", "gutenberg_id": 2097 },
+    { "key": "03-the-adventures-of-sherlock-holmes", "title": "The Adventures of Sherlock Holmes", "gutenberg_id": 1661 },
+    { "key": "04-the-memoirs-of-sherlock-holmes", "title": "The Memoirs of Sherlock Holmes", "gutenberg_id": 834 },
+    { "key": "05-the-hound-of-the-baskervilles", "title": "The Hound of the Baskervilles", "gutenberg_id": 2852 },
+    { "key": "06-the-return-of-sherlock-holmes", "title": "The Return of Sherlock Holmes", "gutenberg_id": 108 }
+  ]
+}

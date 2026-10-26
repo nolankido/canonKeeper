@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>canonkeeper — {{ r.series }}</title>
+<style>
+  :root {
+    --bg: #faf8f3; --fg: #1d1a16; --muted: #6b655c; --card: #ffffff; --line: #e6e1d7;
+    --hi: #b3261e; --med: #b26a00; --lo: #4d6b2f; --ok: #2f6b5a; --accent: #3b4f8a;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16140f; --fg: #ece7dc; --muted: #a39b8d; --card: #1f1c16; --line: #342f27;
+      --hi: #ff6b61; --med: #ffb14d; --lo: #9ccc65; --ok: #6fc7ad; --accent: #9fb0e8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 var(--serif); }
+  main { max-width: 880px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 36px 0 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .stat b { display: block; font-size: 24px; font-family: var(--mono); }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .f { background: var(--card); border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+  .f.high { border-left-color: var(--hi); } .f.medium { border-left-color: var(--med); } .f.low { border-left-color: var(--lo); }
+  .f.other { border-left-color: var(--line); opacity: .85; }
+  .tag { display: inline-block; font: 12px/1 var(--mono); padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line); margin-right: 6px; }
+  .tag.high { color: var(--hi); border-color: var(--hi); } .tag.medium { color: var(--med); border-color: var(--med); }
+  .tag.low { color: var(--lo); border-color: var(--lo); } .tag.ok { color: var(--ok); border-color: var(--ok); }
+  .claim { margin: 10px 0; padding: 10px 12px; background: var(--bg); border-radius: 8px; }
+  .claim .loc { font: 12px var(--mono); color: var(--muted); }
+  .claim q { display: block; margin-top: 4px; font-style: italic; }
+  .fix { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--accent); border-radius: 8px; }
+  .fix b { color: var(--accent); }
+  details summary { cursor: pointer; color: var(--muted); }
+  footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
+  code { font-family: var(--mono); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>{{ r.series }}</h1>
+  <div class="sub">{{ r.books | length }} books · continuity audit by canonkeeper</div>
+
+  <div class="stats">
+    <div class="stat"><b>{{ r.claims_total }}</b><span>facts in bible</span></div>
+    <div class="stat"><b>{{ r.candidates_total }}</b><span>candidates screened</span></div>
+    <div class="stat"><b>{{ errors | length }}</b><span>contradictions</span></div>
+    <div class="stat"><b>{{ r.findings | selectattr('verdict', 'equalto', 'deliberate') | list | length }}</b><span>deliberate reveals</span></div>
+    {% if r.cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % r.cost_usd }}</b><span>API cost</span></div>{% endif %}
+  </div>
+
+  <h2>Contradictions</h2>
+  {% if not errors %}<p>None found. Either the series is clean or the bible needs more extraction coverage.</p>{% endif %}
+  {% for f in errors %}
+  <div class="f {{ f.severity }}">
+    <span class="tag {{ f.severity }}">{{ f.severity }}</span><span class="tag">{{ f.candidate.heuristic }}</span>
+    <strong>{{ f.candidate.reason }}</strong>
+    {% for c in f.candidate.claims %}
+    <div class="claim">
+      <div class="loc">Book {{ c.provenance.book_index + 1 }} · {{ c.provenance.chapter }} — <code>{{ c.subject }}.{{ c.predicate }} = {{ c.object }}</code></div>
+      <q>{{ c.provenance.quote }}</q>
+    </div>
+    {% endfor %}
+    <p>{{ f.explanation }}</p>
+    {% if f.suggested_fix %}<div class="fix"><b>Suggested fix (later book):</b> {{ f.suggested_fix }}</div>{% endif %}
+  </div>
+  {% endfor %}
+
+  {% if others %}
+  <h2>Reviewed and cleared</h2>
+  <details><summary>{{ others | length }} candidates judged deliberate, ambiguous, or not a conflict</summary>
+  {% for f in others %}
+  <div class="f other">
+    <span class="tag ok">{{ f.verdict }}</span><span class="tag">{{ f.candidate.heuristic }}</span>
+    <strong>{{ f.candidate.reason }}</strong>
+    <p>{{ f.explanation }}</p>
+  </div>
+  {% endfor %}
+  </details>
+  {% endif %}
+
+  <footer>
+    Models: {% for k, v in r.models.items() %}<code>{{ k }}={{ v }}</code> {% endfor %}
+    · Every finding links to a verbatim passage; nothing here was inferred without a quote.
+  </footer>
+</main>
+</body>
+</html>
