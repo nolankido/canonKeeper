@@ -94,15 +94,18 @@ class Settings(BaseSettings):
     extract_chunk_tokens: int = 3500
     """Chapters longer than this are split before extraction. Smaller chunks get denser
     extraction from Flash-class models; with Flash-Lite at ~2 s a call the extra calls are cheap."""
-    adjudicate_context_tokens: int = 900_000
-    """Hard ceiling on series text passed to the adjudicator (1M-context models).
-    Lower it (e.g. 150000) while iterating; raise it for the final run."""
+    adjudicate_context_tokens: int = 200_000
+    """Ceiling on series text passed to the adjudicator per call. 1M-context models can take a
+    whole series, but free tiers also cap tokens per minute, so the default stays well under
+    that; the chapters each batch's quotes came from always go in first. Raise it (up to
+    ~900000) for a final run on a paid tier."""
     adjudicate_batch_size: int = 8
     """Candidates judged per adjudicator call. The series text is sent once per batch, so
     this divides the dominant cost; 8 keeps each verdict list short enough to stay accurate."""
     max_candidates_per_run: int = 200
     temperature: float = 0.0
-    request_timeout_s: float = 180.0
+    request_timeout_s: float = 300.0
+    """Long-context adjudication calls on a thinking model can take a few minutes."""
     requests_per_minute: int = -1
     """Client-side pacing; -1 means use the provider default, 0 means unlimited."""
     max_retries: int = 6
