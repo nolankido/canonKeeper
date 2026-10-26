@@ -35,17 +35,25 @@ injects contradictions into public-domain novels and scores precision/recall.
 - Free-tier rate limits: client-side pacing, backoff honouring Retry-After, JSON-mode fallback.
 
 ## Accomplishments
-- Finds Watson's wandering war wound (shoulder in *A Study in Scarlet*, leg in *The Sign of the
-  Four*) unassisted, with both quotes.  ← fill in once the real run is done
-- Classifies an in-text explanation as `deliberate` rather than flagging it.
-- Benchmark: ___ precision / ___ recall on N injected defects.  ← from `canonkeeper eval`
+- On the six Holmes volumes (457,890 words) it extracted 2,331 sourced facts, screened 26
+  candidate conflicts, and reported exactly one contradiction: Watson's war wound — "struck on
+  the shoulder by a Jezail bullet" (*A Study in Scarlet*), "sat nursing my wounded leg" (*The
+  Sign of the Four*), "the jezail bullet which I had brought back in one of my limbs" (*The
+  Noble Bachelor*) — with the fix aimed at the later book. The error readers have argued about
+  since 1890, found unassisted, on a free tier, for $0.21 at list price.
+- Ruled Holmes's "dark" eyes in *The Sign of the Four* `deliberate` — "he is in disguise as an old
+  master mariner; his true eye colour is grey" — and explained each of the 20 non-conflicts.
+- Benchmark (seeded defects, 6 volumes): ___ precision / ___ recall on 20 injected
+  contradictions. ← from `canonkeeper eval`; the first run scored 1.00 / 0.05 and the
+  harness pointed straight at extraction, which is the point of having one.
 
 ## What we learned
 (fill in)
 
 ## What's next
-Preflight as an MCP server so an author's assistant can order an audit; `check` a draft
-before it goes to the editor; subscriptions for ongoing series via PayPal Subscriptions.
+Heuristics for the two name slips the bible already holds as facts (Mrs. Hudson / Mrs. Turner
+both recorded as the landlady; Mary Watson calling her husband James); subscriptions for
+ongoing series via PayPal Subscriptions; a hosted instance.
 
 ## Built with
 python, fastapi, paypal-orders-v2, gemini-api, pydantic, jinja2, rapidfuzz, tiktoken
@@ -53,6 +61,9 @@ python, fastapi, paypal-orders-v2, gemini-api, pydantic, jinja2, rapidfuzz, tikt
 ## PayPal tools used
 PayPal REST Orders v2 (sandbox): create order with `payment_source.paypal.experience_context`
 (`PAY_NOW`, return/cancel URLs), capture on return, idempotency via `PayPal-Request-Id`.
+Two surfaces: the web app (`canonkeeper serve`) and an MCP server (`canonkeeper mcp`) through
+which an author's AI assistant quotes and orders the audit while the person approves the
+payment on PayPal — agent-initiated, human-approved commerce.
 
 ## AI tools used
 Gemini API (`gemini-3.8-flash`) through its OpenAI-compatible endpoint for extraction and
