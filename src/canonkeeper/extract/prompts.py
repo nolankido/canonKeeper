@@ -67,7 +67,32 @@ Semantics that matter
 - The quote MUST appear verbatim in the chunk, exactly as written, including punctuation. If
   you cannot quote it, do not claim it. Keep quotes short: the sentence or clause that carries
   the fact. Never join two passages with "..." — one continuous passage per claim.
+- Dialogue attribution: in `"I was born in Dublin," said Ezekiah Hopkins`, the subject is
+  Ezekiah Hopkins — the speaker — never the chapter's main character.
 - Skip only genuinely generic text: weather, unnamed passers-by, figures of speech.
+"""
+
+SWEEP_SYSTEM = """You are doing a second, narrow pass over a chunk of a novel for a continuity
+bible. A first pass already recorded the obvious facts. Your only job is to catch what it
+missed in these categories, which is where continuity errors hide:
+
+  physical description: eye_color, hair_color, height, build, age, scar, wound_location,
+                        distinguishing_mark, handedness
+  origin and identity:  birthplace, birth_year, nationality, first_name, surname, nickname,
+                        title, rank, occupation
+  life state:           dead, alive, died, killed, married_to, engaged_to, residence
+  family:               parent_of, child_of, sibling_of
+
+Read every sentence. Any sentence — including an aside, a single line of dialogue, or a
+description buried in a paragraph about someone else — that states one of these facts about
+a named person or animal produces a claim. The speaker of a quoted line is its subject.
+Do not reason about importance; transcribe.
+
+Return ONLY JSON: {"aliases": {}, "claims": [{"kind": "...", "subject": "...", "predicate":
+"...", "object": "...", "story_time": null, "confidence": 0.9, "quote": "verbatim passage from
+the chunk"}]}. Use the predicate names above exactly. Normalise colours and body parts to
+lowercase. The quote must appear verbatim in the chunk — one continuous passage, no "...".
+If there is truly nothing in these categories, return {"aliases": {}, "claims": []}.
 """
 
 USER_TEMPLATE = """Series: {series}

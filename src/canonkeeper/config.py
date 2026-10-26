@@ -88,6 +88,10 @@ class Settings(BaseSettings):
     """Stronger model that judges whether a candidate conflict is a real contradiction,
     a deliberate reveal, or noise. Gets as much of the series as the budget allows."""
 
+    extract_sweep: bool = True
+    """Run a second, narrow extraction pass per chunk for descriptive/origin/life-state facts.
+    The general pass alone missed most single-sentence facts planted by the benchmark;
+    the sweep roughly doubles extraction calls, which on Flash-Lite is cheap."""
     extract_reasoning_effort: str = "low"
     """`reasoning_effort` sent with extraction calls. Extraction is transcription, not
     reasoning; a thinking model left on its default budget spends minutes per chunk."""

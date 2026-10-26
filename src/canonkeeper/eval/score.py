@@ -91,5 +91,8 @@ def score(
 
 
 def finding_key(f: Finding) -> str:
+    """Slot plus its set of disputed values. A planted value turning up in a slot that already
+    had a pre-existing contradiction (Watson's wound) changes the key, so it still scores."""
     c = f.candidate.claims[0]
-    return f"{c.subject.lower()}|{c.predicate}"
+    values = "|".join(sorted({x.object.lower() for x in f.candidate.claims}))
+    return f"{c.subject.lower()}|{c.predicate}|{values}"

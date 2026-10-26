@@ -158,10 +158,18 @@ class Extractor:
         self.stats = ExtractStats()
 
     def extract_chunk(
-        self, series_name: str, book: Book, chapter: Chapter, text: str, offset: int, note: str
+        self,
+        series_name: str,
+        book: Book,
+        chapter: Chapter,
+        text: str,
+        offset: int,
+        note: str,
+        *,
+        system: str = prompts.SYSTEM,
     ) -> ExtractionResult:
         messages = [
-            {"role": "system", "content": prompts.SYSTEM},
+            {"role": "system", "content": system},
             {
                 "role": "user",
                 "content": prompts.USER_TEMPLATE.format(
@@ -233,11 +241,17 @@ class Extractor:
             for book in series.books:
                 for chapter in book.chapters:
                     for text, offset, note in _chunks(chapter, self.settings):
-                        res = self.extract_chunk(series.name, book, chapter, text, offset, note)
-                        all_claims.extend(res.claims)
-                        for k, v in res.aliases.items():
-                            aliases.setdefault(k, [])
-                            aliases[k].extend(a for a in v if a not in aliases[k])
+                        passes = [prompts.SYSTEM]
+                        if self.settings.extract_sweep:
+                            passes.append(prompts.SWEEP_SYSTEM)
+                        for system in passes:
+                            res = self.extract_chunk(
+                                series.name, book, chapter, text, offset, note, system=system
+                            )
+                            all_claims.extend(res.claims)
+                            for k, v in res.aliases.items():
+                                aliases.setdefault(k, [])
+                                aliases[k].extend(a for a in v if a not in aliases[k])
                     bar.advance(task)
         return ExtractionResult(claims=all_claims, aliases=aliases)
 
