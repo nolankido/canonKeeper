@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ job.series_name }} — {{ job.status }}{% endblock %}
+{% block head %}{% if job.status in ('paid', 'running') %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
+{% block body %}
+<h1>{{ job.series_name }} <span class="status {{ job.status }}">{{ job.status }}</span></h1>
+<p class="lede">{{ job.books | length }} books · {{ "{:,}".format(job.tokens) }} tokens · quote ${{ job.quote_usd }}{% if job.order_id %} · order <code>{{ job.order_id }}</code>{% endif %}</p>
+
+<div class="card">
+{% if job.status == 'quoted' %}
+  <p>Quote ready. Nothing has been sent to a model.</p>
+  <form action="/jobs/{{ job.id }}/order" method="post"><button type="submit">Pay ${{ job.quote_usd }} with PayPal</button></form>
+{% elif job.status == 'ordered' %}
+  <p>Waiting for PayPal approval.</p>
+  {% if job.approve_url %}<a class="btn" href="{{ job.approve_url }}">Continue to PayPal</a>{% endif %}
+{% elif job.status == 'cancelled' %}
+  <p>Checkout was cancelled. Nothing was charged.</p>
+  <form action="/jobs/{{ job.id }}/order" method="post"><button type="submit">Try again</button></form>
+{% elif job.status in ('paid', 'running') %}
+  <p>Paid {{ job.paid_at[:19] if job.paid_at else '' }}. The audit is {{ 'queued' if job.status == 'paid' else 'running' }} — extracting every chapter, then judging each candidate conflict against the series text. This page refreshes every 10 seconds.</p>
+  <ol class="steps"><li>Chapterize {{ job.books | length }} books</li><li>Extract facts with verbatim quotes</li><li>Screen for conflicts (no model calls)</li><li>Adjudicate against the series text</li><li>Render the report</li></ol>
+{% elif job.status == 'done' %}
+  <div class="kv">
+    <div>Facts in bible</div><div class="big">{{ job.claims }}</div>
+    <div>Contradictions</div><div class="big" style="color: {{ 'var(--bad)' if job.contradictions else 'var(--ok)' }}">{{ job.contradictions }}</div>
+  </div>
+  <a class="btn" href="/jobs/{{ job.id }}/report">Open the report</a>
+  <a class="btn secondary" href="/jobs/{{ job.id }}/bible">Browse the bible</a>
+{% elif job.status == 'failed' %}
+  <p>The audit failed: <code>{{ job.error }}</code></p>
+  <p class="note">You were charged; the run can be retried at no extra cost (responses are cached, so a retry resumes where it stopped).</p>
+  <form action="/jobs/{{ job.id }}/retry" method="post"><button type="submit">Retry</button></form>
+{% endif %}
+</div>
+{% endblock %}

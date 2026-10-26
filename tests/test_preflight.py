@@ -1,0 +1,184 @@
+"""Preflight end to end: upload → quote → order → (fake) approve → capture → audit → report.
+Uses the fake PayPal and the mock provider; no network."""
+
+from __future__ import annotations
+
+import json
+from decimal import Decimal
+
+import httpx
+import pytest
+import respx
+from fastapi.testclient import TestClient
+
+from canonkeeper.config import Settings
+from canonkeeper.demo import BOOK1, BOOK2, BOOK3, PLANTED
+from canonkeeper.preflight.app import create_app
+from canonkeeper.preflight.paypal import SANDBOX, FakePayPal, PayPalClient
+from canonkeeper.preflight.pricing import quote
+
+
+def test_quote_is_deterministic_and_explained():
+    q = quote(0)
+    assert q.total_usd == Decimal("5.00")  # minimum
+    q = quote(900_000, words=600_000, books=6)
+    assert q.usage_usd == Decimal("36.00")
+    assert q.total_usd == Decimal("41.00")
+    assert "per 100k tokens" in q.explanation
+    assert q.total_str == "41.00"
+
+
+@pytest.fixture
+def client(tmp_path):
+    settings = Settings(
+        provider="mock",
+        workdir=tmp_path / "wd",
+        cache_dir=tmp_path / "wd" / "cache",
+        _env_file=None,
+    )
+    app = create_app(
+        settings=settings,
+        paypal=FakePayPal(),
+        workdir=tmp_path / "pf",
+        public_base_url="http://testserver",
+    )
+    return TestClient(app, follow_redirects=False)
+
+
+def _upload(client):
+    files = [
+        ("files", ("03-the-return.txt", BOOK3.encode(), "text/plain")),
+        ("files", ("01-the-harbour.txt", BOOK1.encode(), "text/plain")),
+        ("files", ("02-the-wreck.txt", BOOK2.encode(), "text/plain")),
+    ]
+    r = client.post("/quote", data={"series_name": "The Saltmarsh Chronicles"}, files=files)
+    assert r.status_code == 200, r.text
+    return r
+
+
+def test_full_flow_with_fake_paypal(client):
+    assert client.get("/healthz").json()["paypal"] == "fake"
+
+    r = _upload(client)
+    assert "Pay $" in r.text and "with PayPal" in r.text
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    store = client.app.state.store
+    job = store.get(job_id)
+    assert job.status == "quoted"
+    assert job.books == ["01-the-harbour.txt", "02-the-wreck.txt", "03-the-return.txt"]
+    assert job.tokens > 500
+
+    # Nothing has run yet.
+    assert not (store.dir(job_id) / "bible.jsonl").exists()
+
+    # Order → redirected to the (fake) approval page.
+    r = client.post(f"/jobs/{job_id}/order")
+    assert r.status_code == 303
+    approve = r.headers["location"]
+    assert approve.startswith("/fake-approve?token=FAKE")
+    job = store.get(job_id)
+    assert job.status == "ordered" and job.order_id.startswith("FAKE")
+
+    r = client.get(approve)
+    assert r.status_code == 200 and "Pay Now" in r.text and job.quote_usd in r.text
+
+    # Buyer approves → PayPal-style return → capture → job runs.
+    r = client.post(
+        "/fake-approve", data={"token": job.order_id, "return_to": "http://testserver/return"}
+    )
+    assert r.status_code == 303
+    r = client.get(r.headers["location"])
+    assert r.status_code == 303 and r.headers["location"] == f"/jobs/{job_id}"
+
+    client.app.state.runner.wait(job_id, timeout=60)
+    job = store.get(job_id)
+    assert job.status == "done", job.error
+    assert job.contradictions == len(PLANTED)
+    assert client.app.state.paypal.get_order(job.order_id).status == "COMPLETED"
+
+    page = client.get(f"/jobs/{job_id}")
+    assert "Open the report" in page.text
+    assert client.get(f"/jobs/{job_id}/report").status_code == 200
+    assert "Ivy Marlowe" in client.get(f"/jobs/{job_id}/bible").text
+
+    # A second return with the same token is idempotent.
+    r = client.get(f"/return?token={job.order_id}")
+    assert r.status_code == 303
+
+
+def test_cancel_and_reorder(client):
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    client.post(f"/jobs/{job_id}/order")
+    r = client.get(f"/cancel?job={job_id}")
+    assert r.status_code == 303
+    assert client.app.state.store.get(job_id).status == "cancelled"
+    r = client.post(f"/jobs/{job_id}/order")  # allowed again
+    assert r.status_code == 303
+
+
+def test_upload_requires_files(client):
+    r = client.post("/quote", data={"series_name": "x"})
+    assert r.status_code == 400
+
+
+@respx.mock
+def test_real_client_speaks_orders_v2():
+    respx.post(f"{SANDBOX}/v1/oauth2/token").mock(
+        return_value=httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+    )
+    create = respx.post(f"{SANDBOX}/v2/checkout/orders").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "id": "5O190127TN364715T",
+                "status": "PAYER_ACTION_REQUIRED",
+                "purchase_units": [{"amount": {"currency_code": "USD", "value": "41.00"}}],
+                "links": [
+                    {"rel": "self", "href": "x"},
+                    {
+                        "rel": "payer-action",
+                        "href": "https://www.sandbox.paypal.com/checkoutnow?token=5O190127TN364715T",
+                    },
+                ],
+            },
+        )
+    )
+    capture = respx.post(f"{SANDBOX}/v2/checkout/orders/5O190127TN364715T/capture").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "id": "5O190127TN364715T",
+                "status": "COMPLETED",
+                "purchase_units": [
+                    {
+                        "payments": {
+                            "captures": [{"amount": {"currency_code": "USD", "value": "41.00"}}]
+                        }
+                    }
+                ],
+            },
+        )
+    )
+    pp = PayPalClient("cid", "sec", mode="sandbox")
+    o = pp.create_order(
+        amount="41.00",
+        currency="USD",
+        description="d",
+        return_url="r",
+        cancel_url="c",
+        reference="job1",
+    )
+    assert o.id == "5O190127TN364715T" and o.approve_url.startswith(
+        "https://www.sandbox.paypal.com"
+    )
+    body = create.calls[0].request
+    assert body.headers["Authorization"] == "Bearer tok"
+    assert body.headers["PayPal-Request-Id"] == "job1"
+    sent = json.loads(body.read())
+    assert sent["intent"] == "CAPTURE"
+    assert sent["purchase_units"][0]["amount"] == {"currency_code": "USD", "value": "41.00"}
+    assert sent["payment_source"]["paypal"]["experience_context"]["user_action"] == "PAY_NOW"
+    o2 = pp.capture_order(o.id)
+    assert o2.status == "COMPLETED" and o2.amount == "41.00"
+    assert capture.called

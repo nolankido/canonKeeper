@@ -8,6 +8,7 @@ canonkeeper bible    series.json             # browsable HTML of the bible
 canonkeeper audit    series.json             # find + adjudicate contradictions (Muse Wonder)
 canonkeeper check    series.json new.md      # audit one new manuscript against the bible
 canonkeeper eval     series.json --n 20      # seeded-defect benchmark → precision / recall
+canonkeeper serve                            # Preflight web app: quote → PayPal → audit → report
 """
 
 from __future__ import annotations
@@ -384,6 +385,35 @@ def eval_cmd(
         console.print(f"[red]false positive[/red] {f.candidate.reason}")
     (eval_dir / "result.md").write_text(s.markdown() + "\n", encoding="utf-8")
     console.print(f"[dim]cost ${llm.usage.cost_usd:.3f}[/dim]")
+
+
+@app.command()
+def serve(
+    host: str = "127.0.0.1",
+    port: int = 8787,
+    provider: str | None = None,
+    workdir: Path | None = None,
+    public_url: str | None = typer.Option(
+        None, help="Public base URL PayPal should send buyers back to"
+    ),
+) -> None:
+    """Run the Preflight service (upload → quote → PayPal checkout → audit → report)."""
+    import uvicorn
+
+    from canonkeeper.preflight.app import create_app, make_paypal
+
+    settings = _settings(provider, workdir)
+    pp = make_paypal()
+    console.print(f"provider {settings.provider} · paypal {pp.mode} · http://{host}:{port}")
+    if settings.trains_on_prompts:
+        console.print(
+            "[yellow]note:[/yellow] Gemini free tier may train on prompts — public-domain and "
+            "demo text only through this service."
+        )
+    web = create_app(
+        settings=settings, paypal=pp, public_base_url=public_url or f"http://{host}:{port}"
+    )
+    uvicorn.run(web, host=host, port=port, log_level="info")
 
 
 def _print_summary(report: AuditReport) -> None:

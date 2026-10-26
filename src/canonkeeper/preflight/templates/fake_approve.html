@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Simulated PayPal checkout{% endblock %}
+{% block body %}
+<h1>Simulated PayPal checkout</h1>
+<p class="lede">This page stands in for PayPal's hosted approval page. In sandbox or live mode the buyer would be on paypal.com here.</p>
+<div class="card">
+  <div class="kv">
+    <div>Merchant</div><div>Preflight by canonkeeper</div>
+    <div>Order</div><div><code>{{ order.id }}</code></div>
+    <div>Description</div><div>{{ order.raw.description }}</div>
+    <div>Amount</div><div class="big">{{ order.amount }} {{ order.currency }}</div>
+  </div>
+  <form action="/fake-approve" method="post">
+    <input type="hidden" name="token" value="{{ order.id }}">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <button type="submit">Pay Now</button>
+  </form>
+</div>
+{% endblock %}

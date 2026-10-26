@@ -1,0 +1,197 @@
+"""Job store and background runner.
+
+A job is one series upload. It moves through: quoted → ordered → paid → running → done|failed.
+State is a JSON file per job under the workdir so a restart loses nothing; the audit runs in a
+daemon thread because the free-tier pacing makes a real series take tens of minutes.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import secrets
+import threading
+import traceback
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Literal
+
+from canonkeeper.config import Settings
+from canonkeeper.corpus.chapterize import chapterize
+from canonkeeper.corpus.loaders import Book, Series
+from canonkeeper.preflight.pricing import Quote, quote
+from canonkeeper.tokens import count_tokens
+
+Status = Literal["quoted", "ordered", "paid", "running", "done", "failed", "cancelled"]
+
+
+@dataclass
+class Job:
+    id: str
+    series_name: str
+    books: list[str]  # filenames in reading order
+    tokens: int
+    words: int
+    quote_usd: str
+    status: Status = "quoted"
+    order_id: str | None = None
+    approve_url: str | None = None
+    paid_at: str | None = None
+    error: str | None = None
+    claims: int | None = None
+    contradictions: int | None = None
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+class JobStore:
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.root.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.Lock()
+
+    def dir(self, job_id: str) -> Path:
+        return self.root / job_id
+
+    def _path(self, job_id: str) -> Path:
+        return self.dir(job_id) / "job.json"
+
+    def save(self, job: Job) -> None:
+        job.updated_at = _now()
+        with self._lock:
+            self.dir(job.id).mkdir(parents=True, exist_ok=True)
+            self._path(job.id).write_text(json.dumps(asdict(job), indent=2), encoding="utf-8")
+
+    def get(self, job_id: str) -> Job | None:
+        p = self._path(job_id)
+        if not p.exists():
+            return None
+        return Job(**json.loads(p.read_text(encoding="utf-8")))
+
+    def by_order(self, order_id: str) -> Job | None:
+        for p in self.root.glob("*/job.json"):
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if data.get("order_id") == order_id:
+                return Job(**data)
+        return None
+
+    def all(self) -> list[Job]:
+        jobs = [
+            Job(**json.loads(p.read_text(encoding="utf-8"))) for p in self.root.glob("*/job.json")
+        ]
+        return sorted(jobs, key=lambda j: j.created_at, reverse=True)
+
+    # --- creation ---------------------------------------------------------------------------
+    def create_from_upload(
+        self, series_name: str, files: list[tuple[str, bytes]]
+    ) -> tuple[Job, Quote]:
+        """`files` are (filename, bytes) in reading order. Text is decoded as UTF-8."""
+        job_id = secrets.token_urlsafe(8)
+        d = self.dir(job_id)
+        (d / "books").mkdir(parents=True, exist_ok=True)
+        names: list[str] = []
+        tokens = words = 0
+        name: str
+        data: bytes
+        for i, (name, data) in enumerate(files):
+            stem = re.sub(
+                r"^\d{1,3}[-_. ]+", "", Path(name).name
+            )  # drop the author's own numbering
+            safe = f"{i + 1:02d}-" + "".join(
+                ch if ch.isalnum() or ch in "-_." else "-" for ch in stem
+            )
+            text = data.decode("utf-8", errors="replace")
+            (d / "books" / safe).write_text(text, encoding="utf-8")
+            names.append(safe)
+            tokens += count_tokens(text)
+            words += len(text.split())
+        q = quote(tokens, words=words, books=len(files))
+        job = Job(
+            id=job_id,
+            series_name=series_name,
+            books=names,
+            tokens=tokens,
+            words=words,
+            quote_usd=q.total_str,
+        )
+        self.save(job)
+        return job, q
+
+    def load_series(self, job: Job) -> Series:
+        books: list[Book] = []
+        for i, name in enumerate(job.books):
+            text = (self.dir(job.id) / "books" / name).read_text(encoding="utf-8")
+            title = name.split("-", 1)[1].rsplit(".", 1)[0].replace("-", " ").replace("_", " ")
+            books.append(
+                Book(
+                    key=name.rsplit(".", 1)[0],
+                    title=title or name,
+                    index=i,
+                    text=text,
+                    chapters=chapterize(text),
+                )
+            )
+        return Series(job.series_name, books)
+
+
+class Runner:
+    """Runs paid jobs in background threads. One at a time by default — free-tier pacing is
+    per project, so parallel jobs would just contend for the same RPM."""
+
+    def __init__(self, store: JobStore, settings: Settings, *, max_workers: int = 1) -> None:
+        self.store = store
+        self.settings = settings
+        self._sem = threading.Semaphore(max_workers)
+        self._threads: dict[str, threading.Thread] = {}
+
+    def submit(self, job_id: str) -> None:
+        if job_id in self._threads and self._threads[job_id].is_alive():
+            return
+        t = threading.Thread(
+            target=self._run, args=(job_id,), name=f"preflight-{job_id}", daemon=True
+        )
+        self._threads[job_id] = t
+        t.start()
+
+    def wait(self, job_id: str, timeout: float | None = None) -> None:
+        t = self._threads.get(job_id)
+        if t:
+            t.join(timeout)
+
+    def _run(self, job_id: str) -> None:
+        from canonkeeper.llm import make_llm
+        from canonkeeper.pipeline import audit, build_bible
+        from canonkeeper.report import write_report
+        from canonkeeper.report.bible import write_bible
+
+        with self._sem:
+            job = self.store.get(job_id)
+            if job is None or job.status not in ("paid", "failed"):
+                return
+            job.status = "running"
+            job.error = None
+            self.store.save(job)
+            try:
+                series = self.store.load_series(job)
+                d = self.store.dir(job.id)
+                settings = self.settings.model_copy(update={"cache_dir": d / "cache"})
+                llm = make_llm(settings)
+                store = build_bible(series, llm, settings, d / "bible.jsonl", progress=False)
+                write_bible(store, series.name, d / "reports" / "bible.html")
+                report = audit(series, store, llm, settings, progress=False)
+                write_report(report, d / "reports")
+                job.claims = report.claims_total
+                job.contradictions = len(report.errors)
+                job.status = "done"
+            except Exception as e:  # noqa: BLE001 - the job page shows the failure
+                job.status = "failed"
+                job.error = f"{type(e).__name__}: {e}"
+                (self.store.dir(job.id) / "error.txt").write_text(
+                    traceback.format_exc(), encoding="utf-8"
+                )
+            self.store.save(job)

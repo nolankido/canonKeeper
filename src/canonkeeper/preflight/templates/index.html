@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Upload a series{% endblock %}
+{% block body %}
+<h1>Does book six agree with book one?</h1>
+<p class="lede">Upload your series in reading order. Preflight reads every chapter, builds a fact-by-fact bible with the exact passage behind each fact, and reports the contradictions — with the fix aimed at the latest book. You see the price before anything runs.</p>
+
+<form class="card" action="/quote" method="post" enctype="multipart/form-data">
+  <label for="series_name">Series name</label>
+  <input id="series_name" name="series_name" type="text" placeholder="The Saltmarsh Chronicles" required>
+  <label for="files">Manuscripts (.txt or .md), one file per book — they are sorted by filename, so prefix with 01-, 02-, …</label>
+  <input id="files" name="files" type="file" multiple accept=".txt,.md,text/plain,text/markdown" required>
+  <button type="submit">Get a quote</button>
+  <p class="note">Nothing is sent to a model until you pay. Public-domain text and your own work only; files are kept on this server for the audit and can be deleted on request.</p>
+</form>
+
+{% if jobs %}
+<div class="card">
+  <table>
+    <tr><th>Recent</th><th>Books</th><th>Tokens</th><th>Quote</th><th>Status</th></tr>
+    {% for j in jobs %}
+    <tr><td><a href="/jobs/{{ j.id }}">{{ j.series_name }}</a></td><td>{{ j.books | length }}</td><td>{{ "{:,}".format(j.tokens) }}</td><td>${{ j.quote_usd }}</td><td><span class="status {{ j.status }}">{{ j.status }}</span></td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

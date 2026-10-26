@@ -37,6 +37,7 @@ ruff check src tests && ruff format src tests && mypy
 canonkeeper doctor          # verify provider/key/pacing with one tiny call
 canonkeeper demo            # offline, end to end
 canonkeeper fetch|estimate|build|bible|audit|check|eval evals/corpora/sherlock-holmes/series.json
+canonkeeper serve           # Preflight; PAYPAL_MODE=fake unless PAYPAL_CLIENT_ID is set
 ```
 
 ## Layout
@@ -55,6 +56,9 @@ canonkeeper fetch|estimate|build|bible|audit|check|eval evals/corpora/sherlock-h
 - `src/canonkeeper/demo.py` — the invented Saltmarsh series; `canonkeeper demo` must keep
   finding all five planted errors (tested).
 - `src/canonkeeper/eval/` — defect injection (`TEMPLATES`) and scoring.
+- `src/canonkeeper/preflight/` — the paid service. `pricing.py` is the published formula;
+  `paypal.py` is Orders v2 + `FakePayPal`; `jobs.py` persists jobs as JSON and runs them in a
+  daemon thread; `app.py` is the FastAPI routes. Never run a model before `capture` succeeds.
 - `tests/conftest.py` — fixture series with planted defects; imports the mock from `llm/rules.py`.
 
 ## Conventions

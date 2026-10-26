@@ -129,9 +129,10 @@ src/canonkeeper/
   audit/       candidate heuristics + batched adjudicator with 1M-ctx assembly (Muse Wonder)
   report/      audit report + bible viewer (HTML), JSON
   demo.py      the invented Saltmarsh series with planted errors
+  preflight/   the paid service: pricing, PayPal Orders v2 client (+fake), job store/runner, FastAPI app
   eval/        defect injection + precision/recall scoring
   llm/         OpenAI-compatible client (Gemini / local / Meta), pacing + backoff, rule-based mock, disk cache, cost tally
-  cli.py       doctor · demo · fetch · estimate · build · bible · audit · check · eval
+  cli.py       doctor · demo · fetch · estimate · build · bible · audit · check · eval · serve
 evals/corpora/ public-domain series manifests used for benchmarking
 docs/          ARCHITECTURE.md · DEMO_SCRIPT.md
 ```
@@ -169,11 +170,28 @@ and let the disk cache do the rest.
 
 ## Preflight (the PayPal AI Hackathon entry)
 
-A series audit has a knowable price before it runs — `estimate` counts the tokens — which makes
-it a natural pay-per-job service: upload a series, get a quote, pay, get the report. That layer
-is being built under `preflight/` for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/)
-(submissions due **Nov 12, 2026**): a small web app that quotes from the token count, takes
-payment through PayPal's sandbox, runs the audit, and delivers the report.
+A series audit has a knowable price before it runs — the token count is known the moment the
+files land — which makes it a natural pay-per-job service. `canonkeeper serve` runs it:
+
+```
+upload series ──▶ quote ($5 + $4 per 100k tokens, shown with the arithmetic)
+      ──▶ PayPal Orders v2 checkout (sandbox) ──▶ capture ──▶ audit runs in the background
+      ──▶ report + bible pages, job page refreshes itself
+```
+
+```bash
+canonkeeper serve                      # demo mode: payments simulated in-process, mock provider works too
+PAYPAL_CLIENT_ID=… PAYPAL_CLIENT_SECRET=… canonkeeper serve   # real PayPal sandbox
+```
+
+Nothing is sent to a model until the order is captured. Jobs persist as JSON on disk, run one
+at a time (free-tier pacing is per project, so parallelism would only contend), and a failed
+job can be retried at no extra cost because every model response is cached. The PayPal client
+is ~100 lines of Orders v2 (OAuth → create with `PAY_NOW` → capture, idempotent on
+`PayPal-Request-Id`); `FakePayPal` mirrors the state machine for tests and demos.
+
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) (submissions due
+**Nov 12, 2026**).
 
 ## Status
 
@@ -194,7 +212,10 @@ Working offline pipeline; real-model runs on the Gemini free tier. See
 - [x] `check` on an unpublished draft, with the deliberate-reveal case in the demo
 - [x] Gemini free-tier provider with pacing, backoff, JSON-mode fallback; `doctor` command
 - [ ] first real run on Sherlock Holmes; prompt tuning; publish benchmark numbers
-- [ ] Preflight: quote → PayPal sandbox checkout → audit → report
+- [x] Preflight: upload → quote → PayPal checkout → capture → audit → report (`canonkeeper serve`)
+- [ ] Preflight verified against the real PayPal sandbox with a sandbox buyer
+- [ ] Preflight as an MCP server (`quote_series`, `order_audit`, `get_report`) so an author's
+      assistant can order an audit — the agentic-commerce story
 - [ ] local-model mode verified against Ollama
 - [ ] demo video
 

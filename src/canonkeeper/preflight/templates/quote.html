@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Quote — {{ job.series_name }}{% endblock %}
+{% block body %}
+<h1>{{ job.series_name }}</h1>
+<p class="lede">{{ job.books | length }} books · {{ "{:,}".format(job.words) }} words · {{ "{:,}".format(job.tokens) }} tokens</p>
+
+<div class="card">
+  <div class="kv">
+    <div>Price</div><div class="big">${{ quote.total_str }} <small style="font-size:14px;color:var(--muted)">{{ currency }}</small></div>
+    <div>How it's calculated</div><div><code>{{ quote.explanation }}</code></div>
+    <div>What you get</div><div>A contradiction report with every finding tied to the two passages that disagree, a suggested fix to the later book, and a browsable series bible of every fact with its source.</div>
+    <div>Turnaround</div><div>Minutes for a novella, up to an hour for a long series — the page updates itself.</div>
+  </div>
+  <form action="/jobs/{{ job.id }}/order" method="post">
+    <button type="submit">Pay ${{ quote.total_str }} with PayPal</button>
+    <a class="btn secondary" href="/">Start over</a>
+  </form>
+  <p class="note">Books in order: {% for b in job.books %}<code>{{ b }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+</div>
+{% endblock %}
