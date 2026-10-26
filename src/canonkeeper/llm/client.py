@@ -161,6 +161,8 @@ class OpenAICompatibleLLM:
         timeout_s: float = 180.0,
         requests_per_minute: int = 0,
         max_retries: int = 6,
+        reasoning_effort: dict[str, str] | None = None,
+        request_log: Path | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         from openai import OpenAI  # local import keeps the mock path dependency-free
@@ -173,21 +175,66 @@ class OpenAICompatibleLLM:
         self._max_retries = max_retries
         self._sleep = sleep
         self._json_mode_supported: bool | None = None
+        self._reasoning_effort = reasoning_effort or {}
+        """model id -> reasoning_effort value ("minimal", "low", "medium", "high", "none")."""
+        self._reasoning_supported: bool | None = None
+        self._request_log = request_log
         self.usage = Usage()
         if cache_dir:
             cache_dir.mkdir(parents=True, exist_ok=True)
 
+    def _log(self, **fields: Any) -> None:
+        """One JSON line per attempt: what was sent, what came back, how long it took."""
+        if not self._request_log:
+            return
+        try:
+            self._request_log.parent.mkdir(parents=True, exist_ok=True)
+            with self._request_log.open("a", encoding="utf-8") as f:
+                f.write(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), **fields}) + "\n")
+        except OSError:
+            pass
+
     # --- one request with retries ----------------------------------------------------------
     def _create(self, kwargs: dict[str, Any]) -> Any:
         attempt = 0
+        model = kwargs.get("model", "?")
         while True:
-            self._limiter.wait()
+            waited = self._limiter.wait()
+            t0 = time.monotonic()
             try:
-                return self._client.chat.completions.create(**kwargs)
+                resp = self._client.chat.completions.create(**kwargs)
+                u = getattr(resp, "usage", None)
+                self._log(
+                    model=model,
+                    attempt=attempt,
+                    ok=True,
+                    waited_s=round(waited, 1),
+                    latency_s=round(time.monotonic() - t0, 1),
+                    prompt_tokens=getattr(u, "prompt_tokens", None),
+                    completion_tokens=getattr(u, "completion_tokens", None),
+                )
+                return resp
             except Exception as exc:
+                status = getattr(exc, "status_code", None)
+                self._log(
+                    model=model,
+                    attempt=attempt,
+                    ok=False,
+                    status=status,
+                    error=f"{type(exc).__name__}: {str(exc)[:300]}",
+                    latency_s=round(time.monotonic() - t0, 1),
+                )
                 if "response_format" in kwargs and _rejects_response_format(exc):
                     self._json_mode_supported = False
                     kwargs = {k: v for k, v in kwargs.items() if k != "response_format"}
+                    continue
+                if (
+                    "reasoning_effort" in kwargs
+                    and status == 400
+                    and "reasoning" in str(exc).lower()
+                ):
+                    self._reasoning_supported = False
+                    kwargs = {k: v for k, v in kwargs.items() if k != "reasoning_effort"}
                     continue
                 if attempt >= self._max_retries or not _is_retryable(exc):
                     raise
@@ -203,7 +250,7 @@ class OpenAICompatibleLLM:
         if self._cache_dir:
             hit = self._cache_dir / f"{key}.json"
             if hit.exists():
-                data = json.loads(hit.read_text())
+                data = json.loads(hit.read_text(encoding="utf-8"))
                 self.usage.add(model, 0, 0, cached=True)
                 return str(data["content"])
 
@@ -214,6 +261,9 @@ class OpenAICompatibleLLM:
         }
         if json_mode and self._json_mode_supported is not False:
             kwargs["response_format"] = {"type": "json_object"}
+        effort = self._reasoning_effort.get(model)
+        if effort and self._reasoning_supported is not False:
+            kwargs["reasoning_effort"] = effort
         resp = self._create(kwargs)
         content = resp.choices[0].message.content or ""
         usage = resp.usage
@@ -225,7 +275,8 @@ class OpenAICompatibleLLM:
         )
         if self._cache_dir:
             (self._cache_dir / f"{key}.json").write_text(
-                json.dumps({"model": model, "content": content}, ensure_ascii=False)
+                json.dumps({"model": model, "content": content}, ensure_ascii=False),
+                encoding="utf-8",
             )
         return content
 
@@ -274,6 +325,11 @@ def make_llm(settings: Settings, *, mock_handler: Callable[..., str] | None = No
         timeout_s=settings.request_timeout_s,
         requests_per_minute=settings.requests_per_minute,
         max_retries=settings.max_retries,
+        reasoning_effort={
+            settings.extract_model: settings.extract_reasoning_effort,
+            settings.adjudicate_model: settings.adjudicate_reasoning_effort,
+        },
+        request_log=settings.workdir / "requests.jsonl",
     )
 
 

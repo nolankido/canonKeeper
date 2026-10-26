@@ -73,6 +73,12 @@ class Settings(BaseSettings):
     """Stronger model that judges whether a candidate conflict is a real contradiction,
     a deliberate reveal, or noise. Gets as much of the series as the budget allows."""
 
+    extract_reasoning_effort: str = "low"
+    """`reasoning_effort` sent with extraction calls. Extraction is transcription, not
+    reasoning; a thinking model left on its default budget spends minutes per chunk."""
+    adjudicate_reasoning_effort: str = "medium"
+    """Adjudication is where thinking pays. Raise to "high" for the final run."""
+
     # --- budgets ---------------------------------------------------------------------------
     extract_chunk_tokens: int = 6000
     """Chapters longer than this are split before extraction."""

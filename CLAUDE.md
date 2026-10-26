@@ -44,7 +44,9 @@ canonkeeper serve           # Preflight; PAYPAL_MODE=fake unless PAYPAL_CLIENT_I
 
 - `src/canonkeeper/config.py` — all settings; per-provider defaults in `ProviderDefaults`.
 - `src/canonkeeper/llm/client.py` — OpenAI-compatible client: sliding-window pacing, 429/5xx
-  backoff with Retry-After, JSON-mode fallback, disk cache, list-price tally (`PRICING`).
+  backoff with Retry-After, JSON-mode fallback, per-model `reasoning_effort`, UTF-8 disk cache,
+  list-price tally (`PRICING`). Every attempt is logged to `<workdir>/requests.jsonl` — read it
+  before guessing why a run is slow.
 - `src/canonkeeper/extract/` — prompts + extractor. Predicate vocabulary is in `prompts.py`;
   keep it in sync with `audit/candidates.py::SINGLE_VALUED`.
 - `src/canonkeeper/audit/candidates.py` — cheap heuristics; over-generate, let Wonder decide.

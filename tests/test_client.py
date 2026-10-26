@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import httpx
@@ -160,3 +161,48 @@ def test_provider_defaults_and_key_help(tmp_path, monkeypatch):
     assert s3.extract_model == "gemini-3.5-flash-lite"
     assert s3.adjudicate_model == "gemini-3.8-flash"
     assert s3.requests_per_minute == 20
+
+
+def test_reasoning_effort_sent_per_model_and_dropped_when_rejected(tmp_path):
+    seen: list[dict] = []
+
+    def create(**kwargs):
+        seen.append(kwargs)
+        if "reasoning_effort" in kwargs and kwargs["model"] == "old-model":
+            raise BadRequestError(
+                "Unknown parameter: reasoning_effort", response=_resp(400), body=None
+            )
+        return _completion("{}")
+
+    clk = FakeClock()
+    llm = OpenAICompatibleLLM(
+        "k",
+        "https://example.test/v1",
+        cache_dir=tmp_path / "c",
+        sleep=clk.sleep,
+        reasoning_effort={"gemini-3.8-flash": "low", "old-model": "low"},
+        request_log=tmp_path / "requests.jsonl",
+    )
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    llm.complete("gemini-3.8-flash", [{"role": "user", "content": "a"}])
+    assert seen[0]["reasoning_effort"] == "low"
+    llm.complete("old-model", [{"role": "user", "content": "b"}])
+    assert "reasoning_effort" in seen[1] and "reasoning_effort" not in seen[2]
+    llm.complete("gemini-3.8-flash", [{"role": "user", "content": "c"}])
+    assert "reasoning_effort" not in seen[3]  # remembered: the server does not support it
+    log = [json.loads(line) for line in (tmp_path / "requests.jsonl").read_text().splitlines()]
+    assert len(log) == 4
+    assert log[1]["ok"] is False and log[1]["status"] == 400
+    assert log[0]["ok"] is True and log[0]["prompt_tokens"] == 10
+
+
+def test_cache_is_utf8_regardless_of_platform_default(tmp_path, monkeypatch):
+    def create(**kwargs):
+        return _completion("“curly quotes” and an em—dash and 日本語")
+
+    llm, _ = _llm(tmp_path, create)
+    msgs = [{"role": "user", "content": "x"}]
+    out = llm.complete("m", msgs)
+    raw = next((tmp_path / "c").glob("*.json")).read_bytes()
+    assert "日本語".encode() in raw  # utf-8 bytes on disk
+    assert llm.complete("m", msgs) == out  # and reads back identically
