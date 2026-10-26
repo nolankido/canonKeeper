@@ -25,16 +25,27 @@ class ProviderDefaults:
         "meta": "https://api.meta.ai/v1",
     }
     extract_model: dict[str, str] = {
-        "gemini": "gemini-3.8-flash",
+        "gemini": "gemini-3.5-flash-lite",  # fast and actually serving on the free tier
         "meta": "muse-spark-1.3",
         "openweights": "muse-spark-open",
         "mock": "mock-extract",
     }
     adjudicate_model: dict[str, str] = {
-        "gemini": "gemini-3.8-flash",  # gemini-4-argon is paid-only; set it once billing exists
+        "gemini": "gemini-3.6-flash",  # 3.8 Flash when it is not overloaded; Argon is paid-only
         "meta": "muse-wonder-1.0",
         "openweights": "muse-spark-open",
         "mock": "mock-adjudicate",
+    }
+    # If a model keeps answering 503 (overloaded) the client moves down this ladder for the rest
+    # of the run. Free-tier capacity varies by the hour; scripts/probe_models.py shows what is up.
+    fallbacks: dict[str, dict[str, list[str]]] = {
+        "gemini": {
+            "gemini-4-argon": ["gemini-3.8-flash", "gemini-3.6-flash"],
+            "gemini-3.8-flash": ["gemini-3.6-flash", "gemini-3.5-flash-lite"],
+            "gemini-3.6-flash": ["gemini-3.8-flash", "gemini-3.5-flash-lite"],
+            "gemini-3.5-flash-lite": ["gemini-3.6-flash", "gemini-3.1-flash-lite"],
+            "gemini-3.1-flash-lite": ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
+        }
     }
     # Client-side request pacing. Gemini's free tier is roughly 10 RPM on the Flash models
     # (not published per model; see AI Studio → rate limits), so we stay just under it.
@@ -112,6 +123,10 @@ class Settings(BaseSettings):
         if self.requests_per_minute < 0:
             self.requests_per_minute = ProviderDefaults.requests_per_minute[p]
         return self
+
+    @property
+    def model_fallbacks(self) -> dict[str, list[str]]:
+        return ProviderDefaults.fallbacks.get(self.provider, {})
 
     @property
     def api_key(self) -> str | None:

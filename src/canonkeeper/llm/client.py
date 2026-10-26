@@ -148,6 +148,10 @@ def _rejects_response_format(exc: Exception) -> bool:
     return status == 400 and "response_format" in str(exc).lower()
 
 
+class _Overloaded(Exception):
+    """Raised inside the retry loop when a model has hit the 503 threshold and a fallback exists."""
+
+
 class OpenAICompatibleLLM:
     """Works against Gemini, Meta Model API, or any OpenAI-compatible endpoint."""
 
@@ -163,6 +167,8 @@ class OpenAICompatibleLLM:
         max_retries: int = 6,
         reasoning_effort: dict[str, str] | None = None,
         request_log: Path | None = None,
+        model_fallbacks: dict[str, list[str]] | None = None,
+        overload_threshold: int = 3,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         from openai import OpenAI  # local import keeps the mock path dependency-free
@@ -179,6 +185,11 @@ class OpenAICompatibleLLM:
         """model id -> reasoning_effort value ("minimal", "low", "medium", "high", "none")."""
         self._reasoning_supported: bool | None = None
         self._request_log = request_log
+        self._fallbacks = model_fallbacks or {}
+        self._overload_threshold = overload_threshold
+        self._overloaded: set[str] = set()
+        """Models that answered 503 `overload_threshold` times in a row this run."""
+        self._consecutive_503: dict[str, int] = {}
         self.usage = Usage()
         if cache_dir:
             cache_dir.mkdir(parents=True, exist_ok=True)
@@ -195,6 +206,23 @@ class OpenAICompatibleLLM:
             pass
 
     # --- one request with retries ----------------------------------------------------------
+    def _next_model(self, model: str) -> str | None:
+        for m in self._fallbacks.get(model, []):
+            if m not in self._overloaded:
+                return m
+        return None
+
+    def resolve_model(self, model: str) -> str:
+        """The model that will actually be called: the requested one unless it is overloaded."""
+        seen: set[str] = set()
+        while model in self._overloaded and model not in seen:
+            seen.add(model)
+            nxt = self._next_model(model)
+            if not nxt:
+                break
+            model = nxt
+        return model
+
     def _create(self, kwargs: dict[str, Any]) -> Any:
         attempt = 0
         model = kwargs.get("model", "?")
@@ -203,6 +231,7 @@ class OpenAICompatibleLLM:
             t0 = time.monotonic()
             try:
                 resp = self._client.chat.completions.create(**kwargs)
+                self._consecutive_503[model] = 0
                 u = getattr(resp, "usage", None)
                 self._log(
                     model=model,
@@ -216,14 +245,30 @@ class OpenAICompatibleLLM:
                 return resp
             except Exception as exc:
                 status = getattr(exc, "status_code", None)
+                body = getattr(exc, "body", None)
+                detail = json.dumps(body) if isinstance(body, dict) else str(body or exc)
                 self._log(
                     model=model,
                     attempt=attempt,
                     ok=False,
                     status=status,
-                    error=f"{type(exc).__name__}: {str(exc)[:300]}",
+                    error=f"{type(exc).__name__}: {detail[:300]}",
                     latency_s=round(time.monotonic() - t0, 1),
                 )
+                if status == 503:
+                    n = self._consecutive_503.get(model, 0) + 1
+                    self._consecutive_503[model] = n
+                    if n >= self._overload_threshold and self._next_model(model):
+                        self._overloaded.add(model)
+                        self._log(
+                            model=model,
+                            ok=False,
+                            status=503,
+                            error="overloaded; switching to fallback model",
+                        )
+                        raise _Overloaded(model) from exc
+                else:
+                    self._consecutive_503[model] = 0
                 if "response_format" in kwargs and _rejects_response_format(exc):
                     self._json_mode_supported = False
                     kwargs = {k: v for k, v in kwargs.items() if k != "response_format"}
@@ -246,25 +291,37 @@ class OpenAICompatibleLLM:
                 self._sleep(delay)
 
     def complete(self, model: str, messages: list[Message], *, json_mode: bool = False) -> str:
-        key = _cache_key(model, messages, json_mode)
+        # Cache: the requested model first, then anything on its ladder we may have used before.
         if self._cache_dir:
-            hit = self._cache_dir / f"{key}.json"
-            if hit.exists():
-                data = json.loads(hit.read_text(encoding="utf-8"))
-                self.usage.add(model, 0, 0, cached=True)
-                return str(data["content"])
+            for m in [model, *self._fallbacks.get(model, [])]:
+                hit = self._cache_dir / f"{_cache_key(m, messages, json_mode)}.json"
+                if hit.exists():
+                    data = json.loads(hit.read_text(encoding="utf-8"))
+                    self.usage.add(m, 0, 0, cached=True)
+                    return str(data["content"])
 
-        kwargs: dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-            "temperature": self._temperature,
-        }
-        if json_mode and self._json_mode_supported is not False:
-            kwargs["response_format"] = {"type": "json_object"}
-        effort = self._reasoning_effort.get(model)
-        if effort and self._reasoning_supported is not False:
-            kwargs["reasoning_effort"] = effort
-        resp = self._create(kwargs)
+        requested = model
+        model = self.resolve_model(requested)
+        while True:
+            kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": messages,
+                "temperature": self._temperature,
+            }
+            if json_mode and self._json_mode_supported is not False:
+                kwargs["response_format"] = {"type": "json_object"}
+            effort = self._reasoning_effort.get(model) or self._reasoning_effort.get(requested)
+            if effort and self._reasoning_supported is not False:
+                kwargs["reasoning_effort"] = effort
+            try:
+                resp = self._create(kwargs)
+                break
+            except _Overloaded:
+                nxt = self._next_model(model)
+                if not nxt:
+                    raise
+                model = nxt
+        key = _cache_key(model, messages, json_mode)
         content = resp.choices[0].message.content or ""
         usage = resp.usage
         self.usage.add(
@@ -330,6 +387,7 @@ def make_llm(settings: Settings, *, mock_handler: Callable[..., str] | None = No
             settings.adjudicate_model: settings.adjudicate_reasoning_effort,
         },
         request_log=settings.workdir / "requests.jsonl",
+        model_fallbacks=settings.model_fallbacks,
     )
 
 

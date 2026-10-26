@@ -273,13 +273,35 @@ def demo(
         typer.launch(str(html))
 
 
+def _select_books(series: Series, books: str | None) -> Series:
+    """`--books 1,2` or `--books 01-a-study-in-scarlet` narrows a run to some volumes."""
+    if not books:
+        return series
+    wanted = [b.strip() for b in books.split(",") if b.strip()]
+    chosen = []
+    for b in series.books:
+        if b.key in wanted or str(b.index + 1) in wanted:
+            chosen.append(b)
+    if not chosen:
+        raise typer.BadParameter(f"no book matches {books!r}")
+    return Series(series.name, chosen)
+
+
 @app.command()
-def build(manifest: ManifestArg, provider: str | None = None, workdir: Path | None = None) -> None:
-    """Extract claims from every chapter into the series bible."""
+def build(
+    manifest: ManifestArg,
+    provider: str | None = None,
+    workdir: Path | None = None,
+    books: str | None = typer.Option(
+        None, help="Only these books: comma-separated keys or 1-based numbers"
+    ),
+) -> None:
+    """Extract claims from every chapter into the series bible (incremental: re-runs hit the cache)."""
     from canonkeeper.pipeline import build_bible
 
     settings = _settings(provider, workdir)
     m, series = _load(manifest, settings)
+    series = _select_books(series, books)
     bible_path, _ = _paths(settings, m)
     llm = _llm(settings)
     store = build_bible(series, llm, settings, bible_path)

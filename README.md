@@ -36,7 +36,7 @@ continuity checking for series authors (see *Preflight* below).
    `THE ADVENTURE OF THE EMPTY HOUSE` all resolve to the right chapter, and the Contents block,
    `PART` dividers and shouted body lines (`RACHE.`) do not split anything. Tuned against the
    actual Project Gutenberg layouts of all six Holmes volumes.
-1. **Extract.** Each chapter goes to the extraction model (`gemini-3.8-flash` by default) with a strict schema: atomic claims
+1. **Extract.** Each chapter goes to the extraction model (`gemini-3.5-flash-lite` by default) with a strict schema: atomic claims
    (`Watson · wound_location = shoulder`), a fixed predicate vocabulary, and a **verbatim quote**
    for every claim. Claims whose quote cannot be found in the source chunk are dropped — that is
    the hallucination guard. Nothing enters the bible without a passage behind it.
@@ -141,14 +141,16 @@ docs/          ARCHITECTURE.md · DEMO_SCRIPT.md
 
 | role | default | why |
 |---|---|---|
-| extraction | `gemini-3.8-flash` | free tier, 1M context, structured JSON out |
-| adjudication | `gemini-3.8-flash` (`gemini-4-argon` with billing) | reads the whole series before ruling |
+| extraction | `gemini-3.5-flash-lite` | free, ~2 s per chapter chunk, structured JSON out |
+| adjudication | `gemini-3.6-flash` (`gemini-4-argon` with billing) | 1M context: reads the whole series before ruling |
 | local mode | anything on Ollama / LM Studio via `CANONKEEPER_PROVIDER=openweights` | private manuscripts never leave the machine |
 | Meta Model API | `muse-spark-1.3` / `muse-wonder-1.0` via `CANONKEEPER_PROVIDER=meta` | kept as an option; needs billing |
 
 Free tiers are rate-limited, so the client paces itself (`CANONKEEPER_REQUESTS_PER_MINUTE`,
 default 9 on Gemini), retries 429/5xx with exponential backoff honouring `Retry-After`, and
-falls back gracefully if a server rejects JSON mode. A six-book series is ~250 extraction
+falls back gracefully if a server rejects JSON mode, and when a model keeps answering 503
+(overloaded — common on the free tier) it moves down a fallback ladder for the rest of the run.
+`scripts/probe_models.py` shows which models are serving right now. A six-book series is ~250 extraction
 calls: about half an hour on the free tier, once, because every response is cached on disk.
 
 Everything is OpenAI-SDK compatible; set `CANONKEEPER_*` env vars or edit `.env`. Responses are

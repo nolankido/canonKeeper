@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from openai import BadRequestError, RateLimitError
+from openai import BadRequestError, InternalServerError, RateLimitError
 
 from canonkeeper.config import Settings
 from canonkeeper.llm.client import OpenAICompatibleLLM, RateLimiter, make_llm
@@ -138,7 +138,7 @@ def test_provider_defaults_and_key_help(tmp_path, monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     s = Settings(provider="gemini", _env_file=None)
     assert s.base_url.startswith("https://generativelanguage.googleapis.com/v1beta/openai")
-    assert s.extract_model == "gemini-3.8-flash"
+    assert s.extract_model == "gemini-3.5-flash-lite"
     assert s.requests_per_minute == 9
     assert s.trains_on_prompts is True
     with pytest.raises(RuntimeError, match="aistudio.google.com"):
@@ -159,7 +159,7 @@ def test_provider_defaults_and_key_help(tmp_path, monkeypatch):
         _env_file=None,
     )
     assert s3.extract_model == "gemini-3.5-flash-lite"
-    assert s3.adjudicate_model == "gemini-3.8-flash"
+    assert s3.adjudicate_model == "gemini-3.6-flash"
     assert s3.requests_per_minute == 20
 
 
@@ -206,3 +206,46 @@ def test_cache_is_utf8_regardless_of_platform_default(tmp_path, monkeypatch):
     raw = next((tmp_path / "c").glob("*.json")).read_bytes()
     assert "日本語".encode() in raw  # utf-8 bytes on disk
     assert llm.complete("m", msgs) == out  # and reads back identically
+
+
+def test_overloaded_model_falls_down_the_ladder(tmp_path):
+    seen: list[str] = []
+
+    def create(**kwargs):
+        seen.append(kwargs["model"])
+        if kwargs["model"] == "busy":
+            raise InternalServerError("overloaded", response=_resp(503), body=None)
+        return _completion('{"from": "' + kwargs["model"] + '"}')
+
+    clk = FakeClock()
+    llm = OpenAICompatibleLLM(
+        "k",
+        "https://example.test/v1",
+        cache_dir=tmp_path / "c",
+        sleep=clk.sleep,
+        model_fallbacks={"busy": ["calm", "calmer"]},
+        overload_threshold=3,
+        request_log=tmp_path / "r.jsonl",
+    )
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    out = llm.complete("busy", [{"role": "user", "content": "a"}])
+    assert out == '{"from": "calm"}'
+    assert seen == ["busy", "busy", "busy", "calm"]  # three 503s, then the fallback
+    # The rest of the run goes straight to the fallback; no more 503 dances.
+    llm.complete("busy", [{"role": "user", "content": "b"}])
+    assert seen[-1] == "calm" and seen.count("busy") == 3
+    assert llm.resolve_model("busy") == "calm"
+    # Cache lookups find the fallback's answer under the requested model.
+    assert llm.complete("busy", [{"role": "user", "content": "a"}]) == '{"from": "calm"}'
+    assert llm.usage.cached_calls == 1
+    assert "switching to fallback" in (tmp_path / "r.jsonl").read_text()
+
+
+def test_no_fallback_means_503s_surface_after_retries(tmp_path):
+    def create(**kwargs):
+        raise InternalServerError("overloaded", response=_resp(503), body=None)
+
+    llm, clk = _llm(tmp_path, create, retries=2)
+    with pytest.raises(InternalServerError):
+        llm.complete("m", [{"role": "user", "content": "a"}])
+    assert len(clk.slept) == 2
