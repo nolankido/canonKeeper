@@ -34,7 +34,7 @@ SINGLE_VALUED = {
     "height",
     "mother",
     "father",
-    "parent_of",
+    "child_of",
 }
 MULTI_VALUED_OK = {
     "alias",
@@ -72,13 +72,17 @@ def _same_value(a: str, b: str) -> bool:
 
 
 def slot_mismatch(store: CanonStore) -> list[Candidate]:
+    """One candidate per disputed slot, carrying one representative claim per distinct value
+    (earliest in reading order), so the adjudicator sees the whole disagreement at once."""
     out: list[Candidate] = []
     for (_subject, predicate), claims in store.slots().items():
         if predicate in MULTI_VALUED_OK or predicate not in SINGLE_VALUED:
             continue
-        # Group by distinct value; one representative claim per value.
+        ordered = sorted(
+            claims, key=lambda c: (c.provenance.book_index, c.provenance.chapter_index)
+        )
         groups: list[list[Claim]] = []
-        for c in claims:
+        for c in ordered:
             for g in groups:
                 if _same_value(g[0].object, c.object):
                     g.append(c)
@@ -87,16 +91,13 @@ def slot_mismatch(store: CanonStore) -> list[Candidate]:
                 groups.append([c])
         if len(groups) < 2:
             continue
-        for g1, g2 in combinations(groups, 2):
-            a, b = g1[0], g2[0]
-            if a.story_time and b.story_time and a.story_time != b.story_time:
-                reason = (
-                    f"{a.subject}.{predicate} is '{a.object}' at {a.story_time} but "
-                    f"'{b.object}' at {b.story_time} (may be change over time)"
-                )
-            else:
-                reason = f"{a.subject}.{predicate} is '{a.object}' and also '{b.object}'"
-            out.append(Candidate(claims=[a, b], reason=reason, heuristic="slot_mismatch"))
+        reps = [g[0] for g in groups][:6]
+        values = ", ".join(f"'{r.object}' ({r.provenance.locator})" for r in reps)
+        times = {r.story_time for r in reps if r.story_time}
+        reason = f"{reps[0].subject}.{predicate} is {values}"
+        if len(times) > 1:
+            reason += " (may be change over time)"
+        out.append(Candidate(claims=reps, reason=reason, heuristic="slot_mismatch"))
     return out
 
 
