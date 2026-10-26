@@ -163,8 +163,10 @@ class Adjudicator:
         )
 
     def judge_batch(
-        self, batch: list[Candidate], store: CanonStore, series_name: str
+        self, batch: list[Candidate], store: CanonStore, series_name: str, *, _retry: bool = True
     ) -> list[Finding]:
+        """Judge a batch; any candidate the model leaves out of its verdict list is re-asked
+        on its own (one small call) rather than silently marked ambiguous."""
         model = self.settings.adjudicate_model
         raw = self.llm.complete(model, self.messages_for(batch, store, series_name), json_mode=True)
         try:
@@ -182,7 +184,14 @@ class Adjudicator:
                         continue
         elif isinstance(data, dict) and len(batch) == 1 and "verdict" in data:
             by_id[1] = data  # tolerate a bare single-verdict object
-        return [self._finding(cand, by_id.get(i + 1, {}), model) for i, cand in enumerate(batch)]
+        findings: list[Finding] = []
+        for i, cand in enumerate(batch):
+            entry = by_id.get(i + 1)
+            if entry is None and _retry and len(batch) > 1:
+                findings.append(self.judge_batch([cand], store, series_name, _retry=False)[0])
+            else:
+                findings.append(self._finding(cand, entry or {}, model))
+        return findings
 
     def judge(self, cand: Candidate, store: CanonStore, series_name: str) -> Finding:
         return self.judge_batch([cand], store, series_name)[0]

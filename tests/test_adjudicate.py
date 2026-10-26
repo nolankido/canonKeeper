@@ -72,3 +72,43 @@ def test_name_drift_is_its_own_heuristic(series, settings, mock_llm, tmp_path):
         c.heuristic == "slot_mismatch" and c.claims[0].predicate == "first_name"
         for c in find_candidates(store)
     )
+
+
+def test_candidates_missing_from_a_batch_verdict_are_re_asked_alone(
+    series, settings, mock_llm, tmp_path
+):
+    store = build_bible(series, mock_llm, settings, tmp_path / "b.jsonl", progress=False)
+    cands = find_candidates(store)[:3]
+    calls: list[int] = []
+
+    def handler(model, messages):
+        n = messages[-1]["content"].count("## Candidate ")
+        calls.append(n)
+        if n > 1:  # the batch answer omits candidate 2
+            return json.dumps(
+                {
+                    "verdicts": [
+                        {"id": 1, "verdict": "not_conflict"},
+                        {"id": 3, "verdict": "deliberate"},
+                    ]
+                }
+            )
+        return json.dumps(
+            {
+                "verdicts": [
+                    {
+                        "id": 1,
+                        "verdict": "contradiction",
+                        "severity": "low",
+                        "explanation": "re-asked",
+                    }
+                ]
+            }
+        )
+
+    settings.adjudicate_batch_size = 10
+    adj = Adjudicator(MockLLM(handler), settings, series)
+    findings = adj.judge_batch(cands, store, series.name)
+    assert [f.verdict for f in findings] == ["not_conflict", "contradiction", "deliberate"]
+    assert findings[1].explanation == "re-asked"
+    assert calls == [3, 1]
