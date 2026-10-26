@@ -85,10 +85,11 @@ canonkeeper bible    evals/corpora/sherlock-holmes/series.json   # browse it
 canonkeeper audit    evals/corpora/sherlock-holmes/series.json   # find + adjudicate contradictions
 ```
 
-Check your next manuscript against the bible without touching it:
+Check your next manuscript against the bible without touching it. The repo ships an original
+"book seven" Holmes draft with three slips and one explained change planted in it:
 
 ```bash
-canonkeeper check evals/corpora/sherlock-holmes/series.json drafts/book-07.md
+canonkeeper check evals/corpora/sherlock-holmes/series.json evals/demo/holmes-book-07-draft.md
 ```
 
 `--provider mock` works on any command and is what the test suite and `demo` use.

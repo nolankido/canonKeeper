@@ -30,10 +30,9 @@ six novels, $X to judge." Then show one adjudication prompt in the cache folder 
 count — make the 1M context visible, not just claimed.
 
 ## 1:25 — The author's workflow (Impact, Demo)
-`canonkeeper check` on an unpublished draft. The Saltmarsh demo already ships one
-(`draft-04-the-ledger.txt`: an eye-colour slip, a birthplace slip, and a *deliberate* reveal —
-a character's grey eyes were tinted glasses, explained in the text). For the video, prefer a
-Holmes "book seven" draft with the same three shapes so the whole demo stays on one corpus.
+`canonkeeper check evals/corpora/sherlock-holmes/series.json evals/demo/holmes-book-07-draft.md`
+— an original Holmes pastiche with three slips (Holmes's height, Mary Morstan's eyes,
+Jefferson Hope alive) and one explained change (white hair = wig and powder for a disguise).
 Report shows two contradictions with suggested fixes **to the new book**, and the reveal
 classified as `deliberate` with Wonder's explanation. That classification is the whole point;
 linger on it.
