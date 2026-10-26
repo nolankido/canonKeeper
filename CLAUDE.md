@@ -23,6 +23,10 @@ tokens of context) → HTML report. Default provider is the Gemini free tier (no
 - **Free tiers may train on prompts.** Gemini's free tier does. Public-domain corpora only go
   through it; the CLI warns. Private manuscripts go through `--provider openweights` (local).
 - **No credit card, ever.** Every default must work on a free tier or a local model.
+- **Daily quotas are the budget.** Gemini free tier: Flash-Lite 500 req/day, 3.6/3.8 Flash
+  20 req/day, reset midnight Pacific. A full Holmes build is ~444 Flash-Lite requests. Plan
+  runs by the day; never burn requests on probes right before a full run. Everything is cached,
+  so a run stopped by quota resumes with the same command.
 - **Keep the mock provider working.** CI and tests run offline via `MockLLM`. Any change to the
   extraction or adjudication contract must keep `tests/` green with no API key.
 - **Measure, don't eyeball.** Prompt changes are evaluated with `canonkeeper eval`, and the

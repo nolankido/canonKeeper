@@ -171,12 +171,16 @@ docs/          ARCHITECTURE.md · DEMO_SCRIPT.md
 | local mode | anything on Ollama / LM Studio via `CANONKEEPER_PROVIDER=openweights` | private manuscripts never leave the machine |
 | Meta Model API | `muse-spark-1.3` / `muse-wonder-1.0` via `CANONKEEPER_PROVIDER=meta` | kept as an option; needs billing |
 
-Free tiers are rate-limited, so the client paces itself (`CANONKEEPER_REQUESTS_PER_MINUTE`,
-default 9 on Gemini), retries 429/5xx with exponential backoff honouring `Retry-After`, and
-falls back gracefully if a server rejects JSON mode, and when a model keeps answering 503
-(overloaded — common on the free tier) it moves down a fallback ladder for the rest of the run.
-`scripts/probe_models.py` shows which models are serving right now. A six-book series is ~250 extraction
-calls: about half an hour on the free tier, once, because every response is cached on disk.
+**The free tier's real limit is requests per day, not per minute.** Observed on Gemini
+(2026-10-26): Flash-Lite 500 requests/day, 3.6 Flash and 3.8 Flash 20/day each, per project,
+resetting at midnight Pacific. A six-volume series is ~222 chunks × 2 extraction passes ≈ 444
+Flash-Lite requests, and an audit is 4–6 Flash requests — so on the free tier that is **one
+full series per day**, and the benchmark the next morning. The client paces requests and
+tokens per minute, retries 429/5xx with backoff, moves down a model ladder when a model is
+overloaded or out of daily quota, and when every model on the ladder is spent it stops and
+prints the reset time; because every response is cached, running the same command again
+resumes exactly where it stopped. `canonkeeper doctor` shows today's request count per model;
+`scripts/probe_models.py` shows which models are serving right now.
 
 Everything is OpenAI-SDK compatible; set `CANONKEEPER_*` env vars or edit `.env`. Responses are
 cached on disk by (model, prompt), so re-running an audit is free.
