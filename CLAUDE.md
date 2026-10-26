@@ -60,7 +60,9 @@ canonkeeper serve           # Preflight; PAYPAL_MODE=fake unless PAYPAL_CLIENT_I
 - `src/canonkeeper/eval/` — defect injection (`TEMPLATES`) and scoring.
 - `src/canonkeeper/preflight/` — the paid service. `pricing.py` is the published formula;
   `paypal.py` is Orders v2 + `FakePayPal`; `jobs.py` persists jobs as JSON and runs them in a
-  daemon thread; `app.py` is the FastAPI routes. Never run a model before `capture` succeeds.
+  daemon thread; `app.py` is the FastAPI routes; `mcp_server.py` is the same service over MCP
+  (`PreflightService` is transport-agnostic and what tests call). Never run a model before
+  `capture` succeeds; never let the agent approve a payment — the approval URL goes to the person.
 - `tests/conftest.py` — fixture series with planted defects; imports the mock from `llm/rules.py`.
 
 ## Conventions

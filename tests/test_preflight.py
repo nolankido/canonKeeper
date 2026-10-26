@@ -182,3 +182,50 @@ def test_real_client_speaks_orders_v2():
     o2 = pp.capture_order(o.id)
     assert o2.status == "COMPLETED" and o2.amount == "41.00"
     assert capture.called
+
+
+def test_mcp_service_flow_agent_quotes_human_approves_agent_collects(tmp_path):
+    from canonkeeper.preflight.mcp_server import PreflightService, build_server
+
+    settings = Settings(
+        provider="mock",
+        workdir=tmp_path / "wd",
+        cache_dir=tmp_path / "wd" / "cache",
+        _env_file=None,
+    )
+    pp = FakePayPal()
+    svc = PreflightService(settings, pp, tmp_path / "pf", public_base_url="http://host")
+
+    q = svc.quote_series(
+        "The Saltmarsh Chronicles",
+        [
+            {"name": "01-the-harbour.txt", "text": BOOK1},
+            {"name": "02-the-wreck.txt", "text": BOOK2},
+            {"name": "03-the-return.txt", "text": BOOK3},
+        ],
+    )
+    job_id = q["job_id"]
+    assert q["price"]["amount"] == "5.05" and "per 100k tokens" in q["price"]["explanation"]
+
+    o = svc.order_audit(job_id)
+    assert o["status"] == "ordered" and o["approve_url"].startswith("/fake-approve?token=")
+    # Agent must not pay: before approval, confirm reports not paid and nothing runs.
+    c = svc.confirm_payment(job_id)
+    assert c["paid"] is False and svc.audit_status(job_id)["status"] == "ordered"
+    # The person approves on PayPal's page (simulated), then the agent confirms.
+    pp.approve(o["order_id"])
+    c = svc.confirm_payment(job_id)
+    assert c["paid"] is True
+    svc.runner.wait(job_id, timeout=60)
+    st = svc.audit_status(job_id)
+    assert st["status"] == "done" and st["report_url"] == f"http://host/jobs/{job_id}/report"
+    f = svc.get_findings(job_id)
+    assert f["facts"] == 40 and len(f["findings"]) == len(PLANTED)
+    assert all(
+        row["verdict"] == "contradiction" and row["values"][0]["quote"] for row in f["findings"]
+    )
+    assert len(svc.get_findings(job_id, include_cleared=True)["findings"]) >= len(PLANTED)
+    assert svc.list_jobs()[0]["job_id"] == job_id
+
+    server = build_server(svc)
+    assert server.name == "preflight"

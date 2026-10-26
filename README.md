@@ -217,6 +217,12 @@ job can be retried at no extra cost because every model response is cached. The 
 is ~100 lines of Orders v2 (OAuth → create with `PAY_NOW` → capture, idempotent on
 `PayPal-Request-Id`); `FakePayPal` mirrors the state machine for tests and demos.
 
+**Agentic commerce.** `canonkeeper mcp` exposes the same service to an AI assistant over MCP:
+`quote_series → order_audit → (the person approves on PayPal) → confirm_payment → audit_status
+→ get_findings`. The agent prices the job and creates the order; it never holds the buyer's
+credentials and cannot approve the payment itself — the approval link goes to the person.
+Add it to Claude Desktop or Cursor with `{"command": "canonkeeper", "args": ["mcp"]}`.
+
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) (submissions due
 **Nov 12, 2026**).
 
@@ -241,8 +247,8 @@ Working offline pipeline; real-model runs on the Gemini free tier. See
 - [ ] first real run on Sherlock Holmes; prompt tuning; publish benchmark numbers
 - [x] Preflight: upload → quote → PayPal checkout → capture → audit → report (`canonkeeper serve`)
 - [ ] Preflight verified against the real PayPal sandbox with a sandbox buyer
-- [ ] Preflight as an MCP server (`quote_series`, `order_audit`, `get_report`) so an author's
-      assistant can order an audit — the agentic-commerce story
+- [x] Preflight as an MCP server (`canonkeeper mcp`): an author's assistant quotes, orders,
+      hands the person the PayPal approval link, confirms, and reads the findings as data
 - [ ] local-model mode verified against Ollama
 - [ ] demo video
 

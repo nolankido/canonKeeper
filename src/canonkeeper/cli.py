@@ -9,6 +9,7 @@ canonkeeper audit    series.json             # find + adjudicate contradictions 
 canonkeeper check    series.json new.md      # audit one new manuscript against the bible
 canonkeeper eval     series.json --n 20      # seeded-defect benchmark → precision / recall
 canonkeeper serve                            # Preflight web app: quote → PayPal → audit → report
+canonkeeper mcp                              # Preflight as an MCP server for an author's assistant
 """
 
 from __future__ import annotations
@@ -458,6 +459,17 @@ def serve(
         settings=settings, paypal=pp, public_base_url=public_url or f"http://{host}:{port}"
     )
     uvicorn.run(web, host=host, port=port, log_level="info")
+
+
+@app.command()
+def mcp(provider: str | None = None, workdir: Path | None = None) -> None:
+    """Run Preflight as an MCP server over stdio (quote → order → confirm → status → findings)."""
+    from canonkeeper.preflight.app import make_paypal
+    from canonkeeper.preflight.mcp_server import build_server, make_service
+
+    settings = _settings(provider, workdir)
+    service = make_service(settings, make_paypal())
+    build_server(service).run("stdio")
 
 
 def _print_summary(report: AuditReport) -> None:
