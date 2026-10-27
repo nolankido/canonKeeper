@@ -26,7 +26,7 @@ from typing import Any
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.preflight.jobs import JobStore, Runner
-from canonkeeper.preflight.paypal import FakePayPal, PayPal
+from canonkeeper.preflight.paypal import UNAPPROVED, FakePayPal, PayPal
 from canonkeeper.preflight.pricing import CURRENCY
 
 
@@ -97,7 +97,7 @@ class PreflightService:
         if job.status != "ordered" or not job.order_id:
             raise ValueError(f"job is {job.status}; call order_audit first")
         o = self.paypal.get_order(job.order_id)
-        if o.status == "CREATED":
+        if o.status in UNAPPROVED:
             return {
                 "job_id": job.id,
                 "status": "ordered",

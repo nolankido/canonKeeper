@@ -20,6 +20,10 @@ import httpx
 SANDBOX = "https://api-m.sandbox.paypal.com"
 LIVE = "https://api-m.paypal.com"
 
+# Statuses before the buyer has approved. With a `payment_source` the API answers
+# PAYER_ACTION_REQUIRED rather than CREATED (observed on the sandbox, 2026-10-26).
+UNAPPROVED = frozenset({"CREATED", "SAVED", "PAYER_ACTION_REQUIRED"})
+
 
 @dataclass
 class Order:
@@ -138,7 +142,10 @@ class PayPalClient:
         }
         r = self._http.post("/v2/checkout/orders", json=body, headers=self._headers(reference))
         r.raise_for_status()
-        return _parse(r.json())
+        o = _parse(r.json())
+        if not o.amount:  # the minimal create response omits purchase_units
+            o.amount, o.currency = amount, currency
+        return o
 
     def get_order(self, order_id: str) -> Order:
         r = self._http.get(f"/v2/checkout/orders/{order_id}", headers=self._headers())
@@ -151,14 +158,17 @@ class PayPalClient:
             headers=self._headers(f"capture-{order_id}"),
             content=b"{}",
         )
-        if r.status_code == 422 and "ORDER_ALREADY_CAPTURED" in r.text:
-            return self.get_order(order_id)
+        if r.status_code == 422 and (
+            "ORDER_ALREADY_CAPTURED" in r.text or "ORDER_NOT_APPROVED" in r.text
+        ):
+            return self.get_order(order_id)  # callers read the status; nothing to raise
         r.raise_for_status()
         return _parse(r.json())
 
 
 class FakePayPal:
-    """In-process stand-in with the same state machine: CREATED → APPROVED → COMPLETED.
+    """In-process stand-in with the same state machine the sandbox showed:
+    PAYER_ACTION_REQUIRED → APPROVED → COMPLETED.
 
     The approve URL points back at the app's own `/fake-approve` route, which flips the order
     to APPROVED and redirects to the return URL exactly as PayPal would."""
@@ -182,7 +192,7 @@ class FakePayPal:
         oid = "FAKE" + secrets.token_hex(6).upper()
         o = Order(
             id=oid,
-            status="CREATED",
+            status="PAYER_ACTION_REQUIRED",
             approve_url=f"{self._approve_base}?token={oid}&return_to={return_url}",
             amount=amount,
             currency=currency,
@@ -193,7 +203,7 @@ class FakePayPal:
 
     def approve(self, order_id: str) -> Order:
         o = self._orders[order_id]
-        if o.status == "CREATED":
+        if o.status in UNAPPROVED:
             o.status = "APPROVED"
         return o
 
@@ -202,7 +212,7 @@ class FakePayPal:
 
     def capture_order(self, order_id: str) -> Order:
         o = self._orders[order_id]
-        if o.status == "CREATED":
-            raise RuntimeError("ORDER_NOT_APPROVED")
+        if o.status in UNAPPROVED:
+            return o  # like the real client: not approved, status unchanged
         o.status = "COMPLETED"
         return o

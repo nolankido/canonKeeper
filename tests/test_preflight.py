@@ -229,3 +229,54 @@ def test_mcp_service_flow_agent_quotes_human_approves_agent_collects(tmp_path):
 
     server = build_server(svc)
     assert server.name == "preflight"
+
+
+@respx.mock
+def test_real_client_capture_before_approval_is_not_an_error():
+    """The sandbox answers 422 ORDER_NOT_APPROVED to an early capture, and the minimal create
+    response carries no amount. Neither should surface as an exception to the agent."""
+    respx.post(f"{SANDBOX}/v1/oauth2/token").mock(
+        return_value=httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+    )
+    respx.post(f"{SANDBOX}/v2/checkout/orders").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": "2YN2481966207993W",
+                "status": "PAYER_ACTION_REQUIRED",
+                "links": [
+                    {
+                        "rel": "payer-action",
+                        "href": "https://www.sandbox.paypal.com/checkoutnow?token=2YN2481966207993W",
+                    }
+                ],
+            },
+        )
+    )
+    respx.post(f"{SANDBOX}/v2/checkout/orders/2YN2481966207993W/capture").mock(
+        return_value=httpx.Response(
+            422, json={"name": "UNPROCESSABLE_ENTITY", "details": [{"issue": "ORDER_NOT_APPROVED"}]}
+        )
+    )
+    respx.get(f"{SANDBOX}/v2/checkout/orders/2YN2481966207993W").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": "2YN2481966207993W",
+                "status": "PAYER_ACTION_REQUIRED",
+                "purchase_units": [{"amount": {"currency_code": "USD", "value": "5.00"}}],
+            },
+        )
+    )
+    pp = PayPalClient("cid", "sec", mode="sandbox")
+    o = pp.create_order(
+        amount="5.00",
+        currency="USD",
+        description="d",
+        return_url="r",
+        cancel_url="c",
+        reference="j",
+    )
+    assert o.amount == "5.00" and o.currency == "USD"  # filled from the request
+    o2 = pp.capture_order(o.id)
+    assert o2.status == "PAYER_ACTION_REQUIRED"
