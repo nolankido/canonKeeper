@@ -43,6 +43,12 @@
   .steps li.now { font-weight: 700; }
   button.secondary, .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
   form.inline { display: inline; margin-left: 8px; }
+  .items { margin-top: 8px; }
+  .item { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--line); }
+  .item .what { flex: 1 1 260px; min-width: 0; font-size: 15px; } .item .what .sub { font-size: 14px; margin: 2px 0 0; }
+  .item form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0; }
+  .item form input[type=text] { flex: 1 1 12em; width: auto; margin: 0; }
+  .item button { margin-top: 0; padding: 9px 14px; }
   .kv { display: grid; grid-template-columns: 180px 1fr; gap: 6px 14px; }
   .kv div:nth-child(odd) { color: var(--muted); font-size: 14px; padding-top: 3px; }
   @media (max-width: 560px) { .kv { grid-template-columns: 1fr; gap: 2px; } .kv div:nth-child(even) { margin-bottom: 10px; } }

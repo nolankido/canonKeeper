@@ -93,23 +93,42 @@
 <div class="card" id="guarantee" data-testid="guarantee">
   <h2 style="margin-top:0">Is a contradiction wrong?</h2>
   <p>If you know a finding is not a real contradiction (a disguise the model missed, a name that changed for a reason), mark it. It is noted on the report beside the model's call{% if job.order_id or job.budget_id %}, and ${{ guarantee_each }} of the price goes back to you for each one, up to ${{ guarantee_cap }} (half the price){% endif %}.</p>
-  <table>
+  <div class="items">
     {% for c in contradictions %}
-    <tr>
-      <td>{{ c.headline }}</td>
-      <td style="white-space:nowrap">
-        {% if c.marked %}
-        <span class="status done">marked wrong</span>{% if c.marked.amount != '0.00' %} · ${{ c.marked.amount }} back{% else %} · noted (guarantee cap reached){% endif %}
-        {% else %}
-        <form action="/jobs/{{ job.id }}/findings/{{ c.index }}/wrong" method="post" class="inline">
-          <input name="note" type="text" placeholder="why (optional)" aria-label="Why it is wrong" style="width: 12em">
-          <button type="submit" class="secondary" data-testid="mark-wrong-{{ c.index }}">This one is wrong</button>
-        </form>
-        {% endif %}
-      </td>
-    </tr>
+    <div class="item">
+      <div class="what">{{ c.headline }}</div>
+      {% if c.marked %}
+      <div><span class="status done">marked wrong</span>{% if c.marked.amount != '0.00' %} · ${{ c.marked.amount }} back{% else %} · noted (guarantee cap reached){% endif %}</div>
+      {% else %}
+      <form action="/jobs/{{ job.id }}/findings/{{ c.index }}/wrong" method="post">
+        <input name="note" type="text" placeholder="why (optional)" aria-label="Why it is wrong">
+        <button type="submit" class="secondary" data-testid="mark-wrong-{{ c.index }}">This one is wrong</button>
+      </form>
+      {% endif %}
+    </div>
     {% endfor %}
-  </table>
+  </div>
+</div>
+{% endif %}
+
+{% if judgement %}
+{% set ruled = judgement | selectattr('ruling') | list %}
+<div class="card" id="judgement" data-testid="judgement">
+  <h2 style="margin-top:0">Needs your judgement{% if ruled %} · {{ ruled | length }} of {{ judgement | length }} ruled{% endif %}</h2>
+  <p>The model could not call these either way: only you know whether the change was meant. Your ruling is written on the report beside the model's note, so anyone you share it with sees both. Free, and you can change it.</p>
+  <div class="items">
+    {% for item in judgement %}
+    <div class="item">
+      <div class="what">{{ item.headline }}<p class="sub">{{ item.explanation }}</p>
+        {% if item.ruling %}<span class="status {{ 'failed' if item.ruling.verdict == 'error' else 'done' }}" data-testid="ruling-{{ item.index }}">you ruled: {{ rulings[item.ruling.verdict] }}</span>{% endif %}</div>
+      <form action="/jobs/{{ job.id }}/findings/{{ item.index }}/rule" method="post">
+        <input name="note" type="text" placeholder="note (optional)" aria-label="Note on this ruling" value="{{ item.ruling.note if item.ruling else '' }}">
+        <button type="submit" name="verdict" value="error" class="secondary" data-testid="rule-error-{{ item.index }}">A real error</button>
+        <button type="submit" name="verdict" value="fine" class="secondary" data-testid="rule-fine-{{ item.index }}">Not a problem</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
 </div>
 {% endif %}
 

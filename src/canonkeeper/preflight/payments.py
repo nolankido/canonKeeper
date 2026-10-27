@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from pathlib import Path
 
 import httpx
 
@@ -695,7 +694,9 @@ def mark_finding_wrong(
         now = store.get(job.id)
         if now is not None:
             store.update(job.id, guarantee=[done(g) for g in now.guarantee])
-            _annotate_report(reports, now.guarantee)
+            from canonkeeper.preflight.rulings import annotate_report
+
+            annotate_report(store.get(job.id) or now, store)
     _sync(job, store.get(job.id))
     return None, amount
 
@@ -706,16 +707,3 @@ def _drop_guarantee(store: JobStore, job_id: str, index: int) -> None:
         now = store.get(job_id)
         if now is not None:
             store.update(job_id, guarantee=[g for g in now.guarantee if g["finding"] != str(index)])
-
-
-def _annotate_report(reports: Path, guarantee: list[dict[str, str]]) -> None:
-    """Show each mark on the report beside the model's call."""
-    from canonkeeper.models import AuditReport, AuthorReview
-    from canonkeeper.report import write_report
-
-    report = AuditReport.model_validate_json((reports / "report.json").read_text(encoding="utf-8"))
-    for g in guarantee:
-        i = int(g["finding"])
-        if 0 <= i < len(report.findings):
-            report.findings[i].author_review = AuthorReview(verdict="wrong", note=g.get("note", ""))
-    write_report(report, reports)

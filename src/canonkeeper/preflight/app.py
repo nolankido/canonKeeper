@@ -21,6 +21,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlencode, urlparse
 
 import httpx
@@ -60,6 +61,7 @@ from canonkeeper.preflight.paypal import (
     PayPalClient,
 )
 from canonkeeper.preflight.pricing import CURRENCY, Quote, quote
+from canonkeeper.preflight.rulings import RULINGS, judgement_items, rule_on_finding
 from canonkeeper.report.display import headline
 
 _TEMPLATES = Path(__file__).parent / "templates"
@@ -527,10 +529,41 @@ def create_app(
             "job.html",
             job=job,
             quote=quote(job.tokens, words=job.words, books=len(job.books)),
-            contradictions=contradictions_of(job),
-            guarantee_cap=f"{Decimal(job.quote_usd) * GUARANTEE_CAP:.2f}",
-            guarantee_each=f"{GUARANTEE_USD:.2f}",
+            **review_context(job),
         )
+
+    def review_context(job: Job) -> dict[str, Any]:
+        """What the job page needs for the author's review: contradictions to mark wrong (the
+        guarantee) and "needs your judgement" items to rule on."""
+        return {
+            "contradictions": contradictions_of(job),
+            "judgement": judgement_items(job, store),
+            "rulings": RULINGS,
+            "guarantee_cap": f"{Decimal(job.quote_usd) * GUARANTEE_CAP:.2f}",
+            "guarantee_each": f"{GUARANTEE_USD:.2f}",
+        }
+
+    @app.post("/jobs/{job_id}/findings/{index}/rule", response_model=None)
+    def finding_rule(
+        request: Request, job_id: str, index: int, verdict: str = Form(...), note: str = Form("")
+    ) -> RedirectResponse | HTMLResponse:
+        """The author's ruling on an item the model left to them. No money moves."""
+        job = store.get(job_id)
+        if job is None:
+            raise HTTPException(404)
+        problem = rule_on_finding(store, job_id, index, verdict, note)
+        if problem:
+            job = store.get(job_id) or job
+            return render(
+                request,
+                "job.html",
+                status_code=409,
+                job=job,
+                quote=quote(job.tokens, words=job.words, books=len(job.books)),
+                note=problem,
+                **review_context(job),
+            )
+        return RedirectResponse(f"/jobs/{job_id}#judgement", status_code=303)
 
     def contradictions_of(job: Job) -> list[dict[str, object]]:
         """A finished job's contradictions with their report index, for the guarantee form."""
@@ -567,9 +600,7 @@ def create_app(
                 job=job,
                 quote=quote(job.tokens, words=job.words, books=len(job.books)),
                 note=problem,
-                contradictions=contradictions_of(job),
-                guarantee_cap=f"{Decimal(job.quote_usd) * GUARANTEE_CAP:.2f}",
-                guarantee_each=f"{GUARANTEE_USD:.2f}",
+                **review_context(job),
             )
         return RedirectResponse(f"/jobs/{job_id}#guarantee", status_code=303)
 

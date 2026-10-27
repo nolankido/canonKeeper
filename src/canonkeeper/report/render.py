@@ -14,7 +14,10 @@ _env = Environment(
 _env.filters.update(headline=headline, where=where, fact=fact, check=check)
 
 
-def write_report(report: AuditReport, out_dir: Path) -> tuple[Path, Path]:
+def write_report(
+    report: AuditReport, out_dir: Path, *, back_url: str | None = None
+) -> tuple[Path, Path]:
+    """`back_url`: where the report's header links back to (its job page on Preflight)."""
     out_dir.mkdir(parents=True, exist_ok=True)
     json_path = out_dir / "report.json"
     html_path = out_dir / "report.html"
@@ -25,6 +28,7 @@ def write_report(report: AuditReport, out_dir: Path) -> tuple[Path, Path]:
             r=report,
             errors=report.errors,
             others=[f for f in report.findings if not f.is_error],
+            back_url=back_url,
         ),
         encoding="utf-8",
     )

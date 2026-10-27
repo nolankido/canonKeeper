@@ -38,7 +38,8 @@
   .claim q { display: block; margin-top: 4px; font-style: italic; }
   .review { margin: 10px 0 4px; padding: 8px 12px; border-radius: 8px; font-size: 15px; border: 1px solid var(--line); }
   .review.wrong { border-color: var(--muted); background: var(--bg); }
-  .review.right { border-color: var(--ok); }
+  .review.right, .review.fine { border-color: var(--ok); }
+  .review.error { border-color: var(--hi); }
   .f.overruled { border-left-color: var(--line); } .f.overruled q { opacity: .8; }
   .fix { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--accent); border-radius: 8px; }
   .fix b { color: var(--accent); }
@@ -62,7 +63,7 @@
 <body>
 <main>
   <h1>{{ r.series }}</h1>
-  <div class="sub">{{ r.books | length }} books · continuity audit by canonkeeper</div>
+  <div class="sub">{{ r.books | length }} books · continuity audit by canonkeeper{% if back_url %} · <a href="{{ back_url }}" data-testid="back-to-job">back to the job page</a> (rule on items, check a new draft){% endif %}</div>
   {% if r.models.replayed %}<p class="sub" data-testid="replayed">These findings are {{ r.models.replayed }}: real model output for the demo series, shown without sending anything to a model.</p>{% endif %}
 
   <div class="stats">
@@ -85,7 +86,7 @@
   <div class="f {{ f.severity }}{% if f.author_review and f.author_review.verdict == 'wrong' %} overruled{% endif %}">
     <span class="tag {{ f.severity }}">{{ f.severity }}</span><span class="tag" title="{{ f.candidate.heuristic }}">{{ f.candidate.heuristic | check }}</span>
     <strong title="{{ f.candidate.reason }}">{{ f.candidate | headline }}</strong>
-    {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ 'The author marked this call wrong' if f.author_review.verdict == 'wrong' else 'The author confirmed this' }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
+    {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ {'wrong': 'The author marked this call wrong', 'right': 'The author confirmed this', 'error': 'The author ruled: a real error to fix', 'fine': 'The author ruled: not a problem'}[f.author_review.verdict] }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
     {% for c in f.candidate.claims %}
     <div class="claim">
       <div class="loc">{{ c.provenance | where }} — <span title="{{ c.subject }}.{{ c.predicate }} = {{ c.object }}">{{ c.subject }}, {{ c | fact }}</span></div>
@@ -98,12 +99,13 @@
   {% endfor %}
 
   {% if review %}
-  <h2 id="review">Needs your judgement</h2>
+  {% set ruled = review | selectattr('author_review') | list %}
+  <h2 id="review">Needs your judgement{% if ruled %} · {{ ruled | length }} of {{ review | length }} ruled{% endif %}</h2>
   {% for f in review %}
   <div class="f medium">
     <span class="tag medium">ambiguous</span><span class="tag" title="{{ f.candidate.heuristic }}">{{ f.candidate.heuristic | check }}</span>
     <strong title="{{ f.candidate.reason }}">{{ f.candidate | headline }}</strong>
-    {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ 'The author marked this call wrong' if f.author_review.verdict == 'wrong' else 'The author confirmed this' }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
+    {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ {'wrong': 'The author marked this call wrong', 'right': 'The author confirmed this', 'error': 'The author ruled: a real error to fix', 'fine': 'The author ruled: not a problem'}[f.author_review.verdict] }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
     {% for c in f.candidate.claims %}
     <div class="claim">
       <div class="loc">{{ c.provenance | where }} — <span title="{{ c.subject }}.{{ c.predicate }} = {{ c.object }}">{{ c.subject }}, {{ c | fact }}</span></div>
@@ -122,7 +124,7 @@
   <div class="f other">
     <span class="tag ok">{{ f.verdict }}</span><span class="tag" title="{{ f.candidate.heuristic }}">{{ f.candidate.heuristic | check }}</span>
     <strong title="{{ f.candidate.reason }}">{{ f.candidate | headline }}</strong>
-    {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ 'The author marked this call wrong' if f.author_review.verdict == 'wrong' else 'The author confirmed this' }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
+    {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ {'wrong': 'The author marked this call wrong', 'right': 'The author confirmed this', 'error': 'The author ruled: a real error to fix', 'fine': 'The author ruled: not a problem'}[f.author_review.verdict] }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
     <p>{{ f.explanation }}</p>
     {% if f.evidence %}<div class="claim"><div class="loc">Why it is cleared</div><q>{{ f.evidence }}</q></div>{% endif %}
   </div>

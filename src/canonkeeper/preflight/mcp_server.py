@@ -176,6 +176,16 @@ class PreflightService:
             return {"job_id": job_id, "marked": False, "reason": problem}
         return {"job_id": job_id, "marked": True, "given_back": f"{amount:.2f} {CURRENCY}"}
 
+    def rule_on_finding(
+        self, job_id: str, finding_index: int, ruling: str, note: str = ""
+    ) -> dict[str, Any]:
+        from canonkeeper.preflight.rulings import RULINGS, rule_on_finding
+
+        problem = rule_on_finding(self.store, job_id, finding_index, ruling, note)
+        if problem:
+            return {"job_id": job_id, "ruled": False, "reason": problem}
+        return {"job_id": job_id, "ruled": True, "ruling": f"{ruling}: {RULINGS[ruling]}"}
+
     def upload_status(self, token: str) -> dict[str, Any]:
         try:
             record = self.uploads.get(token)
@@ -328,7 +338,7 @@ class PreflightService:
                 continue
             rows.append(
                 {
-                    "index": index,  # what mark_finding_wrong takes
+                    "index": index,  # what mark_finding_wrong and rule_on_finding take
                     "summary": headline(Candidate.model_validate(f["candidate"])),
                     "check": f["candidate"]["heuristic"],
                     "verdict": f["verdict"],
@@ -347,6 +357,7 @@ class PreflightService:
                     ],
                     "explanation": f["explanation"],
                     "suggested_fix": f.get("suggested_fix"),
+                    "author_review": f.get("author_review"),
                 }
             )
         return {
@@ -422,6 +433,17 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
     )
     def mark_finding_wrong(job_id: str, finding_index: int, note: str = "") -> dict[str, Any]:
         return service.mark_finding_wrong(job_id, finding_index, note)
+
+    @server.tool(
+        description="Record the author's ruling on an item the audit left to them ('needs your "
+        "judgement': get_findings with include_cleared, verdict 'ambiguous'). ruling: 'error' (a "
+        "real slip to fix) or 'fine' (not a problem). Free; shown on the report; can be changed. "
+        "Only rule as the author tells you: never decide for them."
+    )
+    def rule_on_finding(
+        job_id: str, finding_index: int, ruling: str, note: str = ""
+    ) -> dict[str, Any]:
+        return service.rule_on_finding(job_id, finding_index, ruling, note)
 
     @server.tool(description="A budget's balance and every spend, credit and refund.")
     def budget_status(budget_key: str) -> dict[str, Any]:

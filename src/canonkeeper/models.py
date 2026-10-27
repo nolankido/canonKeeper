@@ -96,7 +96,9 @@ class AuthorReview(BaseModel):
     """The author's own ruling on a finding, shown beside the model's. A report never hides a
     finding the author marked wrong: it says so, so a reader sees both calls."""
 
-    verdict: Literal["wrong", "right"]
+    verdict: Literal["wrong", "right", "error", "fine"]
+    """On a contradiction: "wrong" (not a real one) or "right". On an item the model left for
+    the author ("needs your judgement"): "error" (a real slip to fix) or "fine"."""
     note: str = ""
 
 
