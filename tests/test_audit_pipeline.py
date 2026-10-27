@@ -112,3 +112,36 @@ def test_origin_mismatch_compares_nationality_with_birthplace_by_country(tmp_pat
     )
     hits = origin_mismatch(store)
     assert len(hits) == 1 and hits[0].claims[0].subject == "Dr. Becher"
+
+
+def test_role_collision_needs_two_people_in_one_household_role(tmp_path):
+    from canonkeeper.audit.candidates import role_collision
+    from canonkeeper.canon import CanonStore
+    from canonkeeper.models import Claim, ClaimKind, Provenance
+
+    store = CanonStore(tmp_path / "b.jsonl")
+    prov = Provenance(book="02", book_index=1, chapter="I", chapter_index=0, quote="q")
+
+    def add(subj, pred, obj, q):
+        store.add(
+            Claim(
+                kind=ClaimKind.ATTRIBUTE,
+                subject=subj,
+                predicate=pred,
+                object=obj,
+                provenance=prov.model_copy(update={"quote": q}),
+            )
+        )
+
+    add("Mrs. Hudson", "occupation", "landlady", "our landlady, Mrs. Hudson")
+    add("Mrs. Hudson", "employed_by", "Sherlock Holmes", "q2")
+    add("Mrs. Turner", "occupation", "landlady", "Mrs. Turner has brought in the tray")
+    assert role_collision(store) == []  # Turner has no household link yet
+    add("Mrs. Turner", "employed_by", "Sherlock Holmes", "q4")
+    hits = role_collision(store)
+    assert len(hits) == 1 and hits[0].heuristic == "role_collision"
+    assert {c.subject for c in hits[0].claims} == {"Mrs. Hudson", "Mrs. Turner"}
+    # A different household's landlady is not a collision.
+    add("Mrs. Warren", "occupation", "landlady", "q5")
+    add("Mrs. Warren", "employed_by", "Mr. Warren", "q6")
+    assert len(role_collision(store)) == 1

@@ -82,6 +82,9 @@ missed in these categories, which is where continuity errors hide:
                         title, rank, occupation
   life state:           dead, alive, died, killed, married_to, engaged_to, residence
   family:               parent_of, child_of, sibling_of
+  household:            for servants, landladies, housekeepers, pages, orderlies: occupation AND
+                        employed_by = the person whose household it is (the narrator's and
+                        his companion's landlady → employed_by that companion)
 
 Read every sentence. Any sentence — including an aside, a single line of dialogue, or a
 description buried in a paragraph about someone else — that states one of these facts about

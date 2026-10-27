@@ -236,6 +236,62 @@ def origin_mismatch(store: CanonStore) -> list[Candidate]:
     return out
 
 
+UNIQUE_HOUSEHOLD_ROLES = {
+    "landlady",
+    "landlord",
+    "housekeeper",
+    "butler",
+    "valet",
+    "cook",
+    "coachman",
+    "page",
+    "nurse",
+    "governess",
+    "secretary",
+    "orderly",
+}
+_HOUSEHOLD_LINKS = {"employed_by", "servant_of", "landlady_of", "landlord_of", "household_of"}
+
+
+def role_collision(store: CanonStore) -> list[Candidate]:
+    """Two different people hold the same one-per-household role for the same household
+    (Mrs. Hudson and Mrs. Turner are both 'the landlady' at Baker Street). Needs an
+    `employed_by`/`servant_of`-style link to the household on both; without it, no claim."""
+    holders: dict[tuple[str, str], list[tuple[str, Claim, Claim]]] = {}
+    for entity in store.entities():
+        claims = store.for_entity(entity)
+        roles = [
+            c
+            for c in claims
+            if c.predicate == "occupation" and _norm(c.object) in UNIQUE_HOUSEHOLD_ROLES
+        ]
+        links = [c for c in claims if c.predicate in _HOUSEHOLD_LINKS]
+        if not roles or not links:
+            continue
+        for r in roles:
+            for link in links:
+                key = (_norm(r.object), store.canonical(link.object).lower())
+                holders.setdefault(key, []).append((entity, r, link))
+    out: list[Candidate] = []
+    for (role, household), entries in holders.items():
+        people = {e for e, _, _ in entries}
+        if len(people) < 2:
+            continue
+        reps: dict[str, tuple[Claim, Claim]] = {}
+        for e, r, link in entries:
+            reps.setdefault(e, (r, link))
+        claims = [r for r, _ in reps.values()]
+        names = ", ".join(f"{e} ({r.provenance.locator})" for e, (r, _) in reps.items())
+        out.append(
+            Candidate(
+                claims=claims,
+                reason=f"the {role} of {household}'s household is {names}",
+                heuristic="role_collision",
+            )
+        )
+    return out
+
+
 def find_candidates(store: CanonStore) -> list[Candidate]:
     cands = (
         slot_mismatch(store)
@@ -243,6 +299,7 @@ def find_candidates(store: CanonStore) -> list[Candidate]:
         + timeline(store)
         + name_drift(store)
         + origin_mismatch(store)
+        + role_collision(store)
     )
     # De-duplicate on the claim-id pair.
     seen: set[frozenset[str]] = set()
