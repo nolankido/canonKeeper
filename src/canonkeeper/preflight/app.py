@@ -28,8 +28,18 @@ from canonkeeper.preflight.pricing import CURRENCY, quote
 _TEMPLATES = Path(__file__).parent / "templates"
 
 
+def paypal_env() -> dict[str, str]:
+    """PAYPAL_* settings: `.env` in the working directory, overridden by the real environment
+    (the same precedence pydantic-settings gives the rest of the configuration)."""
+    from dotenv import dotenv_values
+
+    merged: dict[str, str] = {k: v for k, v in dotenv_values(".env").items() if v is not None}
+    merged.update(os.environ)
+    return merged
+
+
 def make_paypal(settings_env: dict[str, str] | None = None) -> PayPal:
-    env = settings_env if settings_env is not None else dict(os.environ)
+    env = settings_env if settings_env is not None else paypal_env()
     mode = env.get("PAYPAL_MODE", "fake" if not env.get("PAYPAL_CLIENT_ID") else "sandbox")
     if mode == "fake":
         return FakePayPal()

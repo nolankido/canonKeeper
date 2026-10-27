@@ -129,9 +129,18 @@ def _main(
 
 
 @app.command()
-def doctor(provider: str | None = None, workdir: Path | None = None) -> None:
+def doctor(
+    provider: str | None = None,
+    workdir: Path | None = None,
+    paypal: bool = typer.Option(
+        False, "--paypal", help="Also check PayPal: OAuth token and a test order (never captured)"
+    ),
+) -> None:
     """Check the configured provider: key present, endpoint reachable, model answers, pacing."""
     settings = _settings(provider, workdir)
+    if paypal:
+        _doctor_paypal()
+        console.print()
     console.print(f"provider:          {settings.provider}")
     console.print(f"base url:          {settings.base_url or '(none)'}")
     console.print(f"extract model:     {settings.extract_model}")
@@ -193,6 +202,51 @@ def doctor(provider: str | None = None, workdir: Path | None = None) -> None:
     console.print(
         f"[dim]list-price cost of this check: ${llm.usage.cost_usd:.5f} · retries: {llm.usage.retries}[/dim]"
     )
+
+
+def _doctor_paypal() -> None:
+    """OAuth + create a sandbox order and print its approval link. Nothing is captured, so
+    nothing is charged; the order expires on PayPal's side. Refuses to run against live."""
+    from canonkeeper.preflight.app import make_paypal
+    from canonkeeper.preflight.pricing import CURRENCY, MIN_USD
+
+    try:
+        pp = make_paypal()
+    except RuntimeError as e:
+        console.print(f"[red]paypal:[/red] {e}")
+        raise typer.Exit(1) from None
+    console.print(f"paypal mode:       {pp.mode}")
+    if pp.mode == "fake":
+        console.print(
+            "[yellow]paypal:[/yellow] no PAYPAL_CLIENT_ID in .env or the environment; "
+            "`canonkeeper serve` will use the in-process fake"
+        )
+        return
+    if pp.mode != "sandbox":
+        console.print("[yellow]paypal:[/yellow] live mode — not creating a test order")
+        return
+    import time
+
+    t0 = time.monotonic()
+    try:
+        o = pp.create_order(
+            amount=f"{MIN_USD:.2f}",
+            currency=CURRENCY,
+            description="Preflight doctor check (not captured)",
+            return_url="http://127.0.0.1:8787/paypal/return",
+            cancel_url="http://127.0.0.1:8787/paypal/cancel?job=doctor",
+            reference=f"doctor-{int(time.time())}",
+        )
+    except Exception as e:  # noqa: BLE001
+        detail = getattr(getattr(e, "response", None), "text", "")
+        console.print(f"[red]paypal failed:[/red] {type(e).__name__}: {e} {detail[:300]}")
+        raise typer.Exit(1) from None
+    ms = (time.monotonic() - t0) * 1000
+    console.print(
+        f"[green]paypal (sandbox):[/green] token + order {o.id} status {o.status} "
+        f"for {o.currency} {o.amount} in {ms:.0f} ms"
+    )
+    console.print(f"[dim]approve link (unused, expires): {o.approve_url}[/dim]")
 
 
 @app.command()
