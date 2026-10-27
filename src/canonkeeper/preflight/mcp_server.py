@@ -16,6 +16,10 @@ Tools
   check_draft(job_id, draft)               → quote a check of one new draft against an audit
   refund_failed_audit(job_id)              → full refund, only for a failed audit
   delete_job(job_id)                       → delete the uploads and results, keep a receipt
+  open_budget(amount_usd)                  → the person funds a budget once, on PayPal
+  confirm_budget(budget_id)                → captures it; the budget becomes spendable
+  pay_with_budget(job_id, budget_key)      → pays a quoted job from it, never past the balance
+  budget_status(budget_key) / close_budget(budget_key) → the ledger; refund the unused rest
   request_upload_link(series_name)         → a page where the person uploads the books
   upload_status(token)                     → the job id and price once they have
   list_jobs()                              (stdio only: a hosted server lists nobody's jobs)
@@ -28,13 +32,25 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.models import Candidate
+from canonkeeper.preflight.budgets import BudgetStore
 from canonkeeper.preflight.jobs import JobStore, Runner
-from canonkeeper.preflight.payments import OPEN, QuotaShort, place_order, refund, settle
+from canonkeeper.preflight.payments import (
+    OPEN,
+    QuotaShort,
+    close_budget,
+    open_budget,
+    place_order,
+    refund,
+    settle,
+    settle_budget,
+    spend_budget,
+)
 from canonkeeper.preflight.paypal import FakePayPal, PayPal
 from canonkeeper.preflight.pricing import CURRENCY
 from canonkeeper.preflight.uploads import UploadLinks
@@ -61,6 +77,7 @@ class PreflightService:
         self.store = store or JobStore(workdir / "jobs")
         self.runner = runner or Runner(self.store, settings)
         self.uploads = UploadLinks(workdir / "uploads")
+        self.budgets = BudgetStore(workdir / "budgets")
         self.base = public_base_url.rstrip("/")
 
     def request_upload_link(self, series_name: str | None = None) -> dict[str, Any]:
@@ -76,6 +93,76 @@ class PreflightService:
             "next": "give upload_url to the person; they upload the books (one file per book) "
             "and see the price; then call upload_status(token) for the job id and quote",
         }
+
+    # -- agent budgets ------------------------------------------------------------------------
+
+    def open_budget(self, amount_usd: str) -> dict[str, Any]:
+        try:
+            amount = Decimal(str(amount_usd))
+        except InvalidOperation:
+            raise ValueError("amount_usd must be a number of dollars, e.g. 20") from None
+        budget, key = open_budget(amount, self.paypal, self.budgets, self.base, absolute_links=True)
+        return {
+            "budget_id": budget.id,
+            "budget_key": key,
+            "amount": f"{budget.amount_usd} {CURRENCY}",
+            "approve_url": budget.approve_url,
+            "budget_url": f"{self.base}/budget/{budget.id}",
+            "next": "keep budget_key private (it spends the budget); ask the person to open "
+            "approve_url and approve the payment, and give them budget_url (where they see "
+            "every spend and can close the budget); then confirm_budget(budget_id)",
+        }
+
+    def confirm_budget(self, budget_id: str) -> dict[str, Any]:
+        budget = self.budgets.get(budget_id)
+        if budget is None:
+            raise ValueError("unknown budget")
+        problem = settle_budget(budget, self.paypal, self.budgets)
+        fresh = self.budgets.get(budget_id) or budget
+        out: dict[str, Any] = {
+            "budget_id": budget_id,
+            "status": fresh.status,
+            "balance": f"{fresh.balance:.2f}",
+        }
+        if problem:
+            out["problem"] = problem
+        return out
+
+    def budget_status(self, budget_key: str) -> dict[str, Any]:
+        budget = self.budgets.by_key(budget_key)
+        if budget is None:
+            raise ValueError("unknown budget key")
+        return budget.public()
+
+    def pay_with_budget(self, job_id: str, budget_key: str) -> dict[str, Any]:
+        job = self.store.get(job_id)
+        if job is None:
+            raise ValueError("unknown job")
+        try:
+            problem = spend_budget(budget_key, job, self.store, self.budgets, self.runner)
+        except QuotaShort as short:
+            return {"job_id": job_id, "paid": False, "reason": str(short)}
+        if problem:
+            return {"job_id": job_id, "paid": False, "reason": problem}
+        budget = self.budgets.by_key(budget_key)
+        return {
+            "job_id": job_id,
+            "paid": True,
+            "amount": f"{job.quote_usd} {CURRENCY}",
+            "budget_left": f"{budget.balance:.2f}" if budget else None,
+            "next": "poll audit_status(job_id), then get_findings(job_id)",
+        }
+
+    def close_budget(self, budget_key: str) -> dict[str, Any]:
+        budget = self.budgets.by_key(budget_key)
+        if budget is None:
+            raise ValueError("unknown budget key")
+        problem = close_budget(budget, self.paypal, self.budgets)
+        fresh = self.budgets.get(budget.id) or budget
+        out = fresh.public()
+        if problem:
+            out["problem"] = problem
+        return out
 
     def upload_status(self, token: str) -> dict[str, Any]:
         try:
@@ -195,7 +282,7 @@ class PreflightService:
         job = self.store.get(job_id)
         if job is None:
             raise ValueError("unknown job")
-        problem = refund(job, self.paypal, self.store)
+        problem = refund(job, self.paypal, self.store, self.budgets)
         if problem:
             raise ValueError(problem)
         return {
@@ -299,6 +386,39 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
     )
     def upload_status(token: str) -> dict[str, Any]:
         return service.upload_status(token)
+
+    @server.tool(
+        description="Ask the person to fund a budget (5 to 200 USD) you may spend on audits and "
+        "draft checks without asking each time. Returns a PayPal approval URL for the PERSON, "
+        "their budget page, and a private budget_key for you."
+    )
+    def open_budget(amount_usd: str) -> dict[str, Any]:
+        return service.open_budget(amount_usd)
+
+    @server.tool(
+        description="After the person approved the budget's payment: capture it and make the "
+        "budget spendable."
+    )
+    def confirm_budget(budget_id: str) -> dict[str, Any]:
+        return service.confirm_budget(budget_id)
+
+    @server.tool(description="A budget's balance and every spend, credit and refund.")
+    def budget_status(budget_key: str) -> dict[str, Any]:
+        return service.budget_status(budget_key)
+
+    @server.tool(
+        description="Pay a quoted job from the budget and start it. Refused if the balance does "
+        "not cover the quote, or if the job has a PayPal order of its own."
+    )
+    def pay_with_budget(job_id: str, budget_key: str) -> dict[str, Any]:
+        return service.pay_with_budget(job_id, budget_key)
+
+    @server.tool(
+        description="Close the budget: no more spending; the unused balance is refunded to the "
+        "person's PayPal."
+    )
+    def close_budget(budget_key: str) -> dict[str, Any]:
+        return service.close_budget(budget_key)
 
     @server.tool(
         description="Price an audit from the book texts. Returns a job id and the quote with its arithmetic."

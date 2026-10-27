@@ -10,9 +10,11 @@ of exactly the quoted amount has completed.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import httpx
 
+from canonkeeper.preflight.budgets import Budget, BudgetStore
 from canonkeeper.preflight.jobs import Job, JobStore, Runner, order_description
 from canonkeeper.preflight.paypal import (
     UNAPPROVED,
@@ -141,7 +143,9 @@ def settle(
     return None
 
 
-def refund(job: Job, paypal: PayPal, store: JobStore) -> str | None:
+def refund(
+    job: Job, paypal: PayPal, store: JobStore, budgets: BudgetStore | None = None
+) -> str | None:
     """Give the whole payment back for an audit that failed. Returns None when the job is
     refunded (now or before), else why not.
 
@@ -174,6 +178,20 @@ def refund(job: Job, paypal: PayPal, store: JobStore) -> str | None:
         _sync(job, store.get(job.id))
         return reason
 
+    if claim.budget_id and budgets is not None:
+        problem = _credit_budget(claim, paypal, budgets)
+        if problem:
+            return give_back(problem)
+        store.update(
+            job.id,
+            expect=("refunding",),
+            status="refunded",
+            refund_id=f"budget:{claim.budget_id}",
+            refunded_at=_now(),
+            refund_status="COMPLETED",
+        )
+        _sync(job, store.get(job.id))
+        return None
     try:
         cap = claim.capture_id
         if not cap and claim.order_id:  # jobs paid before capture ids were recorded
@@ -262,3 +280,174 @@ def place_order(
         status="ordered",
     )
     return placed or store.get(job.id) or fresh
+
+
+# ---------------------------------------------------------------------------------------------
+# Agent budgets (see budgets.py): funded through PayPal once, spent by the assistant.
+
+
+def open_budget(
+    amount: Decimal,
+    paypal: PayPal,
+    budgets: BudgetStore,
+    base: str,
+    *,
+    absolute_links: bool = False,
+) -> tuple[Budget, str]:
+    """A budget and its PayPal order; returns (budget, spending key). Nothing can be spent until
+    the person approves the order and PayPal confirms the capture."""
+    budget, key = budgets.create(amount)
+    o = paypal.create_order(
+        amount=budget.amount_usd,
+        currency=CURRENCY,
+        description=f"Preflight: a ${budget.amount_usd} budget your assistant may spend on audits",
+        return_url=f"{base}/budget/{budget.id}/return",
+        cancel_url=f"{base}/budget/{budget.id}",
+        reference=f"budget-{budget.id}",
+    )
+    approve = o.approve_url or ""
+    if absolute_links and approve.startswith("/"):
+        approve = f"{base}{approve}"
+
+    def placed(b: Budget) -> None:
+        b.order_id, b.approve_url = o.id, approve
+
+    return budgets.update(budget.id, placed), key
+
+
+def settle_budget(budget: Budget, paypal: PayPal, budgets: BudgetStore) -> str | None:
+    """Fund a budget once PayPal has a completed capture of exactly its amount."""
+    if budget.status in ("active", "closed"):
+        return None
+    if budget.status != "ordered" or not budget.order_id:
+        return f"this budget is {budget.status}"
+    try:
+        o = paypal.get_order(budget.order_id)
+        if o.status in UNAPPROVED:
+            return "not approved yet"
+        if o.status == "VOIDED":
+            budgets.update(budget.id, lambda b: setattr(b, "status", "cancelled"))
+            return "this PayPal order has expired"
+        o = paypal.capture_order(budget.order_id)
+    except httpx.HTTPStatusError as e:
+        return f"PayPal could not complete the payment ({e.response.status_code})"
+    problem = capture_problem(o, amount=budget.amount_usd, currency=CURRENCY)
+    if problem:
+        return problem
+
+    def fund(b: Budget) -> None:
+        if b.status == "ordered":
+            b.status, b.capture_id, b.funded_at = "active", capture_id_of(o), _now()
+
+    budgets.update(budget.id, fund)
+    return None
+
+
+def spend_budget(
+    key: str, job: Job, store: JobStore, budgets: BudgetStore, runner: Runner
+) -> str | None:
+    """Pay a quoted job from a budget and start it. Never past the balance, never a job that
+    has (or had) a PayPal order of its own: one payment per job, whichever way it came."""
+    budget = budgets.by_key(key)
+    if budget is None:
+        return "unknown budget key"
+    fresh = store.get(job.id) or job
+    if fresh.status != "quoted" or fresh.order_id:
+        return f"this job is {fresh.status}{' with a PayPal order of its own' if fresh.order_id else ''}; only a quoted job can be paid from a budget"
+    check = check_quota(
+        runner.settings, store.load_series(fresh), runner.cache_dir_for(fresh), demo=fresh.demo
+    )
+    if not check.ok:
+        raise QuotaShort(check.reason or "today's model quota cannot finish this audit")
+    price = Decimal(fresh.quote_usd)
+    with budgets.locked(budget.id) as b:
+        if b.status != "active":
+            return f"this budget is {b.status}"
+        if b.balance < price:
+            return f"the budget has ${b.balance:.2f} left; this costs ${price:.2f}"
+        paid = store.update(
+            fresh.id, expect=("quoted",), status="paid", paid_at=_now(), budget_id=b.id
+        )
+        if paid is None:
+            return "this job is no longer waiting to be paid"
+        b.spends.append(
+            {"job_id": fresh.id, "amount": f"{price:.2f}", "at": _now(), "kind": fresh.kind}
+        )
+    runner.submit(fresh.id)
+    _sync(job, store.get(job.id))
+    return None
+
+
+def close_budget(budget: Budget, paypal: PayPal, budgets: BudgetStore) -> str | None:
+    """Stop spending and refund the unused balance to the person's PayPal account."""
+    if budget.status == "ordered":
+        budgets.update(budget.id, lambda b: setattr(b, "status", "cancelled"))
+        return None
+    if budget.status != "active":
+        return None if budget.status == "closed" else f"this budget is {budget.status}"
+    with budgets.locked(budget.id) as b:
+        if b.status != "active":
+            return None
+        remainder = b.balance
+        if remainder > 0:
+            problem = _refund_from(b, paypal, remainder, f"budget-{b.id}-close", "unused balance")
+            if problem:
+                return problem
+        b.status = "closed"
+    return None
+
+
+def _refund_from(
+    b: Budget, paypal: PayPal, amount: Decimal, request_id: str, why: str
+) -> str | None:
+    """A partial refund of the budget's funding capture, recorded on the budget. 5xx and
+    timeouts propagate (PayPal may have refunded; asking again is safe, the request id is fixed)."""
+    if not b.capture_id:
+        return "PayPal has no capture for this budget"
+    try:
+        r = paypal.refund_capture(b.capture_id, f"{amount:.2f}", request_id)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code >= 500:
+            raise
+        return f"PayPal refused the refund ({e.response.status_code})"
+    if r.status not in ("COMPLETED", "PENDING"):
+        return f"PayPal refused the refund ({r.status or 'no status'})"
+    b.refunds.append(
+        {"refund_id": r.id, "amount": f"{amount:.2f}", "at": _now(), "status": r.status, "for": why}
+    )
+    return None
+
+
+def _credit_budget(job: Job, paypal: PayPal, budgets: BudgetStore) -> str | None:
+    """A failed audit paid from a budget: the money goes back to the budget, or, once the budget
+    is closed, straight back to PayPal."""
+    assert job.budget_id
+    amount = Decimal(job.quote_usd)
+    try:
+        with budgets.locked(job.budget_id) as b:
+            if any(c["job_id"] == job.id for c in b.credits):
+                return None  # already credited
+            if b.status == "closed":
+                problem = _refund_from(b, paypal, amount, f"budget-{b.id}-job-{job.id}", job.id)
+                if problem:
+                    return problem
+                b.credits.append(  # offsets the spend; the matching refund leaves the balance at 0
+                    {
+                        "job_id": job.id,
+                        "amount": f"{amount:.2f}",
+                        "at": _now(),
+                        "reason": "audit failed; refunded to PayPal",
+                    }
+                )
+                return None
+            b.credits.append(
+                {
+                    "job_id": job.id,
+                    "amount": f"{amount:.2f}",
+                    "at": _now(),
+                    "reason": "audit failed",
+                }
+            )
+    except KeyError:
+        return "the budget this job was paid from no longer exists"
+    return None

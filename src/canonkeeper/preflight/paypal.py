@@ -90,7 +90,9 @@ class PayPal(Protocol):
 
     def capture_order(self, order_id: str) -> Order: ...
 
-    def refund_capture(self, capture_id: str) -> Refund: ...
+    def refund_capture(
+        self, capture_id: str, amount: str | None = None, request_id: str | None = None
+    ) -> Refund: ...
 
     def verify_webhook(self, headers: Mapping[str, str], body: bytes, webhook_id: str) -> bool: ...
 
@@ -263,13 +265,17 @@ class PayPalClient:
             return self.get_order(order_id)
         return o
 
-    def refund_capture(self, capture_id: str) -> Refund:
-        """Refund the whole capture (an empty body means the full amount). Idempotent: the
-        request id is fixed per capture, and an already-refunded capture is reported as done."""
+    def refund_capture(
+        self, capture_id: str, amount: str | None = None, request_id: str | None = None
+    ) -> Refund:
+        """Refund the whole capture (an empty body means the full amount), or `amount` of it (a
+        budget's unused remainder). Idempotent: the request id is fixed per capture (or given,
+        one per partial refund), and an already-refunded capture is reported as done."""
+        body = {"amount": {"value": amount, "currency_code": "USD"}} if amount else {}
         r = self._http.post(
             f"/v2/payments/captures/{capture_id}/refund",
-            headers=self._headers(f"refund-{capture_id}"),
-            content=b"{}",
+            headers=self._headers(request_id or f"refund-{capture_id}"),
+            content=json.dumps(body).encode(),
         )
         if r.status_code == 422 and "CAPTURE_FULLY_REFUNDED" in r.text:
             return Refund(id="", status="COMPLETED")
@@ -402,12 +408,28 @@ class FakePayPal:
                 ]
         return o
 
-    def refund_capture(self, capture_id: str) -> Refund:
+    def refund_capture(
+        self, capture_id: str, amount: str | None = None, request_id: str | None = None
+    ) -> Refund:
         with self._txn():
             for o in self._orders.values():
-                if capture_id_of(o) == capture_id:
+                if capture_id_of(o) != capture_id:
+                    continue
+                if amount is None:
                     o.raw["refund_id"] = (
                         o.raw.get("refund_id") or "REF" + secrets.token_hex(5).upper()
                     )
                     return Refund(id=str(o.raw["refund_id"]), status="COMPLETED")
+                # Partial refunds, as PayPal keeps them: one per request id, never more in
+                # total than was captured.
+                partial: dict[str, list[str]] = o.raw.setdefault("partial_refunds", {})
+                key = request_id or secrets.token_hex(4)
+                if key in partial:
+                    return Refund(id=partial[key][0], status="COMPLETED")
+                done = sum(Decimal(v[1]) for v in partial.values())
+                if done + Decimal(amount) > Decimal(o.amount):
+                    return Refund(id="", status="FAILED")
+                rid = "REF" + secrets.token_hex(5).upper()
+                partial[key] = [rid, amount]
+                return Refund(id=rid, status="COMPLETED")
         raise KeyError(capture_id)

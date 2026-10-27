@@ -30,6 +30,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.concurrency import run_in_threadpool
 
 from canonkeeper.config import Settings, load_settings
+from canonkeeper.preflight.budgets import Budget
 from canonkeeper.preflight.jobs import (
     MAX_BOOKS,
     MAX_TOTAL_BYTES,
@@ -38,7 +39,14 @@ from canonkeeper.preflight.jobs import (
     Runner,
 )
 from canonkeeper.preflight.mcp_server import PreflightService, build_server
-from canonkeeper.preflight.payments import QuotaShort, place_order, refund, settle
+from canonkeeper.preflight.payments import (
+    QuotaShort,
+    close_budget,
+    place_order,
+    refund,
+    settle,
+    settle_budget,
+)
 from canonkeeper.preflight.paypal import (
     FakePayPal,
     Order,
@@ -428,11 +436,56 @@ def create_app(
             return JSONResponse({"ignored": kind})
         job = await run_in_threadpool(store.by_order, str(order_id or ""))
         if job is None:
+            budget = await run_in_threadpool(service.budgets.by_order, str(order_id or ""))
+            if budget is not None:
+                problem = await run_in_threadpool(settle_budget, budget, pp, service.budgets)
+                return JSONResponse(
+                    {"budget": budget.id, "settled": not problem, "problem": problem}
+                )
             return JSONResponse({"ignored": "unknown order"})
         problem = await run_in_threadpool(
             settle, job, pp, store, runner, order_id_hint=str(order_id)
         )
         return JSONResponse({"job": job.id, "settled": not problem, "problem": problem})
+
+    def budget_or_404(budget_id: str) -> Budget:
+        budget = service.budgets.get(budget_id)
+        if budget is None:
+            raise HTTPException(404)
+        return budget
+
+    def budget_page(request: Request, budget: Budget, note: str | None = None) -> HTMLResponse:
+        jobs = {s["job_id"]: store.get(s["job_id"]) for s in budget.spends}
+        return render(request, "budget.html", budget=budget, jobs=jobs, note=note)
+
+    @app.get("/budget/{budget_id}", response_class=HTMLResponse)
+    def budget_view(request: Request, budget_id: str) -> HTMLResponse:
+        """A budget's page: its balance, every spend, credit and refund. The id lets one see it;
+        only the spending key, which the assistant holds, lets one spend it."""
+        return budget_page(request, budget_or_404(budget_id))
+
+    @app.get("/budget/{budget_id}/return", response_model=None)
+    def budget_return(request: Request, budget_id: str) -> RedirectResponse | HTMLResponse:
+        budget = budget_or_404(budget_id)
+        problem = settle_budget(budget, pp, service.budgets)
+        if problem:
+            return budget_page(request, budget_or_404(budget_id), note=problem)
+        return RedirectResponse(f"/budget/{budget_id}", status_code=303)
+
+    @app.post("/budget/{budget_id}/check", response_model=None)
+    def budget_check(request: Request, budget_id: str) -> RedirectResponse | HTMLResponse:
+        return budget_return(request, budget_id)
+
+    @app.post("/budget/{budget_id}/close", response_model=None)
+    def budget_close(
+        request: Request, budget_id: str, confirm: str = Form("")
+    ) -> RedirectResponse | HTMLResponse:
+        if confirm != "yes":
+            raise HTTPException(400, "tick the box to confirm")
+        problem = close_budget(budget_or_404(budget_id), pp, service.budgets)
+        if problem:
+            return budget_page(request, budget_or_404(budget_id), note=problem)
+        return RedirectResponse(f"/budget/{budget_id}", status_code=303)
 
     @app.get("/cancel")
     def paypal_cancel(job: str) -> RedirectResponse:
@@ -494,7 +547,7 @@ def create_app(
         if job is None:
             raise HTTPException(404)
         try:
-            problem = refund(job, pp, store)
+            problem = refund(job, pp, store, service.budgets)
         except (httpx.HTTPError, TimeoutError):
             problem = (
                 "PayPal did not answer in time. The refund may already have gone through; "

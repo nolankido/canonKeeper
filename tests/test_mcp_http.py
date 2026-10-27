@@ -67,6 +67,7 @@ def test_an_assistant_buys_an_audit_over_http_with_an_upload_link(hosted) -> Non
                 await mcp.initialize()
                 names = {t.name for t in (await mcp.list_tools()).tools}
                 assert {"request_upload_link", "upload_status", "order_audit"} <= names
+                assert {"open_budget", "pay_with_budget", "close_budget"} <= names
                 assert "list_jobs" not in names  # a public server lists nobody's jobs
 
                 link = _data(

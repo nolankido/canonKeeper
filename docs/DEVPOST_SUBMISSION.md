@@ -28,9 +28,11 @@ and only then spends any compute.
 
 When the author is writing the next book, they upload the draft on the finished audit's page:
 a smaller quote on the draft alone, the same PayPal checkout, and only the places where the
-draft disagrees with what is already published. The same service is an MCP server, so an
-author's AI assistant can price, order, check and read the findings — while the payment
-approval always goes to the person.
+draft disagrees with what is already published. The same service is an MCP server, hosted at
+`/mcp`, so an author's AI assistant can price, order, check and read the findings as a customer of
+the service, holding no keys. The person either approves each payment on PayPal or funds an
+assistant budget once through PayPal: the assistant spends it on audits and draft checks, never
+past the balance, every spend on the budget's page, and the unused rest refunds to PayPal.
 
 What the author takes away: a report that reads like an editor's note ("John Watson's wound:
 shoulder in A Study in Scarlet vs leg in The Sign of the Four", both passages, the fix), the

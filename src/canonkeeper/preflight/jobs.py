@@ -70,6 +70,7 @@ class Job:
     parent_id: str | None = None  # for a check: the audit whose bible it is checked against
     draft: str | None = None  # for a check: the draft's file name under draft/
     demo: bool = False  # the invented demo series: its model responses are shared
+    budget_id: str | None = None  # paid from an agent budget instead of its own PayPal order
     stage: str | None = None  # "extracting" | "judging" while running
     progress_done: int = 0
     progress_total: int = 0
