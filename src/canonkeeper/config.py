@@ -29,13 +29,13 @@ class ProviderDefaults:
     extract_model: dict[str, str] = {
         "gemini": "gemini-3.5-flash-lite",  # fast and actually serving on the free tier
         "meta": "muse-spark-1.3",
-        "openweights": "qwen3.5:4b",  # ~3 GB, runs on a laptop CPU; `ollama pull qwen3.5:4b`
+        "openweights": "qwen3:4b",  # 2.5 GB, runs on a laptop CPU; `ollama pull qwen3:4b`
         "mock": "mock-extract",
     }
     adjudicate_model: dict[str, str] = {
         "gemini": "gemini-3.6-flash",  # 3.8 Flash when it is not overloaded; Argon is paid-only
         "meta": "muse-wonder-1.0",
-        "openweights": "qwen3.5:4b",
+        "openweights": "qwen3:4b",
         "mock": "mock-adjudicate",
     }
     # If a model keeps answering 503 (overloaded) the client moves down this ladder for the rest

@@ -415,7 +415,7 @@ def test_openweights_defaults_and_base_url_scope():
     from canonkeeper.config import Settings
 
     local = Settings(provider="openweights", _env_file=None)
-    assert local.base_url == "http://localhost:11434/v1" and local.extract_model == "qwen3.5:4b"
+    assert local.base_url == "http://localhost:11434/v1" and local.extract_model == "qwen3:4b"
     assert local.trains_on_prompts is False
     lm = Settings(
         provider="openweights", openweights_base_url="http://localhost:1234/v1", _env_file=None
