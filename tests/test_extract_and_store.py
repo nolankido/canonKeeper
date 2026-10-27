@@ -79,6 +79,25 @@ def test_store_roundtrip_and_alias_resolution(tmp_path):
     assert loaded.entities() == ["Sherlock Holmes"]
 
 
+def test_store_index_follows_late_aliases(tmp_path):
+    """Aliases learned after claims were added must re-resolve earlier subjects, and the
+    memoised canonical() must not serve a stale answer."""
+    store = CanonStore(tmp_path / "b.jsonl")
+    prov = Provenance(book="01", book_index=0, chapter="I", chapter_index=0, quote="q")
+    mk = lambda s, o: Claim(  # noqa: E731
+        kind=ClaimKind.ATTRIBUTE, subject=s, predicate="eye_color", object=o, provenance=prov
+    )
+    store.add(mk("Watson", "blue"))
+    assert store.entities() == ["Watson"]
+    assert store.for_entity("Watson") and store.canonical("Watson") == "Watson"
+    store.register_aliases({"John Watson": ["Watson", "Dr. Watson"]})
+    store.add(mk("Dr. Watson", "brown"))
+    assert store.canonical("Watson") == "John Watson"
+    assert store.entities() == ["John Watson"]
+    assert len(store.for_entity("Watson")) == 2
+    assert len(store.slots()[("john watson", "eye_color")]) == 2
+
+
 def test_store_dedupes_identical_claims(tmp_path):
     store = CanonStore(tmp_path / "b.jsonl")
     prov = Provenance(book="01", book_index=0, chapter="I", chapter_index=0, quote="q")

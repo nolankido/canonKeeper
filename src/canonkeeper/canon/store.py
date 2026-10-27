@@ -25,7 +25,10 @@ class CanonStore:
         self.aliases: dict[str, list[str]] = {}
         self._alias_to_canon: dict[str, str] = {}
         self._by_slot: dict[tuple[str, str], list[Claim]] = defaultdict(list)
+        self._by_entity: dict[str, list[Claim]] = defaultdict(list)
         self._ids: set[str] = set()
+        self._canon_cache: dict[str, str] = {}
+        self._indexed_count = 0
         self.last_extract_stats: object | None = None
 
     # --- persistence -----------------------------------------------------------------------
@@ -55,6 +58,8 @@ class CanonStore:
 
     # --- aliases ---------------------------------------------------------------------------
     def register_aliases(self, aliases: Mapping[str, Iterable[str]]) -> None:
+        self._canon_cache.clear()
+        self._indexed_count = -1  # force a reindex: resolutions may have changed
         for canon, names in aliases.items():
             lst = self.aliases.setdefault(canon, [])
             for n in names:
@@ -64,15 +69,20 @@ class CanonStore:
             self._alias_to_canon[canon.lower()] = canon
 
     def canonical(self, name: str) -> str:
-        """Resolve a surface name to a canonical entity; fuzzy-match as a last resort."""
-        hit = self._alias_to_canon.get(name.lower())
-        if hit:
-            return hit
-        if self._alias_to_canon:
-            best = process.extractOne(name.lower(), list(self._alias_to_canon), scorer=fuzz.WRatio)
+        """Resolve a surface name to a canonical entity; fuzzy-match as a last resort.
+        Memoised: the fuzzy path is O(aliases) and the screen asks thousands of times."""
+        key = name.lower()
+        cached = self._canon_cache.get(key)
+        if cached is not None:
+            return cached
+        hit = self._alias_to_canon.get(key)
+        if hit is None and self._alias_to_canon:
+            best = process.extractOne(key, list(self._alias_to_canon), scorer=fuzz.WRatio)
             if best and best[1] >= 92:
-                return self._alias_to_canon[best[0]]
-        return name
+                hit = self._alias_to_canon[best[0]]
+        result = hit or name
+        self._canon_cache[key] = result
+        return result
 
     # --- claims ----------------------------------------------------------------------------
     def add(self, claim: Claim, *, _rebuild: bool = True) -> bool:
@@ -80,8 +90,14 @@ class CanonStore:
             return False
         self._ids.add(claim.id)
         self.claims.append(claim)
-        if _rebuild:
-            self._by_slot[self._slot(claim)].append(claim)
+        if _rebuild and self._indexed_count == len(self.claims) - 1:
+            # Index was current before this append: extend it. Otherwise (bulk load, or an
+            # alias change that may have re-resolved earlier subjects) leave it stale and let
+            # `_reindex` rebuild lazily on the next read.
+            canon = self.canonical(claim.subject).lower()
+            self._by_slot[(canon, claim.predicate.lower())].append(claim)
+            self._by_entity[canon].append(claim)
+            self._indexed_count = len(self.claims)
         return True
 
     def ingest(self, result: ExtractionResult) -> int:
@@ -103,20 +119,29 @@ class CanonStore:
         return (self.canonical(claim.subject).lower(), claim.predicate.lower())
 
     def _reindex(self) -> None:
+        """Rebuild the slot and entity indexes; a no-op when nothing changed since last time."""
+        if self._indexed_count == len(self.claims):
+            return
         self._by_slot.clear()
+        self._by_entity.clear()
         for c in self.claims:
-            self._by_slot[self._slot(c)].append(c)
+            canon = self.canonical(c.subject)
+            self._by_slot[(canon.lower(), c.predicate.lower())].append(c)
+            self._by_entity[canon.lower()].append(c)
+        self._indexed_count = len(self.claims)
 
     def slots(self) -> dict[tuple[str, str], list[Claim]]:
         self._reindex()
         return dict(self._by_slot)
 
     def entities(self) -> list[str]:
-        return sorted({self.canonical(c.subject) for c in self.claims})
+        self._reindex()
+        names = {self.canonical(c.subject) for c in self.claims}
+        return sorted(names)
 
     def for_entity(self, name: str) -> list[Claim]:
-        canon = self.canonical(name).lower()
-        return [c for c in self.claims if self.canonical(c.subject).lower() == canon]
+        self._reindex()
+        return list(self._by_entity.get(self.canonical(name).lower(), []))
 
     def __len__(self) -> int:
         return len(self.claims)
