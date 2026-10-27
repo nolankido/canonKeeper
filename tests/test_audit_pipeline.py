@@ -387,3 +387,14 @@ def test_misses_are_attributed_to_the_stage_that_lost_them(series, settings, moc
     m = diagnose([inj], mutated.claims, [cleared])[0]
     assert m.stage == "judgement" and "a disguise" in m.detail
     assert "| planted | lost at |" in misses_markdown([m])
+
+
+def test_two_nationalities_are_raised_once(tmp_path):
+    from canonkeeper.audit import find_candidates
+    from canonkeeper.canon import CanonStore
+
+    st = CanonStore(tmp_path / "b.jsonl")
+    st.add(_claim("Dr. Becher", "nationality", "german", q="is Dr. Becher a German"))
+    st.add(_claim("Dr. Becher", "nationality", "englishman", book=0, chapter=1, q="an Englishman"))
+    hits = find_candidates(st)
+    assert [h.heuristic for h in hits] == ["slot_mismatch"]

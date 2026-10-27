@@ -279,8 +279,9 @@ def name_drift(store: CanonStore) -> list[Candidate]:
 
 def origin_mismatch(store: CanonStore) -> list[Candidate]:
     """`nationality` says one country, `birthplace` says another. Different slots, so the
-    slot screen never compares them; a demonym table does. Also catches a nationality that
-    disagrees with another nationality claim by country ("Welsh" vs "German")."""
+    slot screen never compares them; a demonym table does. Two nationalities (or two
+    birthplaces) are slot_mismatch's job; raising them here too sent Dr. Becher's 'German?' /
+    'an Englishman' to the adjudicator twice on the Holmes run."""
     from canonkeeper.canon.normalize import same_country
 
     out: list[Candidate] = []
@@ -292,8 +293,8 @@ def origin_mismatch(store: CanonStore) -> list[Candidate]:
             continue
         seen: set[frozenset[str]] = set()
         for a, b in combinations(origin, 2):
-            if a.predicate == b.predicate == "birthplace":
-                continue  # slot_mismatch already covers two birthplaces
+            if a.predicate == b.predicate:
+                continue  # two birthplaces or two nationalities: slot_mismatch covers those
             pair = frozenset((a.id, b.id))
             if pair in seen:
                 continue
