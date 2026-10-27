@@ -28,7 +28,8 @@ def test_a_quoted_job_shows_its_arithmetic_and_a_paypal_button_in_plain_words(tm
     job = svc.quote_series("The Saltmarsh Chronicles", BOOKS)["job_id"]
     page = web.get(f"/jobs/{job}").text
     assert ">quote ready</span>" in page and ">quoted</span>" not in page
-    assert "$5.00 base + 1,171 tokens at $4.00 per 100k tokens ($0.05) = $5.05" in page
+    tokens = svc.store.get(job).tokens
+    assert f"$5.00 base + {tokens:,} tokens at $4.00 per 100k tokens ($0.05) = $5.05" in page
     assert 'class="paypal">Pay $5.05 with PayPal' in page
     assert "Download the report first" not in page  # there is no report yet
     assert 'class="paypal"' in web.post("/quote-demo").text

@@ -81,7 +81,7 @@ CHAPTER II. THE CONFESSION
 
 {_PAD}
 
-Tobias Crane was shot in the leg. Ivy Marlowe walked to Dunmere.
+Tobias Crane was shot in the leg. Ivy Marlowe walked to Dunmere. Ivy Marlowe had grey hair.
 
 CHAPTER III. THE FLATS
 
@@ -97,6 +97,10 @@ PLANTED = [
     ("Hester Vale", "birthplace", "Saltmarsh → Dunmere in book 3"),
     ("Oswin Reed", "dead", "dies in book 2, walks in book 3"),
 ]
+
+# Left to the author ("needs your judgement"): red hair in book 1, grey in book 3. Time may
+# have passed between the books, or it may be a slip; only the author knows which.
+FOR_THE_AUTHOR = [("Ivy Marlowe", "hair_color", "red → grey in book 3: ageing or a slip?")]
 
 # --- the unpublished draft, for `canonkeeper check` -----------------------------------------
 # Three things for the checker to find: two slips and one deliberate reveal. The reveal is the

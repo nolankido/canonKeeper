@@ -579,7 +579,8 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
 
     @tool(
         description="Quote an audit of the Saltmarsh Chronicles, an invented three-book demo "
-        "series with five planted continuity errors, to try the whole flow (pay, findings, "
+        "series with five planted continuity errors and one item for the author to judge, to try "
+        "the whole flow (pay, findings, "
         "draft check) without a series of the person's own."
     )
     def quote_demo_series() -> dict[str, Any]:

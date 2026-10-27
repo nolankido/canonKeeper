@@ -16,12 +16,24 @@ _NAME = r"([A-Z][a-z]+(?: [A-Z][a-z]+){0,2})"
 
 # (compiled pattern, kind, predicate, subject group, object group)
 _PATTERNS: list[tuple[re.Pattern[str], str, str, int, int | str]] = [
-    (re.compile(rf"{_NAME} (?:has|had) ([a-z]+) eyes\."), "attribute", "eye_color", 1, 2),
+    (re.compile(rf"{_NAME} (?:has|had) ([a-z]+) eyes\b[^.\n]*\.?"), "attribute", "eye_color", 1, 2),
     (re.compile(rf"{_NAME} looked up, and the ([a-z]+) eyes"), "attribute", "eye_color", 1, 2),
     (re.compile(rf"{_NAME}'s eyes were ([a-z]+)\."), "attribute", "eye_color", 1, 2),
-    (re.compile(rf"{_NAME} (?:has|had) ([a-z]+) hair\."), "attribute", "hair_color", 1, 2),
+    (
+        re.compile(rf"{_NAME} (?:has|had) ([a-z]+) hair\b[^.\n]*\.?"),
+        "attribute",
+        "hair_color",
+        1,
+        2,
+    ),
     (re.compile(rf"{_NAME} pushed back a lock of ([a-z]+) hair"), "attribute", "hair_color", 1, 2),
-    (re.compile(rf"{_NAME} was born in ([A-Z][a-z]+)\."), "attribute", "birthplace", 1, 2),
+    (
+        re.compile(rf"{_NAME} was born in ([A-Z][a-z]+)\b[^.\n]*\.?"),
+        "attribute",
+        "birthplace",
+        1,
+        2,
+    ),
     (re.compile(rf'"I was born in ([A-Z][a-z]+)," said {_NAME}'), "attribute", "birthplace", 2, 1),
     (re.compile(rf"The old wound in {_NAME}'s ([a-z]+),"), "attribute", "wound_location", 1, 2),
     (
@@ -128,9 +140,55 @@ def _paragraph_around(block: str, context: str) -> str | None:
     return None
 
 
+_SLOT = re.compile(r"^(?P<subj>.+?)\.(?P<pred>[a-z_]+) is (?P<rest>.+)$")
+_LATER_AGEING = {"grey", "gray", "white", "silver", "grizzled"}
+
+
+def _plain(reason: str) -> str:
+    """The screen's reason ("Ivy Marlowe.eye_color is 'green' (…), 'blue' (…)") as a sentence."""
+    from canonkeeper.report.display import label
+
+    reason = reason.replace(" (may be change over time)", "")
+    m = _SLOT.match(reason)
+    if m:
+        # 'green' (The Harbour · CHAPTER I. THE HARBOUR), 'blue' (The Return · …)
+        pairs = re.findall(r"'([^']+)' \(([^·)]+)", m["rest"]) or re.findall(
+            r"'([^']+)' in ([^·']+?)(?: · |$)", m["rest"]
+        )  # name_drift: 'Toby' in The Harbour · CHAPTER … but 'Tom' in …
+        if pairs:
+            said = [f"{_cap(v, m['pred'])} in {book.strip()}" for v, book in pairs]
+            body = said[0] if len(said) == 1 else ", ".join(said[:-1]) + " but " + said[-1]
+            return f"{m['subj']}'s {label(m['pred'])} is {body}"
+        return f"{m['subj']}'s {label(m['pred'])} is {m['rest']}"
+    reason = re.sub(r" · [^·]+?(?= but | in |$)", "", reason)  # drop chapter headings
+    return reason[:1].upper() + reason[1:]
+
+
+def _cap(value: str, predicate: str) -> str:
+    """Places are names: 'saltmarsh' → 'Saltmarsh'; colours and body parts stay lowercase."""
+    if predicate in {"birthplace", "residence", "location", "nationality"}:
+        return " ".join(w[:1].upper() + w[1:] for w in value.split())
+    return value
+
+
+def _ages_into(reason: str) -> bool:
+    """Hair that turns grey or white later in a series may be time passing, not a slip: only
+    the author knows how many years lie between the books."""
+    m = _SLOT.match(reason)
+    if not m or m["pred"] != "hair_color":
+        return False
+    values = re.findall(r"'([^']+)'", m["rest"])
+    return (
+        len(values) > 1
+        and values[-1].lower() in _LATER_AGEING
+        and values[0].lower() not in _LATER_AGEING
+    )
+
+
 def adjudicate(user: str, context: str = "") -> dict:
     """Fixed policy: an explanation marker right after a quoted passage (in the series text) or
-    'may be change over time' in the reason → deliberate; everything else → contradiction."""
+    'may be change over time' in the reason → deliberate; hair that turns grey later → ambiguous
+    (time may have passed: the author's call); everything else → contradiction."""
     verdicts = []
     blocks = {int(m.group(1)): b for b in _BLOCKS.split(user) if (m := _CAND.match(b))}
     for m in _CAND.finditer(user):
@@ -158,15 +216,35 @@ def adjudicate(user: str, context: str = "") -> dict:
                     "evidence": _paragraph_around(block, context),
                 }
             )
+        elif _ages_into(reason):
+            verdicts.append(
+                {
+                    "id": cid,
+                    "verdict": "ambiguous",
+                    "severity": "medium",
+                    "explanation": f"{_plain(reason)}. Hair can grey with the years, and the books "
+                    "do not say how much time has passed between them: the author knows.",
+                }
+            )
         else:
             sev = "high" if heuristic in {"dead_speaks", "name_drift"} else "medium"
+            draft = "(draft)" in block
+            unexplained = (
+                "Nothing in the text says why."
+                if heuristic != "dead_speaks"
+                else "Nothing in the text brings the character back."
+            )
             verdicts.append(
                 {
                     "id": cid,
                     "verdict": "contradiction",
                     "severity": sev,
-                    "explanation": "The two passages assert different values for the same fact.",
-                    "suggested_fix": "Change the later passage to match the earlier one.",
+                    "explanation": f"{_plain(reason)}. {unexplained}",
+                    "suggested_fix": (
+                        "Change the draft's passage to agree with the published books."
+                        if draft
+                        else "Change the later passage to agree with the earlier book."
+                    ),
                 }
             )
     return {"verdicts": verdicts}

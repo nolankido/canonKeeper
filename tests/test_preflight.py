@@ -255,7 +255,7 @@ def test_mcp_service_flow_agent_quotes_human_approves_agent_collects(tmp_path):
     st = svc.audit_status(job_id)
     assert st["status"] == "done" and st["report_url"] == f"http://host/jobs/{job_id}/report"
     f = svc.get_findings(job_id)
-    assert f["facts"] == 40 and len(f["findings"]) == len(PLANTED)
+    assert f["facts"] == 41 and len(f["findings"]) == len(PLANTED)
     assert all(
         row["verdict"] == "contradiction" and row["values"][0]["quote"] for row in f["findings"]
     )

@@ -151,7 +151,7 @@ close.
 
 ## Testing instructions (paste into Devpost; fill the two blanks)
 **Hosted (fastest):** open `<RENDER URL>`. Press *Try it with the demo series* (an invented
-three-book series with five planted errors), then *Pay with PayPal*. PayPal sandbox buyer:
+three-book series with five planted errors and one change only the author can judge), then *Pay with PayPal*. PayPal sandbox buyer:
 `<sandbox buyer email>` / `<password>` — no real money moves. You return to the job page, which
 updates itself; the audit takes about a minute (instant if someone ran it before you: demo-series
 responses are shared). Open the report. *See a finished audit* on the home page opens the real

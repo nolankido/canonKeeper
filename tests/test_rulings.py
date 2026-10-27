@@ -28,7 +28,8 @@ def shop(tmp_path):
 
 
 def _done_with_ambiguous(svc) -> tuple[str, int]:
-    """A finished audit whose report has one item the model left to the author."""
+    """A finished audit of the demo series, and the index of the item it leaves to the author
+    (Ivy Marlowe's hair: red in book 1, grey in book 3)."""
     job = svc.quote_series("The Saltmarsh Chronicles", BOOKS)["job_id"]
     svc.paypal.approve(svc.order_audit(job)["order_id"])
     svc.confirm_payment(job)
@@ -36,10 +37,9 @@ def _done_with_ambiguous(svc) -> tuple[str, int]:
     assert svc.store.get(job).status == "done"
     report = svc.store.dir(job) / "reports" / "report.json"
     data = json.loads(report.read_text(encoding="utf-8"))
-    item = dict(data["findings"][0], verdict="ambiguous", explanation="Could be a nickname.")
-    data["findings"].append(item)
-    report.write_text(json.dumps(data), encoding="utf-8")
-    return job, len(data["findings"]) - 1
+    ambiguous = [i for i, f in enumerate(data["findings"]) if f["verdict"] == "ambiguous"]
+    assert len(ambiguous) == 1
+    return job, ambiguous[0]
 
 
 def test_the_report_links_back_to_its_job_page(shop):
@@ -96,3 +96,26 @@ def test_only_ambiguous_items_of_finished_audits_take_a_ruling(shop):
     assert "one of" in svc.rule_on_finding(job, i, "maybe")["reason"]
     assert web.post(f"/jobs/{job}/findings/999/rule", data={"verdict": "fine"}).status_code == 409
     assert svc.store.get(job).rulings == []
+
+
+def test_the_demo_series_gives_the_author_something_to_rule_on_and_reads_like_an_editor(shop):
+    """Judge rehearsal: the demo had nothing for "needs your judgement", every explanation was
+    the same sentence, and a draft check's fix said to change "the later passage"."""
+    from canonkeeper.demo import FOR_THE_AUTHOR, PLANTED
+
+    _web, svc = shop
+    job, i = _done_with_ambiguous(svc)
+    rows = svc.get_findings(job, include_cleared=True)["findings"]
+    assert [r["subject"] for r in rows if r["verdict"] == "ambiguous"] == [FOR_THE_AUTHOR[0][0]]
+    explanations = [r["explanation"] for r in rows if r["verdict"] == "contradiction"]
+    assert len(explanations) == len(PLANTED) == len(set(explanations))  # one per finding
+    assert any("green in The Harbour but blue in The Return" in e for e in explanations)
+    assert svc.rule_on_finding(job, i, "fine", "ten years on")["ruled"] is True
+
+    draft = svc.demo_draft()
+    check = svc.check_draft(job, draft["name"], draft["text"])["job_id"]
+    svc.paypal.approve(svc.order_audit(check)["order_id"])
+    svc.confirm_payment(check)
+    svc.runner.wait(check, timeout=60)
+    fixes = [r["suggested_fix"] for r in svc.get_findings(check)["findings"]]
+    assert fixes and all("draft" in f for f in fixes)
