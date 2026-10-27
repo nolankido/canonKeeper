@@ -774,5 +774,9 @@ def test_finished_files_download_with_series_names(client):
         'filename="the-saltmarsh-chronicles-audit-report.json"' in r.headers["content-disposition"]
     )
     assert client.get(f"/jobs/{job_id}/download/bible.html").status_code == 200
+    csv_text = client.get(f"/jobs/{job_id}/download/bible.csv").content.decode("utf-8-sig")
+    header, *rows = csv_text.splitlines()
+    assert header.startswith("entity,fact,value,disputed,book,chapter")
+    assert any(r.startswith("Ivy Marlowe,eye colour,green,yes,The Harbour") for r in rows)
     assert client.get(f"/jobs/{job_id}/download/job.json").status_code == 404  # not a file server
     assert client.get(f"/jobs/{job_id}/download/..%2Fjob.json").status_code == 404

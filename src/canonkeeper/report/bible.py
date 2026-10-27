@@ -12,7 +12,7 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 from canonkeeper.audit.candidates import _NAME_PREDS, SINGLE_VALUED
 from canonkeeper.canon import CanonStore
 from canonkeeper.models import Claim
-from canonkeeper.report.display import label, value, where
+from canonkeeper.report.display import chapter, label, value, where
 
 _DISPUTABLE = SINGLE_VALUED | _NAME_PREDS
 
@@ -81,6 +81,7 @@ def write_bible(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     views = build_views(store, min_claims=min_claims)
     tmpl = _env.get_template("bible.html")
+    write_bible_csv(views, out_path.with_suffix(".csv"))
     out_path.write_text(
         tmpl.render(
             series=series_name,
@@ -92,3 +93,32 @@ def write_bible(
         encoding="utf-8",
     )
     return out_path
+
+
+def write_bible_csv(views: list[EntityView], path: Path) -> Path:
+    """The bible as a spreadsheet, one row per sourced fact: what an author keeps today by
+    hand, filled in with the passage behind every row. UTF-8 with a BOM so Excel reads accents."""
+    import csv
+
+    with path.open("w", newline="", encoding="utf-8-sig") as fh:
+        w = csv.writer(fh)
+        w.writerow(
+            ["entity", "fact", "value", "disputed", "book", "chapter", "story time", "quote"]
+        )
+        for v in views:
+            for slot in v.slots:
+                for _, claims in slot.values:
+                    for c in claims:
+                        w.writerow(
+                            [
+                                v.name,
+                                label(slot.predicate),
+                                value(c),
+                                "yes" if slot.disputed else "",
+                                c.provenance.book_title or c.provenance.book,
+                                chapter(c.provenance.chapter),
+                                c.story_time or "",
+                                c.provenance.quote,
+                            ]
+                        )
+    return path

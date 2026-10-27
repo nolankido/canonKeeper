@@ -300,7 +300,7 @@ def create_app(
     def download(job_id: str, name: str) -> FileResponse:
         """The finished files as attachments, named after the series: a free host's disk does
         not keep them forever, and the JSON is what other tools (or an assistant) can read."""
-        if name not in ("report.html", "report.json", "bible.html"):
+        if name not in ("report.html", "report.json", "bible.html", "bible.csv"):
             raise HTTPException(404)
         job = store.get(job_id)
         if job is None:

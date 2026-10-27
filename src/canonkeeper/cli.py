@@ -401,6 +401,7 @@ def bible(
     store = CanonStore.load(bible_path)
     out = write_bible(store, m.series, report_dir / "bible.html", min_claims=min_claims)
     console.print(f"[green]bible page:[/green] {out}  ({len(store.entities())} entities)")
+    console.print(f"[green]spreadsheet:[/green] {out.with_suffix('.csv')}")
     if open_page:
         typer.launch(str(out))
 
