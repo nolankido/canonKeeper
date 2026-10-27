@@ -20,6 +20,7 @@ from urllib.parse import urlencode
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.preflight.jobs import (
@@ -159,9 +160,10 @@ def create_app(
         payload: list[tuple[str, bytes]] = []
         for f in sorted(named, key=lambda f: f.filename or ""):
             payload.append((f.filename or "", await f.read()))
-        store.prune_unpaid()
+        await run_in_threadpool(store.prune_unpaid)
         try:
-            job, q = store.create_from_upload(series_name, payload)
+            # tokenising up to 40 MB takes seconds: not on the event loop
+            job, q = await run_in_threadpool(store.create_from_upload, series_name, payload)
         except ValueError as e:
             raise HTTPException(413 if "large" in str(e) else 400, str(e)) from None
         return render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
@@ -241,7 +243,9 @@ def create_app(
         _refuse_before_reading([draft])
         data = await draft.read()
         try:
-            job, q = store.create_check(job_id, draft.filename or "draft.txt", data)
+            job, q = await run_in_threadpool(
+                store.create_check, job_id, draft.filename or "draft.txt", data
+            )
         except KeyError:
             raise HTTPException(404) from None
         except ValueError as e:
