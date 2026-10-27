@@ -786,6 +786,49 @@ def compare(
                 console.print(f"  {name}: {f.verdict} — {f.explanation[:160]}")
 
 
+@app.command("archive-eval")
+def archive_eval(
+    eval_dir: Annotated[Path, typer.Argument(help="An eval-seedN folder written by `eval`")],
+    dest: Annotated[Path, typer.Argument(help="e.g. evals/results/holmes-seed0-2026-10-28")],
+    label: Annotated[str, typer.Option(help="What this run changed, for the README row")] = "",
+) -> None:
+    """Archive a finished benchmark for the repo (the small files, and a README naming the
+    models that judged it) and print its README table row, taken from result.md, so the
+    benchmark table is never typed by hand."""
+    import shutil
+    from datetime import date
+
+    from canonkeeper.models import AuditReport
+
+    result = eval_dir / "result.md"
+    if not result.exists():
+        console.print(f"[red]{result} not found: run `canonkeeper eval` (or rescore) first[/red]")
+        raise typer.Exit(2)
+    dest.mkdir(parents=True, exist_ok=True)
+    for name in ("injections.json", "report.json", "baseline.json", "result.md"):
+        if (eval_dir / name).exists():
+            shutil.copy2(eval_dir / name, dest / name)
+    report = AuditReport.model_validate_json((eval_dir / "report.json").read_text("utf-8"))
+    lines = result.read_text(encoding="utf-8").splitlines()
+    score = next(i for i, ln in enumerate(lines) if ln.startswith("| injected"))
+    cells = [c.strip() for c in lines[score + 2].strip("|").split("|")]
+    stages = next((ln for ln in lines if ln.startswith("Misses by stage")), "")
+    m = report.models
+    (dest / "README.md").write_text(
+        f"# {report.series} benchmark ({date.today().isoformat()})\n\n"
+        f"{label or 'Seeded-defect benchmark run.'}\n\n"
+        f"- extraction: `{m.get('extract', '?')}`; judging: `{m.get('adjudicate', '?')}`, "
+        f"answered by {m.get('adjudicated_by', 'not recorded')}\n"
+        f"- score: precision {cells[5]}, recall {cells[6]}, F1 {cells[7]} "
+        f"({cells[2]} of {cells[0]} planted found, {cells[3]} false positives)\n"
+        + (f"- {stages}\n" if stages else "")
+        + f"\nRe-score with no model calls: `canonkeeper rescore {dest.as_posix()}`\n",
+        encoding="utf-8",
+    )
+    row = f"| {report.series} | {label or dest.name} | " + " | ".join(cells) + " |"
+    console.print(f"[green]archived to {dest}[/green]\nREADME row:\n{row}")
+
+
 @app.command()
 def serve(
     host: str = "127.0.0.1",

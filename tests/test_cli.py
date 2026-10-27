@@ -222,3 +222,17 @@ def test_quota_reports_usage_against_caps(tmp_path, monkeypatch):
     r = runner.invoke(app, ["quota", "--workdir", str(tmp_path)])
     assert r.exit_code == 0, r.output
     assert "gemini-3.6-flash" in r.output and "resets at" in r.output
+
+
+def test_archive_eval_copies_the_run_and_prints_its_row(tmp_path):
+    import shutil
+
+    src = tmp_path / "eval-seed0"
+    shutil.copytree("evals/results/holmes-seed0-2026-10-27", src)
+    dest = tmp_path / "evals" / "results" / "x"
+    r = runner.invoke(app, ["archive-eval", str(src), str(dest), "--label", "3 · test"])
+    assert r.exit_code == 0, r.output
+    assert {p.name for p in dest.iterdir()} >= {"report.json", "result.md", "README.md"}
+    assert "| 3 · test | 20 | 11 | 8 | 2 | 12 | 0.80 | 0.40 | 0.53 |" in r.output.replace("\n", "")
+    readme = (dest / "README.md").read_text(encoding="utf-8")
+    assert "precision 0.80, recall 0.40" in readme and "Misses by stage" in readme
