@@ -182,3 +182,21 @@ def test_doctor_round_trip_runs_the_money_path_in_fake_mode(monkeypatch):
     )
     r = runner.invoke(app, ["doctor", "--round-trip"])
     assert r.exit_code == 1 and "only runs on the sandbox" in r.output
+
+
+def test_compare_shows_only_the_verdicts_that_moved(tmp_path):
+    src = Path("evals/results/holmes-seed0-2026-10-27/baseline.json")
+    report = json.loads(src.read_text(encoding="utf-8"))
+    before = tmp_path / "before.json"
+    before.write_text(json.dumps(report), encoding="utf-8")
+    same = runner.invoke(app, ["compare", str(before), str(before)])
+    assert same.exit_code == 0 and "no verdict changed" in same.output
+    flipped = report["findings"][0]
+    old = flipped["verdict"]
+    flipped["verdict"] = "not_conflict" if old != "not_conflict" else "contradiction"
+    after = tmp_path / "after.json"
+    after.write_text(json.dumps(report), encoding="utf-8")
+    r = runner.invoke(app, ["compare", str(before), str(after)])
+    assert r.exit_code == 0, r.output
+    assert f"before: {old}" in r.output and f"after: {flipped['verdict']}" in r.output
+    assert r.output.count("before:") == 2  # the counts line and the one changed finding

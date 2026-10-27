@@ -43,6 +43,7 @@ pytest                      # offline, mock provider
 ruff check src tests && ruff format src tests && mypy
 canonkeeper doctor          # verify provider/key/pacing with one tiny call
 canonkeeper doctor --round-trip   # sandbox money path: approve as buyer → capture → refund
+canonkeeper compare before/report.json after/report.json   # which verdicts a change moved
 canonkeeper demo            # offline, end to end
 canonkeeper fetch|estimate|build|bible|audit|check|eval evals/corpora/sherlock-holmes/series.json
 canonkeeper serve           # Preflight; PAYPAL_MODE=fake unless PAYPAL_CLIENT_ID is set

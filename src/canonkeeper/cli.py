@@ -714,6 +714,33 @@ def rescore(
 
 
 @app.command()
+def compare(
+    before: Annotated[Path, typer.Argument(help="report.json of the earlier run")],
+    after: Annotated[Path, typer.Argument(help="report.json of the later run")],
+) -> None:
+    """Show which verdicts changed between two audits of the same series (no model calls)."""
+    from canonkeeper.eval.compare import compare as diff
+    from canonkeeper.models import AuditReport
+
+    a = AuditReport.model_validate_json(before.read_text("utf-8"))
+    b = AuditReport.model_validate_json(after.read_text("utf-8"))
+    ca, cb, changes = diff(a, b)
+    order = ("contradiction", "deliberate", "ambiguous", "not_conflict")
+    console.print("before: " + ", ".join(f"{v} {ca[v]}" for v in order))
+    console.print("after:  " + ", ".join(f"{v} {cb[v]}" for v in order))
+    console.print(f"judged by (after): {b.models.get('adjudicated_by', 'not recorded')}")
+    if not changes:
+        console.print("[green]no verdict changed[/green]")
+    for ch in changes:
+        console.print(f"\n[bold]{ch.label}[/bold]")
+        for name, f in (("before", ch.before), ("after", ch.after)):
+            if f is None:
+                console.print(f"  {name}: (not a candidate)")
+            else:
+                console.print(f"  {name}: {f.verdict} — {f.explanation[:160]}")
+
+
+@app.command()
 def serve(
     host: str = "127.0.0.1",
     port: int = 8787,
