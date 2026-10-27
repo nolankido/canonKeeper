@@ -66,6 +66,7 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+_JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 MAX_BOOKS = 40
 MAX_TOTAL_BYTES = 40 * 10**6  # ~10M tokens; the six Holmes volumes are 2.6 MB
 
@@ -77,6 +78,10 @@ class JobStore:
         self._lock = threading.Lock()
 
     def dir(self, job_id: str) -> Path:
+        # Ids come from secrets.token_urlsafe, and the web routes pass them straight from the
+        # URL: anything else (an encoded "..", a slash) must never become a path.
+        if not _JOB_ID.fullmatch(job_id):
+            raise KeyError(job_id)
         return self.root / job_id
 
     def _path(self, job_id: str) -> Path:
@@ -89,6 +94,8 @@ class JobStore:
             self._path(job.id).write_text(json.dumps(asdict(job), indent=2), encoding="utf-8")
 
     def get(self, job_id: str) -> Job | None:
+        if not _JOB_ID.fullmatch(job_id):
+            return None
         p = self._path(job_id)
         if not p.exists():
             return None
@@ -113,6 +120,7 @@ class JobStore:
         shutil.copy2(src / "bible.jsonl", d / "bible.jsonl")
         stem = re.sub(r"^\d{1,3}[-_. ]+", "", Path(name).name) or "draft.txt"
         safe = "".join(ch if ch.isalnum() or ch in "-_." else "-" for ch in stem)
+        safe = safe.lstrip(".") or "draft.txt"  # never "..", never a hidden file
         (d / "draft").mkdir(parents=True, exist_ok=True)
         text = data.decode("utf-8", errors="replace")
         (d / "draft" / safe).write_text(text, encoding="utf-8")

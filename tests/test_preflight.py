@@ -505,3 +505,31 @@ def test_paid_jobs_interrupted_by_a_restart_are_resumed(tmp_path):
     runner.wait(stuck.id, timeout=60)
     assert store.get(stuck.id).status == "done"
     assert store.get(live.id).status == "running" and store.get(unpaid.id).status == "quoted"
+
+
+def test_job_ids_from_the_url_never_leave_the_jobs_folder(tmp_path, client):
+    """An encoded ".." as the job id once served <workdir>/reports/report.html."""
+    secret = tmp_path / "pf" / "reports"
+    secret.mkdir(parents=True, exist_ok=True)
+    (secret / "report.html").write_text("SECRET")
+    (secret / "bible.html").write_text("SECRET")
+    for jid in ("%2E%2E", "%2e%2e", "..%2F..", "%2E"):
+        for route in ("report", "bible"):
+            r = client.get(f"/jobs/{jid}/{route}")
+            assert r.status_code == 404 and "SECRET" not in r.text, (jid, route)
+        assert client.get(f"/jobs/{jid}").status_code == 404
+        assert client.post(f"/jobs/{jid}/delete", data={"confirm": "yes"}).status_code == 404
+    assert (secret / "report.html").exists()
+
+
+def test_a_draft_named_dot_dot_is_stored_inside_its_job(client):
+    from canonkeeper.preflight.jobs import JobStore
+
+    store: JobStore = client.app.state.store  # type: ignore[attr-defined]
+    job, _ = store.create_from_upload("S", [("01.txt", BOOK1.encode())])
+    job.status = "done"
+    (store.dir(job.id) / "bible.jsonl").write_text("")
+    store.save(job)
+    check, _ = store.create_check(job.id, "..", b"A new chapter.")
+    assert (store.dir(check.id) / "draft").is_dir()
+    assert [p.name for p in (store.dir(check.id) / "draft").iterdir()] == ["draft.txt"]

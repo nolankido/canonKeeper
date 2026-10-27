@@ -229,6 +229,8 @@ def create_app(
 
     @app.get("/jobs/{job_id}/report")
     def report(job_id: str) -> FileResponse:
+        if store.get(job_id) is None:
+            raise HTTPException(404)
         p = store.dir(job_id) / "reports" / "report.html"
         if not p.exists():
             raise HTTPException(404, "report not ready")
@@ -236,6 +238,8 @@ def create_app(
 
     @app.get("/jobs/{job_id}/bible")
     def bible(job_id: str) -> FileResponse:
+        if store.get(job_id) is None:
+            raise HTTPException(404)
         p = store.dir(job_id) / "reports" / "bible.html"
         if not p.exists():
             raise HTTPException(404, "bible not ready")
