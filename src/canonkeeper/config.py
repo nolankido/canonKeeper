@@ -8,6 +8,7 @@ rate limits differ. Model IDs verified 2026-10-26 against:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -235,7 +236,11 @@ class Settings(BaseSettings):
 
     @property
     def day_reset_utc_offset(self) -> int:
-        return ProviderDefaults.day_reset_utc_offset.get(self.provider, 0)
+        """Hours from UTC to the provider's day. Gemini's resets at midnight *Pacific*, which is
+        UTC-7 in summer and UTC-8 in winter; a fixed -8 put the reset an hour late all summer
+        (22:00 instead of 21:00 in Hawaii), so a run just after the reset was refused."""
+        base = ProviderDefaults.day_reset_utc_offset.get(self.provider, 0)
+        return us_pacific_offset() if base == -8 else base
 
     @property
     def model_fallbacks(self) -> dict[str, list[str]]:
@@ -263,3 +268,18 @@ class Settings(BaseSettings):
 
 def load_settings(**overrides: object) -> Settings:
     return Settings(**overrides)  # type: ignore[arg-type]
+
+
+def us_pacific_offset(now_utc: datetime | None = None) -> int:
+    """-7 during US daylight time (2nd Sunday of March 02:00 to 1st Sunday of November 02:00,
+    local), else -8. No timezone database needed (Windows Pythons often lack one)."""
+    now = now_utc or datetime.now(UTC)
+    y = now.year
+
+    def nth_sunday(month: int, n: int) -> datetime:
+        first = datetime(y, month, 1, tzinfo=UTC)
+        return first + timedelta(days=(6 - first.weekday()) % 7 + 7 * (n - 1))
+
+    start = nth_sunday(3, 2) + timedelta(hours=2 + 8)  # 02:00 PST is 10:00 UTC
+    end = nth_sunday(11, 1) + timedelta(hours=2 + 7)  # 02:00 PDT is 09:00 UTC
+    return -7 if start <= now < end else -8

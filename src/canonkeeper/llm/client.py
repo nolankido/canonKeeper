@@ -231,6 +231,55 @@ def _daily_quota_hit(exc: Exception) -> float | None:
     return h * 3600 + mi * 60 + sec
 
 
+def provider_today(day_offset: int) -> str:
+    """The provider's current day (Gemini's resets at midnight Pacific)."""
+    from datetime import UTC, datetime, timedelta
+
+    return (datetime.now(UTC) + timedelta(hours=day_offset)).date().isoformat()
+
+
+def _to_provider_day(local_ts: str, day_offset: int) -> str:
+    """Log timestamps are local wall-clock; map to the provider's day."""
+    from datetime import datetime, timedelta
+
+    try:
+        local = datetime.fromisoformat(local_ts)
+    except ValueError:
+        return ""
+    utc_offset = datetime.now().astimezone().utcoffset() or timedelta(0)
+    return (local - utc_offset + timedelta(hours=day_offset)).date().isoformat()
+
+
+def count_requests_today(log: Path, day_offset: int) -> dict[str, int]:
+    """Requests per model the provider has counted against today's cap, from a request log:
+    successes plus 5xx and timeouts (the request reached the model). Observed on Gemini
+    2026-10-26: 3.1-flash-lite's 500/day cap tripped at exactly 339 successes + 163 503s.
+    Requests refused with 429, and the client's own budget-guard lines, are not counted. The
+    CLI's budget line and the client's guard both use this, so they cannot disagree."""
+    counts: dict[str, int] = {}
+    if not log.exists():
+        return counts
+    today = provider_today(day_offset)
+    try:
+        lines = log.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return counts
+    for line in lines:
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if _to_provider_day(d.get("ts", ""), day_offset) != today:
+            continue
+        status = d.get("status")
+        reached = (d.get("ok") and "latency_s" in d) or (
+            not d.get("ok") and (status is None or int(status) >= 500) and "attempt" in d
+        )
+        if reached and not str(d.get("error", "")).startswith("daily budget reached"):
+            counts[d["model"]] = counts.get(d["model"], 0) + 1
+    return counts
+
+
 class OpenAICompatibleLLM:
     """Works against Gemini, Meta Model API, or any OpenAI-compatible endpoint."""
 
@@ -282,49 +331,12 @@ class OpenAICompatibleLLM:
             cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _today(self) -> str:
-        from datetime import UTC, datetime, timedelta
-
-        return (datetime.now(UTC) + timedelta(hours=self._day_offset)).date().isoformat()
+        return provider_today(self._day_offset)
 
     def _count_today(self) -> dict[str, int]:
-        """Requests per model today that the provider is likely to have counted, from this
-        workdir's request log: successes, plus 5xx/timeouts (the request reached the model).
-        Observed on Gemini 2026-10-26: 3.1-flash-lite's 500/day cap tripped at exactly
-        339 successes + 163 503s. Requests refused with 429 are not counted."""
-        counts: dict[str, int] = {}
-        if not self._request_log or not self._request_log.exists():
-            return counts
-        today = self._today()
-        try:
-            for line in self._request_log.read_text(encoding="utf-8").splitlines():
-                try:
-                    d = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if self._to_provider_day(d.get("ts", "")) != today:
-                    continue
-                status = d.get("status")
-                reached = (d.get("ok") and "latency_s" in d) or (
-                    not d.get("ok") and (status is None or int(status) >= 500) and "attempt" in d
-                )
-                if reached and not str(d.get("error", "")).startswith("daily budget reached"):
-                    counts[d["model"]] = counts.get(d["model"], 0) + 1
-        except OSError:
-            pass
-        return counts
-
-    def _to_provider_day(self, local_ts: str) -> str:
-        """Log timestamps are local wall-clock; map to the provider's day as best we can."""
-        from datetime import datetime, timedelta
-
-        try:
-            local = datetime.fromisoformat(local_ts)
-        except ValueError:
-            return ""
-        # local naive → assume the machine's offset; good enough for a daily counter.
-        utc_offset = datetime.now().astimezone().utcoffset() or timedelta(0)
-        provider = local - utc_offset + timedelta(hours=self._day_offset)
-        return provider.date().isoformat()
+        if not self._request_log:
+            return {}
+        return count_requests_today(self._request_log, self._day_offset)
 
     def remaining_today(self, model: str) -> int | None:
         if model not in self._budget:

@@ -541,3 +541,31 @@ def test_the_ladder_never_walks_into_a_fallbacks_own_fallbacks(tmp_path):
     with pytest.raises(InternalServerError):
         llm.complete("lite", [{"role": "user", "content": "a"}])
     assert "flash" not in seen and "lite2" in seen
+
+
+def test_daily_counts_follow_the_pacific_day_and_cli_matches_the_guard(tmp_path):
+    from datetime import UTC, datetime, timedelta
+
+    from canonkeeper.cli import _today_usage
+    from canonkeeper.config import Settings, us_pacific_offset
+    from canonkeeper.llm.client import count_requests_today
+
+    assert us_pacific_offset(datetime(2026, 10, 27, 17, tzinfo=UTC)) == -7  # daylight time
+    assert us_pacific_offset(datetime(2026, 12, 1, tzinfo=UTC)) == -8
+
+    def local(dt: datetime) -> str:  # the log records local wall-clock time
+        return dt.astimezone().strftime("%Y-%m-%dT%H:%M:%S")
+
+    now = datetime.now(UTC)
+    rows = [
+        {"ts": local(now), "model": "lite", "ok": True, "latency_s": 1.0},
+        {"ts": local(now), "model": "lite", "attempt": 0, "ok": False, "status": 503},
+        {"ts": local(now), "model": "lite", "attempt": 0, "ok": False, "status": 429},
+        {"ts": local(now), "model": "lite", "ok": False, "error": "daily budget reached (guard)"},
+        {"ts": local(now - timedelta(days=2)), "model": "lite", "ok": True, "latency_s": 1.0},
+    ]
+    log = tmp_path / "requests.jsonl"
+    log.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    s = Settings(provider="gemini", workdir=tmp_path, _env_file=None)
+    assert count_requests_today(log, s.day_reset_utc_offset) == {"lite": 2}  # ok + 503
+    assert _today_usage(s) == {"lite": 2}  # the CLI's line and the guard agree

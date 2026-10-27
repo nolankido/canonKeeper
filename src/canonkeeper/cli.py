@@ -33,25 +33,11 @@ app = typer.Typer(add_completion=False, no_args_is_help=True, help=__doc__)
 
 
 def _today_usage(settings: Settings) -> dict[str, int]:
-    """Successful requests per model today (provider-local day ≈ Pacific for Gemini), from the
-    request log. Free tiers cap requests per day per model, so this is the number that matters."""
-    import json
-    from datetime import UTC, datetime, timedelta
+    """Requests per model the provider has counted against today's cap (Gemini's day starts at
+    midnight Pacific), by the same rule as the client's budget guard."""
+    from canonkeeper.llm.client import count_requests_today
 
-    log = settings.request_log
-    if not log.exists():
-        return {}
-    # Gemini's day boundary is midnight Pacific (UTC-7/-8); use UTC-8 as the conservative one.
-    today = (datetime.now(UTC) - timedelta(hours=8)).date().isoformat()
-    counts: dict[str, int] = {}
-    for line in log.read_text(encoding="utf-8").splitlines():
-        try:
-            d = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if d.get("ok") and d.get("ts", "").startswith(today) and "latency_s" in d:
-            counts[d["model"]] = counts.get(d["model"], 0) + 1
-    return counts
+    return count_requests_today(settings.request_log, settings.day_reset_utc_offset)
 
 
 def _utf8_stdio() -> None:
