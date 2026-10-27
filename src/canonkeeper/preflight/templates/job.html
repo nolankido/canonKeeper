@@ -11,7 +11,9 @@
   <form action="/jobs/{{ job.id }}/order" method="post"><button type="submit">Pay ${{ job.quote_usd }} with PayPal</button></form>
 {% elif job.status == 'ordered' %}
   <p>Waiting for PayPal approval.</p>
+  {% if note %}<p class="note">PayPal says: {{ note }}.</p>{% endif %}
   {% if job.approve_url %}<a class="btn" href="{{ job.approve_url }}">Continue to PayPal</a>{% endif %}
+  <form action="/jobs/{{ job.id }}/confirm" method="post" class="inline"><button type="submit" class="secondary">I've approved it — check payment</button></form>
 {% elif job.status == 'cancelled' %}
   <p>Checkout was cancelled. Nothing was charged.</p>
   <form action="/jobs/{{ job.id }}/order" method="post"><button type="submit">Try again</button></form>

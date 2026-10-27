@@ -619,3 +619,26 @@ def test_unpaid_quotes_are_evicted_oldest_first_past_the_disk_cap(tmp_path, clie
     big = [("files", ("big.txt", b"a" * (40 * 10**6 + 1), "text/plain"))]
     r = client.post("/quote", data={"series_name": "S"}, files=big)
     assert r.status_code == 413 and "limit 40 MB" in r.text
+
+
+def test_buyer_who_closed_the_tab_after_approving_can_still_get_the_audit(client):
+    """Approved on PayPal, never came back to /return: "check payment" captures and runs."""
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    store, pp = client.app.state.store, client.app.state.paypal
+    client.post(f"/jobs/{job_id}/order")
+    job = store.get(job_id)
+    assert "check payment" in client.get(f"/jobs/{job_id}").text
+
+    r = client.post(f"/jobs/{job_id}/confirm")  # not approved yet: nothing captured
+    assert r.status_code == 200 and "not approved yet" in r.text
+    assert store.get(job_id).status == "ordered"
+
+    pp.approve(job.order_id)  # the buyer approves on PayPal and closes the tab
+    r = client.post(f"/jobs/{job_id}/confirm")
+    assert r.status_code == 303
+    client.app.state.runner.wait(job_id, timeout=60)
+    assert store.get(job_id).status == "done"
+    # coming back to /return late changes nothing and does not run it twice
+    r = client.get(f"/return?token={job.order_id}")
+    assert r.status_code == 303 and store.get(job_id).status == "done"

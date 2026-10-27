@@ -20,13 +20,13 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.preflight.jobs import JobStore, Runner, order_description
-from canonkeeper.preflight.paypal import UNAPPROVED, FakePayPal, PayPal, capture_problem
+from canonkeeper.preflight.payments import settle
+from canonkeeper.preflight.paypal import FakePayPal, PayPal
 from canonkeeper.preflight.pricing import CURRENCY
 
 
@@ -95,27 +95,21 @@ class PreflightService:
         job = self.store.get(job_id)
         if job is None:
             raise ValueError("unknown job")
-        if job.status in ("paid", "running", "done", "failed"):
-            # Already captured — possibly by the web app when the person came back from PayPal.
-            return {**self.audit_status(job_id), "paid": True}
-        if job.status != "ordered" or not job.order_id:
-            raise ValueError(f"job is {job.status}; call order_audit first")
-        o = self.paypal.get_order(job.order_id)
-        if o.status in UNAPPROVED:
+        problem = settle(job, self.paypal, self.store, self.runner)
+        if problem == "not approved yet":
             return {
                 "job_id": job.id,
                 "status": "ordered",
                 "paid": False,
-                "detail": "not approved yet",
+                "detail": problem,
                 "approve_url": job.approve_url,
             }
-        o = self.paypal.capture_order(job.order_id)
-        problem = capture_problem(o, amount=job.quote_usd, currency=CURRENCY)
+        if problem and job.status != "ordered":
+            raise ValueError(f"job is {job.status}; call order_audit first")
         if problem:
             return {"job_id": job.id, "status": "ordered", "paid": False, "detail": problem}
-        job.status, job.paid_at = "paid", datetime.now(UTC).isoformat()
-        self.store.save(job)
-        self.runner.submit(job.id)
+        if job.status != "paid":  # captured earlier, maybe by the web app's /return
+            return {**self.audit_status(job_id), "paid": True}
         return {
             "job_id": job.id,
             "status": "paid",

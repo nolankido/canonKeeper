@@ -29,12 +29,12 @@ from canonkeeper.preflight.jobs import (
     Runner,
     order_description,
 )
+from canonkeeper.preflight.payments import settle
 from canonkeeper.preflight.paypal import (
     FakePayPal,
     Order,
     PayPal,
     PayPalClient,
-    capture_problem,
 )
 from canonkeeper.preflight.pricing import CURRENCY, quote
 
@@ -188,17 +188,28 @@ def create_app(
         job = store.by_order(token)
         if job is None:
             raise HTTPException(404, "unknown order")
-        if job.status == "ordered":
-            o = pp.capture_order(token)
-            problem = capture_problem(o, amount=job.quote_usd, currency=CURRENCY)
-            if problem:
-                raise HTTPException(402, problem)
-            from datetime import UTC, datetime
-
-            job.status, job.paid_at = "paid", datetime.now(UTC).isoformat()
-            store.save(job)
-            runner.submit(job.id)
+        problem = settle(job, pp, store, runner, known_approved=True)
+        if problem and job.status == "ordered":
+            raise HTTPException(402, problem)
         return RedirectResponse(f"/jobs/{job.id}", status_code=303)
+
+    @app.post("/jobs/{job_id}/confirm", response_model=None)
+    def confirm(request: Request, job_id: str) -> RedirectResponse | HTMLResponse:
+        """For a buyer who approved on PayPal but never came back (closed the tab, lost
+        the connection): ask PayPal, and capture if they did approve."""
+        job = store.get(job_id)
+        if job is None:
+            raise HTTPException(404)
+        problem = settle(job, pp, store, runner)
+        if problem:
+            return render(
+                request,
+                "job.html",
+                job=job,
+                quote=quote(job.tokens, words=job.words, books=len(job.books)),
+                note=problem,
+            )
+        return RedirectResponse(f"/jobs/{job_id}", status_code=303)
 
     @app.get("/cancel")
     def paypal_cancel(job: str) -> RedirectResponse:

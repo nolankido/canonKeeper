@@ -306,6 +306,7 @@ class Runner:
         self.settings = settings
         self._sem = threading.Semaphore(max_workers)
         self._threads: dict[str, threading.Thread] = {}
+        self._submit_lock = threading.Lock()
 
     def resume_interrupted(self, *, stale_after_s: float = 600.0) -> list[str]:
         """Re-queue paid jobs that a restart left behind: paid but never started, or 'running'
@@ -330,13 +331,14 @@ class Runner:
         return resumed
 
     def submit(self, job_id: str) -> None:
-        if job_id in self._threads and self._threads[job_id].is_alive():
-            return
-        t = threading.Thread(
-            target=self._run, args=(job_id,), name=f"preflight-{job_id}", daemon=True
-        )
-        self._threads[job_id] = t
-        t.start()
+        with self._submit_lock:  # two confirmations at once must not start two runs
+            if job_id in self._threads and self._threads[job_id].is_alive():
+                return
+            t = threading.Thread(
+                target=self._run, args=(job_id,), name=f"preflight-{job_id}", daemon=True
+            )
+            self._threads[job_id] = t
+            t.start()
 
     def wait(self, job_id: str, timeout: float | None = None) -> None:
         t = self._threads.get(job_id)
