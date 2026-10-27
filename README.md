@@ -96,6 +96,28 @@ canonkeeper check evals/corpora/sherlock-holmes/series.json evals/demo/holmes-bo
 `--provider openweights` points the same pipeline at Ollama, LM Studio, or any OpenAI-compatible
 host — the right choice for manuscripts that must not leave your machine.
 
+### Local mode, measured
+
+```bash
+ollama pull qwen3:4b                    # 2.5 GB
+OLLAMA_CONTEXT_LENGTH=16384 ollama serve  # the default 4k window silently truncates prompts
+canonkeeper build  series.json --provider openweights
+canonkeeper audit  series.json --provider openweights
+```
+
+On a laptop CPU (no GPU, Ollama 0.21) with `qwen3:4b`, on the three-book Saltmarsh demo with five
+planted errors:
+
+| stage | result |
+|---|---|
+| speed | ~90 s per extraction call, ~2.5 min per judgement; thinking is switched off by default (with it on, a one-line JSON reply took over 55 s) |
+| extraction | 84 facts, **every one grounded** to a verbatim quote; 3 of the 5 planted errors reached the screen (the "Toby"/"Tom" name change and the moved wound were not extracted) |
+| judgement | the 4B model ruled all three real conflicts "deliberate" or "not a conflict" on invented reasons ("likely character development"). Because clearing a conflict must now quote the passage that explains it, all three were moved to **Needs your judgement** instead of being dismissed |
+
+So a small local model gives you a private, sourced bible and a list of candidate
+contradictions to read yourself; it does not give you trustworthy verdicts. A larger local
+model, or Gemini for public-domain text, does the judging.
+
 > The Gemini free tier may use prompts to improve Google's products. canonkeeper says so every
 > time it sends text through it. Public-domain corpora: fine. Unpublished manuscripts: use a
 > paid tier or a local model.
@@ -281,7 +303,7 @@ Working offline pipeline; real-model runs on the Gemini free tier. See
       hands the person the PayPal approval link, confirms, and reads the findings as data
 - [x] MCP flow exercised end to end from a real MCP client (`scripts/mcp_flow_demo.py`)
 - [x] customers can delete their files; uploads capped for a public host; `render.yaml`
-- [ ] local-model mode verified against Ollama
+- [x] local-model mode run against Ollama (`qwen3:4b`, CPU) — see *Local mode, measured*
 - [ ] demo video
 
 ## License
