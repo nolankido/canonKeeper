@@ -22,7 +22,13 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from canonkeeper.config import Settings, load_settings
-from canonkeeper.preflight.jobs import JobStore, Runner, order_description
+from canonkeeper.preflight.jobs import (
+    MAX_BOOKS,
+    MAX_TOTAL_BYTES,
+    JobStore,
+    Runner,
+    order_description,
+)
 from canonkeeper.preflight.paypal import (
     FakePayPal,
     Order,
@@ -60,6 +66,18 @@ def make_paypal(
             "PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET are required unless PAYPAL_MODE=fake"
         )
     return PayPalClient(cid, secret, mode=mode)
+
+
+def _refuse_before_reading(files: list[UploadFile]) -> None:
+    """Apply the upload limits from the sizes the form already declared, before any file is
+    read into memory. (The store checks again on the bytes; this only saves the memory.)"""
+    if len(files) > MAX_BOOKS:
+        raise HTTPException(400, f"at most {MAX_BOOKS} books per series")
+    total = sum(f.size or 0 for f in files)
+    if total > MAX_TOTAL_BYTES:
+        raise HTTPException(
+            413, f"upload too large ({total / 1e6:.0f} MB; limit {MAX_TOTAL_BYTES // 10**6} MB)"
+        )
 
 
 def create_app(
@@ -132,11 +150,11 @@ def create_app(
         files = files or []
         if not files or not any(f.filename for f in files):
             raise HTTPException(400, "upload at least one .txt or .md file")
+        named = [f for f in files if f.filename]
+        _refuse_before_reading(named)
         payload: list[tuple[str, bytes]] = []
-        for f in sorted(files, key=lambda f: f.filename or ""):
-            if not f.filename:
-                continue
-            payload.append((f.filename, await f.read()))
+        for f in sorted(named, key=lambda f: f.filename or ""):
+            payload.append((f.filename or "", await f.read()))
         store.prune_unpaid()
         try:
             job, q = store.create_from_upload(series_name, payload)
@@ -205,13 +223,15 @@ def create_app(
     @app.post("/jobs/{job_id}/check")
     async def make_check(request: Request, job_id: str, draft: UploadFile) -> HTMLResponse:
         """Quote a check of one new draft against this finished audit's bible."""
+        _refuse_before_reading([draft])
         data = await draft.read()
         try:
             job, q = store.create_check(job_id, draft.filename or "draft.txt", data)
         except KeyError:
             raise HTTPException(404) from None
         except ValueError as e:
-            raise HTTPException(409 if "finished" in str(e) else 400, str(e)) from None
+            code = 409 if "finished" in str(e) else 413 if "large" in str(e) else 400
+            raise HTTPException(code, str(e)) from None
         return render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
 
     @app.post("/jobs/{job_id}/delete")

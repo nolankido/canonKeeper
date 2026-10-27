@@ -593,3 +593,29 @@ def test_nothing_runs_on_a_pending_or_wrong_amount_capture(tmp_path):
     assert r.status_code == 402 and "quote was" in r.text
     job = c.app.state.store.get(job_id)  # type: ignore[attr-defined]
     assert job.status == "ordered" and not job.paid_at
+
+
+def test_unpaid_quotes_are_evicted_oldest_first_past_the_disk_cap(tmp_path, client):
+    import time
+
+    from canonkeeper.preflight.jobs import JobStore
+
+    store = JobStore(tmp_path / "cap")
+    old, _ = store.create_from_upload("old", [("a.txt", b"x" * 400)])
+    time.sleep(0.01)
+    paid, _ = store.create_from_upload("paid", [("b.txt", b"y" * 400)])
+    paid.status = "paid"
+    store.save(paid)
+    time.sleep(0.01)
+    new, _ = store.create_from_upload("new", [("c.txt", b"z" * 400)])
+    used = store._size(old.id) + store._size(new.id)
+    store.make_room(400, limit=used + 100)  # one quote must go: the oldest unpaid one
+    assert store.get(old.id) is None
+    assert store.get(new.id) is not None and store.get(paid.id) is not None
+    with pytest.raises(ValueError, match="too large"):
+        store.make_room(10**6, limit=10**5)
+
+    # the web form is refused on declared size, before anything is read
+    big = [("files", ("big.txt", b"a" * (40 * 10**6 + 1), "text/plain"))]
+    r = client.post("/quote", data={"series_name": "S"}, files=big)
+    assert r.status_code == 413 and "limit 40 MB" in r.text

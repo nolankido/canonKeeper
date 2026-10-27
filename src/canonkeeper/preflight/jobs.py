@@ -77,6 +77,7 @@ def _strip_numbering(name: str) -> str:
 _JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 MAX_BOOKS = 40
 MAX_TOTAL_BYTES = 40 * 10**6  # ~10M tokens; the six Holmes volumes are 2.6 MB
+MAX_UNPAID_BYTES = 10**9  # all unpaid quotes together; the oldest are evicted past this
 
 
 class JobStore:
@@ -122,6 +123,7 @@ class JobStore:
         if b"\x00" in data[:4096]:
             raise ValueError(f"{Path(name).name} is not a text file; upload .txt or .md")
         src = self.dir(parent_id)
+        self.make_room(len(data) + self._size(parent_id))
         job_id = secrets.token_urlsafe(8)
         d = self.dir(job_id)
         shutil.copytree(src / "books", d / "books")
@@ -194,6 +196,27 @@ class JobStore:
                 removed += 1
         return removed
 
+    def _size(self, job_id: str) -> int:
+        return sum(f.stat().st_size for f in self.dir(job_id).rglob("*") if f.is_file())
+
+    def make_room(self, needed: int, limit: int | None = None) -> None:
+        """Keep unpaid quotes under `limit` bytes on disk by evicting the oldest first. Quotes
+        are free and anyone can ask for one, so without a cap a public host's disk is one
+        script away from full. Raises ValueError if even an empty store would not fit."""
+        limit = MAX_UNPAID_BYTES if limit is None else limit
+        if needed > limit:
+            raise ValueError("upload too large for this host right now")
+        unpaid = [j for j in self.all() if j.status in ("quoted", "cancelled")]
+        unpaid.sort(key=lambda j: j.updated_at)  # oldest first
+        sizes = {j.id: self._size(j.id) for j in unpaid}
+        used = sum(sizes.values())
+        for j in unpaid:
+            if used + needed <= limit:
+                break
+            with self._lock:
+                shutil.rmtree(self.dir(j.id), ignore_errors=True)
+            used -= sizes[j.id]
+
     def by_order(self, order_id: str) -> Job | None:
         for p in self.root.glob("*/job.json"):
             data = json.loads(p.read_text(encoding="utf-8"))
@@ -227,6 +250,7 @@ class JobStore:
             if b"\x00" in blob[:4096]:
                 raise ValueError(f"{Path(fname).name} is not a text file; upload .txt or .md")
         series_name = series_name.strip()[:200] or "Untitled series"
+        self.make_room(total)
         job_id = secrets.token_urlsafe(8)
         d = self.dir(job_id)
         (d / "books").mkdir(parents=True, exist_ok=True)
