@@ -24,3 +24,19 @@ jobs:
       - run: pytest --cov=canonkeeper --cov-report=term-missing
         env:
           CANONKEEPER_PROVIDER: mock
+
+  windows:
+    # The maintainer works on Windows; line endings and paths differ there (a \r\n regression
+    # once passed on Linux and failed only on Windows).
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+        env:
+          CANONKEEPER_PROVIDER: mock
+          PYTHONUTF8: "1"
