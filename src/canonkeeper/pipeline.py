@@ -52,8 +52,15 @@ def audit(
     *,
     progress: bool = True,
     on_progress: Callable[[str, int, int], None] | None = None,
+    only_book: str | None = None,
 ) -> AuditReport:
+    """Screen the bible and judge every candidate; with `only_book`, judge only candidates
+    that involve that book (a draft check must not pay to re-judge the published books)."""
     candidates = find_candidates(store)
+    if only_book is not None:
+        candidates = [
+            c for c in candidates if any(cl.provenance.book == only_book for cl in c.claims)
+        ]
     adj = Adjudicator(llm, settings, series)
     findings = adj.judge_all(
         candidates, store, series.name, progress=progress, on_progress=on_progress
@@ -113,11 +120,14 @@ def check_manuscript(
         )
     )
 
-    report = audit(extended, scratch, llm, settings, progress=progress, on_progress=on_progress)
-    report.findings = [
-        f
-        for f in report.findings
-        if any(c.provenance.book == new_book.key for c in f.candidate.claims)
-    ]
+    report = audit(
+        extended,
+        scratch,
+        llm,
+        settings,
+        progress=progress,
+        on_progress=on_progress,
+        only_book=new_book.key,
+    )
     report.books = [*report.books[:-1], f"{new_book.key} (draft)"]
     return report

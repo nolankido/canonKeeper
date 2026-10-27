@@ -398,3 +398,34 @@ def test_two_nationalities_are_raised_once(tmp_path):
     st.add(_claim("Dr. Becher", "nationality", "englishman", book=0, chapter=1, q="an Englishman"))
     hits = find_candidates(st)
     assert [h.heuristic for h in hits] == ["slot_mismatch"]
+
+
+def test_draft_check_only_pays_to_judge_the_drafts_conflicts(tmp_path):
+    """Published-vs-published conflicts are the audit's business; a check must not send them
+    to the adjudicator (it used to judge everything, then filter)."""
+    from canonkeeper.demo import DRAFT4, write_demo_series
+    from canonkeeper.llm import MockLLM
+    from canonkeeper.llm.rules import handler
+    from canonkeeper.pipeline import check_manuscript
+
+    manifest = write_demo_series(tmp_path / "demo")
+    from canonkeeper.cli import _load
+    from canonkeeper.config import Settings
+
+    s = Settings(provider="mock", workdir=tmp_path / "wd", cache_dir=tmp_path / "c", _env_file=None)
+    _, series = _load(manifest, s)
+    store = build_bible(series, MockLLM(handler), s, tmp_path / "b.jsonl", progress=False)
+    judged: list[str] = []
+
+    def recording(model, messages):
+        if "## Candidate" in messages[-1]["content"]:
+            judged.append(messages[-1]["content"])
+        return handler(model, messages)
+
+    draft = tmp_path / "04-the-ledger.txt"
+    draft.write_text(DRAFT4, encoding="utf-8")
+    report = check_manuscript(series, store, draft, MockLLM(recording), s, progress=False)
+    assert judged, "the draft's conflicts are judged"
+    assert all("04-the-ledger" in block for block in judged)
+    assert "Oswin Reed dies" not in "".join(judged)  # a published-vs-published conflict
+    assert {f.candidate.claims[0].subject for f in report.errors} == {"Ivy Marlowe", "Tobias Crane"}
