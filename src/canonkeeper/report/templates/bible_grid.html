@@ -34,6 +34,10 @@
   #detail .loc { font: 12px var(--mono); color: var(--muted); }
   #detail q { display: block; font-style: italic; margin-top: 4px; }
   #fallback { display: none; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  .views { display: inline-flex; border: 1px solid var(--accent); border-radius: 8px; overflow: hidden; }
+  .views button { border: 0; border-radius: 0; }
+  .views button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+  .changed { font-weight: 700; color: var(--warn); }
   .ag-row.disputed { background: var(--warn-bg); }
   .ag-row.disputed .flag { color: var(--warn); font-weight: 600; }
 </style>
@@ -44,6 +48,10 @@
   <h1>{{ series }}</h1>
   <div class="sub">Series bible explorer · {{ "{:,}".format(n_claims) }} sourced facts about {{ "{:,}".format(n_entities) }} characters, places and things · {{ "{:,}".format(n_disputed) }} passages on details where the books disagree{% if card_view %} · <a href="{{ card_view }}">card view</a>{% endif %}{% if csv %} · <a href="{{ csv }}">spreadsheet (CSV)</a>{% endif %}</div>
   <div class="toolbar">
+    <span class="views" role="group" aria-label="View">
+      <button id="view-rows" type="button" aria-pressed="true">Every passage</button>
+      <button id="view-matrix" type="button" aria-pressed="false" data-testid="view-matrix">Each fact by book</button>
+    </span>
     <input id="search" type="search" placeholder="Search facts and passages: a name, a colour, a place…" aria-label="Search the bible">
     <label><input id="disputed" type="checkbox"> Only where the books disagree</label>
     <button id="csv" type="button">Download what is shown (CSV)</button>
@@ -55,10 +63,12 @@
   <p class="sub" style="margin-top:16px">Grid by <a href="https://www.ag-grid.com/">AG Grid</a> Community (MIT). A disputed fact is one where the books give the same character two different values for something that can have only one (eye colour, birthplace…); the audit report judges whether it is an error or explained in the text.</p>
 </main>
 <script id="rows" type="application/json">{{ rows | tojson }}</script>
+<script id="matrix" type="application/json">{{ {"books": books, "rows": matrix} | tojson }}</script>
 <script>
 (function () {
   var rows = JSON.parse(document.getElementById("rows").textContent);
-  var api = null, onlyDisputed = false;
+  var matrix = JSON.parse(document.getElementById("matrix").textContent);
+  var api = null, onlyDisputed = false, view = "rows", narrow = false;
   var detail = document.getElementById("detail"), count = document.getElementById("count");
 
   function text(tag, cls, value) {
@@ -74,11 +84,60 @@
     );
   }
   function updateCount() {
-    if (api) count.textContent = api.getDisplayedRowCount().toLocaleString() + " of " + rows.length.toLocaleString() + " facts";
+    if (!api) return;
+    var total = view === "rows" ? rows.length : matrix.rows.length;
+    count.textContent = api.getDisplayedRowCount().toLocaleString() + " of " + total.toLocaleString() + (view === "rows" ? " passages" : " facts");
+  }
+  function showBook(r, book) {
+    var ps = (r.passages && r.passages[book]) || [];
+    var parts = [text("div", "loc", r.entity + ", " + r.fact + " in " + book + ": " + (r.books[book] || "not mentioned") + (r.disputed ? " (the books disagree)" : ""))];
+    ps.forEach(function (p) { parts.push(text("div", "loc", p.chapter)); parts.push(text("q", "", p.quote)); });
+    detail.replaceChildren.apply(detail, parts);
+  }
+  function rowColumns() {
+    return [
+      { field: "entity", headerName: "Who / what", pinned: narrow ? null : "left", width: narrow ? 130 : 200, filter: "agTextColumnFilter" },
+      { field: "fact", headerName: "Fact", width: narrow ? 100 : 150, filter: "agTextColumnFilter" },
+      { field: "value", headerName: "Value", width: narrow ? 110 : 170, filter: "agTextColumnFilter" },
+      { colId: "flag", headerName: "", width: narrow ? 40 : 64, cellClass: "flag", cellDataType: "text",
+        valueGetter: function (p) { return p.data && p.data.disputed ? "⚠" : ""; },
+        headerTooltip: "Disputed: the books give two different values" },
+      { field: "book", headerName: "Book", width: 210, hide: narrow, filter: "agTextColumnFilter" },
+      { field: "chapter", headerName: "Chapter", width: 190, hide: narrow, filter: "agTextColumnFilter" },
+      { field: "quote", headerName: "Passage", flex: 1, minWidth: 260, hide: narrow, tooltipField: "quote", filter: "agTextColumnFilter" }
+    ];
+  }
+  function matrixColumns() {
+    // one column per book, in reading order; a cell is marked where its book changes the value
+    // the earliest book gave
+    function first(d) { if (!d || !d.books) return ""; for (var i = 0; i < matrix.books.length; i++) { var v = d.books[matrix.books[i]]; if (v) return v; } return ""; }
+    var cols = [
+      { field: "entity", headerName: "Who / what", pinned: narrow ? null : "left", width: narrow ? 120 : 190, filter: "agTextColumnFilter" },
+      { field: "fact", headerName: "Fact", pinned: narrow ? null : "left", width: narrow ? 90 : 130, filter: "agTextColumnFilter" },
+      { colId: "flag", headerName: "", width: 56, cellClass: "flag", cellDataType: "text",
+        valueGetter: function (p) { return p.data && p.data.disputed ? "⚠" : ""; } }
+    ];
+    matrix.books.forEach(function (b) {
+      cols.push({ colId: "book:" + b, headerName: b, headerTooltip: b, width: 150, minWidth: 110, flex: 1, filter: "agTextColumnFilter",
+        cellDataType: "text",
+        valueGetter: function (p) { return (p.data && p.data.books && p.data.books[b]) || ""; },
+        cellClassRules: { changed: function (p) { var v = p.value; return !!v && !!p.data && p.data.disputed && v !== first(p.data); } } });
+    });
+    return cols;
+  }
+  function setView(v) {
+    view = v;
+    document.getElementById("view-rows").setAttribute("aria-pressed", v === "rows");
+    document.getElementById("view-matrix").setAttribute("aria-pressed", v === "matrix");
+    // data and columns change together: a column for one view never sees the other's rows
+    api.updateGridOptions({ rowData: v === "rows" ? rows : matrix.rows,
+                            columnDefs: v === "rows" ? rowColumns() : matrixColumns() });
+    detail.replaceChildren(text("span", "loc", v === "rows" ? "Select a row to read the passage behind it." : "Select a cell to read what that book says."));
+    updateCount();
   }
   function start() {
     // a phone shows who, what and the value; the passage opens below the grid on a tap
-    var narrow = window.innerWidth < 640;
+    narrow = window.innerWidth < 640;
     var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     var theme = agGrid.themeQuartz
       .withPart(dark ? agGrid.colorSchemeDarkWarm : agGrid.colorSchemeLightWarm)
@@ -86,22 +145,16 @@
     api = agGrid.createGrid(document.getElementById("grid"), {
       theme: theme,
       rowData: rows,
-      columnDefs: [
-        { field: "entity", headerName: "Who / what", pinned: narrow ? null : "left", width: narrow ? 130 : 200, filter: "agTextColumnFilter" },
-        { field: "fact", headerName: "Fact", width: narrow ? 100 : 150, filter: "agTextColumnFilter" },
-        { field: "value", headerName: "Value", width: narrow ? 110 : 170, filter: "agTextColumnFilter" },
-        { colId: "flag", headerName: "", width: narrow ? 40 : 64, cellClass: "flag", cellDataType: "text",
-          valueGetter: function (p) { return p.data && p.data.disputed ? "⚠" : ""; },
-          headerTooltip: "Disputed: the books give two different values" },
-        { field: "book", headerName: "Book", width: 210, hide: narrow, filter: "agTextColumnFilter" },
-        { field: "chapter", headerName: "Chapter", width: 190, hide: narrow, filter: "agTextColumnFilter" },
-        { field: "quote", headerName: "Passage", flex: 1, minWidth: 260, hide: narrow, tooltipField: "quote", filter: "agTextColumnFilter" }
-      ],
+      columnDefs: rowColumns(),
       defaultColDef: { sortable: true, resizable: true },
       rowClassRules: { disputed: function (p) { return !!(p.data && p.data.disputed); } },
       isExternalFilterPresent: function () { return onlyDisputed; },
       doesExternalFilterPass: function (node) { return !!node.data.disputed; },
-      onRowClicked: function (e) { show(e.data); },
+      onCellClicked: function (e) {
+        if (view === "rows") return show(e.data);
+        var col = e.column.getColId();
+        showBook(e.data, col.indexOf("book:") === 0 ? col.slice(5) : (matrix.books.find(function (b) { return e.data.books[b]; }) || ""));
+      },
       onFilterChanged: updateCount,
       onModelUpdated: updateCount
     });
@@ -112,6 +165,8 @@
       onlyDisputed = e.target.checked;
       api.onFilterChanged();
     });
+    document.getElementById("view-rows").addEventListener("click", function () { setView("rows"); });
+    document.getElementById("view-matrix").addEventListener("click", function () { setView("matrix"); });
     document.getElementById("csv").addEventListener("click", function () {
       api.exportDataAsCsv({ fileName: {{ (series ~ " - series bible.csv") | tojson }} });
     });

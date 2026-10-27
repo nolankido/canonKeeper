@@ -137,6 +137,44 @@ def bible_rows(views: list[EntityView]) -> list[dict[str, object]]:
     return rows
 
 
+def bible_matrix(views: list[EntityView]) -> tuple[list[str], list[dict[str, object]]]:
+    """Each fact by book: one row per (entity, fact), one column per book in reading order, the
+    value(s) each book gives, and the passages behind them. Where a value changes across the
+    series is visible at a glance; a disputed row is one the books cannot all be right about."""
+    order: dict[str, int] = {}
+    for v in views:
+        for slot in v.slots:
+            for _, claims in slot.values:
+                for c in claims:
+                    book = c.provenance.book_title or c.provenance.book
+                    order.setdefault(book, c.provenance.book_index)
+    books = sorted(order, key=lambda b: order[b])
+    rows: list[dict[str, object]] = []
+    for v in views:
+        for slot in v.slots:
+            cells: dict[str, list[str]] = defaultdict(list)
+            passages: dict[str, list[dict[str, str]]] = defaultdict(list)
+            for _, claims in slot.values:
+                for c in claims:
+                    book = c.provenance.book_title or c.provenance.book
+                    shown = value(c)
+                    if shown not in cells[book]:
+                        cells[book].append(shown)
+                    passages[book].append(
+                        {"chapter": chapter(c.provenance.chapter), "quote": c.provenance.quote}
+                    )
+            rows.append(
+                {
+                    "entity": v.name,
+                    "fact": label(slot.predicate),
+                    "disputed": slot.disputed,
+                    "books": {b: " / ".join(vals) for b, vals in cells.items()},
+                    "passages": dict(passages),
+                }
+            )
+    return books, rows
+
+
 def write_bible_grid(
     views: list[EntityView],
     series_name: str,
@@ -151,6 +189,7 @@ def write_bible_grid(
     disputed facts highlighted, the passage one click away, CSV out of whatever is shown."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     rows = bible_rows(views)
+    books, matrix = bible_matrix(views)
     out_path.write_text(
         _env.get_template("bible_grid.html").render(
             series=series_name,
@@ -161,6 +200,8 @@ def write_bible_grid(
             n_entities=len(views),
             n_disputed=sum(1 for r in rows if r["disputed"]),
             back_url=back_url,
+            books=books,
+            matrix=matrix,
             card_view=card_view,
             csv=csv,
             local_script=GRID_SCRIPT,

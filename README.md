@@ -16,7 +16,7 @@ titles across four series imprints.
 | **What it costs** | $5 + $4 per 100,000 tokens (about 73,000 words of fiction), shown with its arithmetic before you pay: a 100,000-word novel is about $10.50, the six Sherlock Holmes volumes $30.20. A draft check is $2 + the same rate on the draft alone. |
 | **How you pay** | PayPal Checkout (Orders v2; this hackathon build runs on PayPal's sandbox, so it is test money). Nothing reaches a model until PayPal confirms the capture of exactly the quoted amount; an audit that cannot finish is refunded in full through PayPal. **The finding guarantee:** mark a contradiction wrong and it is noted on the report beside the model's call, and $0.50 goes back through PayPal for each one, up to half the price. |
 | **Agents welcome** | The same service is an MCP server at `<url>/mcp` (streamable HTTP; or `canonkeeper mcp` on stdio): an author's AI assistant connects as a customer, holding no keys. It asks for an upload link, the person uploads the books and sees the price, the assistant orders, and the PayPal approval link always goes to the person. Or the person funds an **assistant budget** once through PayPal ($5-$200): the assistant pays for audits and draft checks from it without asking each time, never past the balance; every spend is on the budget's page, a failed audit is credited back, and closing it refunds the unused rest to PayPal. |
-| **What you get** | The report (HTML, prints to PDF); the series bible as an explorer (an [AG Grid](https://www.ag-grid.com/) of every fact: sort, filter, search, disputed facts flagged, the passage one click away, CSV of whatever is shown), as cards, and as a spreadsheet; and the findings as JSON |
+| **What you get** | The report (HTML, prints to PDF); the series bible as an explorer ([an AG Grid of every fact](#the-bible-explorer-ag-grid): sort, filter, search, disputed facts flagged, each fact by book with every change marked, the passage one click away, CSV of whatever is shown), as cards, and as a spreadsheet; and the findings as JSON |
 
 **Try it live: [preflight-kq1o.onrender.com](https://preflight-kq1o.onrender.com)** (PayPal sandbox: test money only). Press *Try it with the
 demo series*, or *See a finished audit*. Assistants connect to the same shop over MCP at
@@ -197,6 +197,28 @@ benchmark below before it ships. Mary Watson calling her husband "James" (*The M
 Twisted Lip*) is still not caught by default: a name given only in speech is not recorded as a
 `first_name`. A fix that points the extractor at names spoken in dialogue is built and off by
 default (`CANONKEEPER_EXTRACT_SPEECH_NAMES=true`) until the benchmark measures it.
+
+## The bible explorer (AG Grid)
+
+A series bible is a table nobody can read as a page: the six Holmes volumes give 3,963 sourced
+facts about 622 characters, places and things. The explorer puts them in
+[AG Grid Community](https://www.ag-grid.com/) (MIT, version 36.2.0, served by Preflight with a
+pinned CDN fallback), in two views:
+
+- **Every passage:** one row per fact with its book, chapter and the sentence that states it.
+  Sort and filter any column, search everything at once, tick *Only where the books disagree*,
+  click a row to read the passage, and download exactly what is shown as CSV.
+- **Each fact by book:** one row per character fact, one column per book in reading order. Where
+  a book changes the value an earlier book gave, the cell is marked; click it for that book's
+  passages. Watson's wound reads *shoulder / left arm* in *A Study in Scarlet*, *leg* in *The
+  Sign of the Four*, *limb* in the *Adventures*, *old wound* in the *Memoirs*: the canon's most
+  famous slip, as a row.
+
+![Each fact by book: John Watson's wound moving from the shoulder to the leg across the Holmes books, each change marked](docs/img/bible-by-book.png)
+
+Every finished audit gets its own explorer (`/jobs/<id>/bible-grid.html`, also downloadable as
+one self-contained file), and the Holmes one is at `/sample/bible`. On a phone it keeps who, fact
+and value, and opens the passage below the grid on a tap.
 
 ## Does it actually work? The seeded-defect benchmark
 

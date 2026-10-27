@@ -96,3 +96,44 @@ def test_bible_pages_say_yes_not_true_and_link_back_to_their_job(tmp_path):
         assert f'href="/jobs/{job}" data-testid="back-to-job"' in html, page
         assert "where the books disagree" in html and "slots" not in html.split("<main>")[1][:600]
     assert "hide: narrow" in web.get(f"/jobs/{job}/bible-grid.html").text  # phone columns
+
+
+def test_the_explorer_shows_each_fact_by_book_with_its_passages():
+    """AG Grid view 2: one row per (entity, fact), one column per book in reading order."""
+    from canonkeeper.report.bible import bible_matrix
+
+    class P:
+        def __init__(self, book, i, ch="Ch 1"):
+            self.book, self.book_title, self.book_index, self.chapter = book, book, i, ch
+            self.quote = f"quote in {book}"
+
+    class C:
+        def __init__(self, obj, book, i):
+            self.object, self.predicate, self.provenance = obj, "wound_location", P(book, i)
+
+    from canonkeeper.report.bible import EntityView, SlotView
+
+    slot = SlotView("wound_location", [("shoulder", [C("shoulder", "Scarlet", 0)]),
+                                       ("leg", [C("leg", "Sign", 1)])])  # fmt: skip
+    view = EntityView(name="John Watson", aliases=[], n_claims=2, first_seen="", slots=[slot])
+    books, rows = bible_matrix([view])
+    assert books == ["Scarlet", "Sign"]
+    assert rows == [{
+        "entity": "John Watson", "fact": "wound", "disputed": True,
+        "books": {"Scarlet": "shoulder", "Sign": "leg"},
+        "passages": {"Scarlet": [{"chapter": "Ch 1", "quote": "quote in Scarlet"}],
+                     "Sign": [{"chapter": "Ch 1", "quote": "quote in Sign"}]},
+    }]  # fmt: skip
+
+
+def test_every_audit_explorer_offers_both_views(tmp_path):
+    web, svc = _shop(tmp_path)
+    job = svc.quote_series("The Saltmarsh Chronicles", BOOKS)["job_id"]
+    svc.paypal.approve(svc.order_audit(job)["order_id"])
+    svc.confirm_payment(job)
+    svc.runner.wait(job, timeout=60)
+    page = web.get(f"/jobs/{job}/bible-grid.html").text
+    assert (
+        'data-testid="view-matrix"' in page
+        and '"books": ["The Harbour", "The Wreck", "The Return"]' in page
+    )
