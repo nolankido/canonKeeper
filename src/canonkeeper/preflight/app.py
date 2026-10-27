@@ -26,6 +26,7 @@ from canonkeeper.preflight.paypal import FakePayPal, PayPal, PayPalClient
 from canonkeeper.preflight.pricing import CURRENCY, quote
 
 _TEMPLATES = Path(__file__).parent / "templates"
+_SAMPLES = Path(__file__).parent / "samples"
 
 
 def paypal_env() -> dict[str, str]:
@@ -83,7 +84,18 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request) -> HTMLResponse:
-        return render(request, "index.html", jobs=store.all()[:10])
+        # Job pages are reachable only by their unguessable id; listing them on the home page
+        # would show every customer's series to every visitor. Demo mode is single-user.
+        jobs = store.all()[:10] if pp.mode == "fake" else []
+        return render(request, "index.html", jobs=jobs, sample=_SAMPLES.exists())
+
+    @app.get("/sample", response_class=HTMLResponse)
+    def sample() -> FileResponse:
+        """A finished audit of the six public-domain Holmes volumes: what a buyer gets."""
+        p = _SAMPLES / "sherlock-holmes-report.html"
+        if not p.exists():
+            raise HTTPException(404)
+        return FileResponse(p, media_type="text/html")
 
     @app.post("/quote")
     async def make_quote(

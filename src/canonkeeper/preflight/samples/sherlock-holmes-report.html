@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>canonkeeper — Sherlock Holmes</title>
+<style>
+  :root {
+    --bg: #faf8f3; --fg: #1d1a16; --muted: #6b655c; --card: #ffffff; --line: #e6e1d7;
+    --hi: #b3261e; --med: #b26a00; --lo: #4d6b2f; --ok: #2f6b5a; --accent: #3b4f8a;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16140f; --fg: #ece7dc; --muted: #a39b8d; --card: #1f1c16; --line: #342f27;
+      --hi: #ff6b61; --med: #ffb14d; --lo: #9ccc65; --ok: #6fc7ad; --accent: #9fb0e8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 var(--serif); }
+  main { max-width: 880px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 36px 0 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .stat b { display: block; font-size: 24px; font-family: var(--mono); }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .f { background: var(--card); border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+  .f.high { border-left-color: var(--hi); } .f.medium { border-left-color: var(--med); } .f.low { border-left-color: var(--lo); }
+  .f.other { border-left-color: var(--line); opacity: .85; }
+  .tag { display: inline-block; font: 12px/1 var(--mono); padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line); margin-right: 6px; }
+  .tag.high { color: var(--hi); border-color: var(--hi); } .tag.medium { color: var(--med); border-color: var(--med); }
+  .tag.low { color: var(--lo); border-color: var(--lo); } .tag.ok { color: var(--ok); border-color: var(--ok); }
+  .claim { margin: 10px 0; padding: 10px 12px; background: var(--bg); border-radius: 8px; }
+  .claim .loc { font: 12px var(--mono); color: var(--muted); }
+  .claim q { display: block; margin-top: 4px; font-style: italic; }
+  .fix { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--accent); border-radius: 8px; }
+  .fix b { color: var(--accent); }
+  details summary { cursor: pointer; color: var(--muted); }
+  footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
+  code { font-family: var(--mono); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sherlock Holmes</h1>
+  <div class="sub">6 books · continuity audit by canonkeeper</div>
+
+  <div class="stats">
+    <div class="stat"><b>2331</b><span>facts in bible</span></div>
+    <div class="stat"><b>26</b><span>candidates screened</span></div>
+    <div class="stat"><b>1</b><span>contradictions</span></div>
+    <div class="stat"><b>2</b><span>deliberate reveals</span></div>
+    <div class="stat"><b>$0.21</b><span>API cost</span></div>
+  </div>
+
+  <h2>Contradictions</h2>
+  
+  
+  <div class="f high">
+    <span class="tag high">high</span><span class="tag">slot_mismatch</span>
+    <strong>John Watson.wound_location is &#39;shoulder&#39; (A Study in Scarlet · MR. SHERLOCK HOLMES.), &#39;left arm&#39; (A Study in Scarlet · THE SCIENCE OF DEDUCTION.), &#39;leg&#39; (The Sign of the Four · The Science of Deduction), &#39;limb&#39; (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR)</strong>
+    
+    <div class="claim">
+      <div class="loc">Book 1 · MR. SHERLOCK HOLMES. — <code>John Watson.wound_location = shoulder</code></div>
+      <q>There I was struck on the shoulder by a Jezail bullet, which shattered the bone and grazed the subclavian artery.</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 1 · THE SCIENCE OF DEDUCTION. — <code>John Watson.wound_location = left arm</code></div>
+      <q>His left arm has been injured.</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 2 · The Science of Deduction — <code>John Watson.wound_location = leg</code></div>
+      <q>sat nursing my wounded leg.</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 3 · X. THE ADVENTURE OF THE NOBLE BACHELOR — <code>John Watson.wound_location = limb</code></div>
+      <q>the jezail bullet which I had brought back in one of my limbs as a relic of my Afghan campaign</q>
+    </div>
+    
+    <p>In &#39;A Study in Scarlet&#39;, Watson&#39;s Jezail bullet wound is located in his shoulder/arm (&#39;struck on the shoulder by a Jezail bullet&#39;, &#39;His left arm has been injured&#39;), whereas in &#39;The Sign of the Four&#39;, Watson claims he &#39;sat nursing my wounded leg&#39;.</p>
+    <div class="fix"><b>Suggested fix (later book):</b> In &#39;The Sign of the Four&#39;, change &#39;sat nursing my wounded leg&#39; to &#39;sat nursing my wounded arm&#39;.</div>
+  </div>
+  
+
+  
+  <h2>Reviewed and cleared</h2>
+  <details><summary>25 candidates judged deliberate, ambiguous, or not a conflict</summary>
+  
+  <div class="f other">
+    <span class="tag ok">ambiguous</span><span class="tag">slot_mismatch</span>
+    <strong>Violet Hunter.hair_color is &#39;chestnut&#39; (The Adventures of Sherlock Holmes · XII. THE ADVENTURE OF THE COPPER BEECHES), &#39;peculiar tint&#39; (The Adventures of Sherlock Holmes · XII. THE ADVENTURE OF THE COPPER BEECHES)</strong>
+    <p>(no explanation returned)</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">ambiguous</span><span class="tag">slot_mismatch</span>
+    <strong>John Straker.wound_location is &#39;head&#39; (The Memoirs of Sherlock Holmes · I. Silver Blaze), &#39;thigh&#39; (The Memoirs of Sherlock Holmes · I. Silver Blaze)</strong>
+    <p>(no explanation returned)</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">ambiguous</span><span class="tag">slot_mismatch</span>
+    <strong>Miss Cushing.hair_color is &#39;grizzled&#39; (The Memoirs of Sherlock Holmes · II. The Adventure of the Cardboard Box), &#39;black&#39; (The Memoirs of Sherlock Holmes · II. The Adventure of the Cardboard Box)</strong>
+    <p>(no explanation returned)</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">deliberate</span><span class="tag">slot_mismatch</span>
+    <strong>Lucy Ferrier.hair_color is &#39;fair&#39; (A Study in Scarlet · ON THE GREAT ALKALI PLAIN.), &#39;chestnut&#39; (A Study in Scarlet · JOHN FERRIER TALKS WITH THE PROPHET.)</strong>
+    <p>The shift in Lucy Ferrier&#39;s hair color from &#39;golden&#39; to &#39;chestnut&#39; is supported by the story&#39;s multi-year time jump from when she was a five-year-old child to a young woman.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">deliberate</span><span class="tag">slot_mismatch</span>
+    <strong>Sherlock Holmes.eye_color is &#39;dark&#39; (The Sign of the Four · A Break in the Chain), &#39;grey&#39; (The Hound of the Baskervilles · Death on the Moor)</strong>
+    <p>In &#39;The Sign of the Four&#39;, the description of dark eyes occurs while Sherlock Holmes is in disguise as an old master mariner. His true eye color is grey.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>John Watson.birthplace is &#39;afghanistan&#39; (A Study in Scarlet · MR. SHERLOCK HOLMES.), &#39;tropics&#39; (A Study in Scarlet · THE SCIENCE OF DEDUCTION.)</strong>
+    <p>The bible mislabeled Watson&#39;s recent military service location (&#39;come from Afghanistan&#39; / &#39;come from the tropics&#39;) as his birthplace. There is no contradiction in the text.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Sherlock Holmes.height is &#39;over six feet&#39; (A Study in Scarlet · THE SCIENCE OF DEDUCTION.), &#39;tall&#39; (The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA)</strong>
+    <p>Describing a man who is &#39;rather over six feet&#39; in height as &#39;tall&#39; is completely consistent.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Tobias Gregson.hair_color is &#39;flaxen&#39; (A Study in Scarlet · THE LAURISTON GARDENS MYSTERY), &#39;fair&#39; (A Study in Scarlet · TOBIAS GREGSON SHOWS WHAT HE CAN DO.)</strong>
+    <p>&#39;Flaxen&#39; (pale yellow) is simply a specific shade of &#39;fair&#39; hair, so the two descriptions are consistent.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Jonathan Small.wound_location is &#39;right leg&#39; (The Sign of the Four · Sherlock Holmes Gives a Demonstration), &#39;right thigh downwards&#39; (The Sign of the Four · The End of the Islander)</strong>
+    <p>Both phrases describe the exact same physical detail: Jonathan Small&#39;s missing right leg (amputated from the thigh down).</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Jonathan Small.nationality is &#39;englishman&#39; (The Sign of the Four · The Episode of the Barrel), &#39;white&#39; (The Sign of the Four · The Episode of the Barrel), &#39;worcestershire&#39; (The Sign of the Four · The Strange Story of Jonathan Small)</strong>
+    <p>Being an Englishman, a white man, and from Worcestershire (a county in England) are consistent and complementary facts.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
+    <strong>Rodger Baskerville dies in The Hound of the Baskervilles · The Problem but acts in The Hound of the Baskervilles · Three Broken Threads</strong>
+    <p>Both passages consistently state that Rodger Baskerville is dead. Passage 1 states he died in 1876 in Central America of yellow fever, and Passage 2 mentions that he died unmarried. There is no conflict.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
+    <strong>Sherlock Holmes dies in The Sign of the Four · The End of the Islander but acts in The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA</strong>
+    <p>The passage in &#39;The End of the Islander&#39; describes the death of Tonga (the islander dwarf), who was shot by Holmes and Watson and fell into the Thames. Sherlock Holmes did not die in that scene; the bible extraction misattributed Tonga&#39;s death to Sherlock Holmes.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Sherlock Holmes.hair_color is &#39;white&#39; (The Sign of the Four · A Break in the Chain), &#39;grey&#39; (The Sign of the Four · A Break in the Chain)</strong>
+    <p>The passages describe different parts of a fake costume worn by Sherlock Holmes (&#39;bushy white brows&#39; and &#39;long grey side-whiskers&#39;). Eyebrows and side-whiskers are distinct facial hair features, and both are part of a disguise rather than Holmes&#39;s actual hair color.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Jonathan Small.birthplace is &#39;pershore&#39; (The Sign of the Four · The Strange Story of Jonathan Small), &#39;worcestershire&#39; (The Sign of the Four · The Strange Story of Jonathan Small)</strong>
+    <p>Pershore is a town located in Worcestershire, England. Being born near Pershore and being a &#39;Worcestershire man&#39; are fully consistent statements.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Helen Stoner.child_of is &#39;Grimesby Roylott&#39; (The Adventures of Sherlock Holmes · VIII. THE ADVENTURE OF THE SPECKLED BAND), &#39;Mrs. Stoner&#39; (The Adventures of Sherlock Holmes · VIII. THE ADVENTURE OF THE SPECKLED BAND)</strong>
+    <p>Grimesby Roylott is Helen Stoner&#39;s stepfather, whereas Mrs. Stoner is her mother. The two relationship descriptions do not conflict.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Dr. Becher.nationality is &#39;german&#39; (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB), &#39;englishman&#39; (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB)</strong>
+    <p>The first quote is a question posed by Victor Hatherley based on a misunderstanding. The station-master immediately corrects him in the second quote, explaining that Dr. Becher is an Englishman and the thin German was merely a foreign guest.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Mary Holder.eye_color is &#39;dark&#39; (The Adventures of Sherlock Holmes · XI. THE ADVENTURE OF THE BERYL CORONET), &#39;black&#39; (The Adventures of Sherlock Holmes · XI. THE ADVENTURE OF THE BERYL CORONET)</strong>
+    <p>Describing a character&#39;s eyes as &#39;dark&#39; and &#39;black&#39; in descriptive prose is standard synonymous usage and not a factual contradiction.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Henry Baskerville.hair_color is &#39;black&#39; (The Hound of the Baskervilles · Sir Henry Baskerville), &#39;dark&#39; (The Hound of the Baskervilles · Baskerville Hall)</strong>
+    <p>The source passages describe Sir Henry&#39;s &#39;thick black eyebrows&#39; and &#39;dark and expressive face&#39;, neither of which is a statement of hair color. The bible extraction mislabeled these facial feature descriptions as hair color.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Jack Stapleton.hair_color is &#39;flaxen&#39; (The Hound of the Baskervilles · The Stapletons of Merripit House), &#39;light&#39; (The Hound of the Baskervilles · The Stapletons of Merripit House)</strong>
+    <p>&#39;Flaxen-haired&#39; and &#39;light hair&#39; are compatible descriptions, as flaxen is a specific shade of light/pale yellow hair.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>John Hector McFarlane.hair_color is &#39;flaxen&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER), &#39;fluffy&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER)</strong>
+    <p>The quote &#39;a little, fluffy, blue-eyed person&#39; describes McFarlane&#39;s mother, not John Hector McFarlane himself. The bible extraction incorrectly attributed the mother&#39;s description to McFarlane.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
+    <strong>Bartholomew Sholto dies in The Sign of the Four · The Tragedy of Pondicherry Lodge but acts in The Sign of the Four · The Baker Street Irregulars</strong>
+    <p>The passage in &#39;The Baker Street Irregulars&#39; quotes a newspaper report stating that Bartholomew Sholto &#39;was found dead in his room&#39;. The passage is reporting his death, not describing him acting while alive.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
+    <strong>Enoch Drebber dies in A Study in Scarlet · TOBIAS GREGSON SHOWS WHAT HE CAN DO. but acts in A Study in Scarlet · LIGHT IN THE DARKNESS.</strong>
+    <p>Lestrade is recounting Drebber&#39;s timeline prior to his murder (&#39;seen together at Euston Station about half-past eight on the evening of the third&#39;). Recounting events that occurred before a character&#39;s death is not a conflict.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
+    <strong>Jefferson Hope dies in A Study in Scarlet · LIGHT IN THE DARKNESS. but acts in A Study in Scarlet · THE AVENGING ANGELS.</strong>
+    <p>The quote identifies Jefferson Hope as &#39;the murderer of Enoch Drebber&#39;. The bible extraction mislabeled this relationship as a death predicate (`died = enoch drebber`), generating a false conflict.</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
+    <strong>John Watson dies in The Sign of the Four · The End of the Islander but acts in The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA</strong>
+    <p>The quote describes the death of Tonga, who was shot by Holmes and Watson and fell into the stream. The bible extraction incorrectly assigned the death to Watson (`died = tonga`).</p>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
+    <strong>Jonathan Small dies in The Sign of the Four · The Episode of the Barrel but acts in The Sign of the Four · The Great Agra Treasure</strong>
+    <p>The quote &#39;He bore no grudge against Bartholomew Sholto&#39; was mislabeled in the bible extraction as `died = bartholomew sholto`. Jonathan Small is alive and in custody during the events of the story.</p>
+  </div>
+  
+  </details>
+  
+
+  <footer>
+    Models: <code>extract=gemini-3.5-flash-lite</code> <code>adjudicate=gemini-3.6-flash</code> <code>provider=gemini</code> 
+    · Every finding links to a verbatim passage; nothing here was inferred without a quote.
+  </footer>
+</main>
+</body>
+</html>

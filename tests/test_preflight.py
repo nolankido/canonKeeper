@@ -315,3 +315,20 @@ def test_upload_limits(tmp_path):
         store.create_from_upload("s", [("big.txt", b"a" * (40 * 10**6 + 1))])
     job, _ = store.create_from_upload("   ", [("01 - The Harbour.txt", b"Once upon a time.")])
     assert job.series_name == "Untitled series" and job.books == ["01-The-Harbour.txt"]
+
+
+def test_sample_report_and_no_public_job_list(tmp_path, client):
+    r = client.get("/sample")
+    assert r.status_code == 200 and "Jezail bullet" in r.text
+    assert 'href="/sample"' in client.get("/").text
+    _upload(client)
+    assert ">The Saltmarsh Chronicles</a>" in client.get("/").text  # demo mode: one user
+
+    class SandboxLike(FakePayPal):
+        mode = "sandbox"
+
+    settings = Settings(provider="mock", workdir=tmp_path / "w2", _env_file=None)
+    public = TestClient(
+        create_app(settings=settings, paypal=SandboxLike(), workdir=tmp_path / "pf")
+    )
+    assert ">The Saltmarsh Chronicles</a>" not in public.get("/").text  # same store, unlisted
