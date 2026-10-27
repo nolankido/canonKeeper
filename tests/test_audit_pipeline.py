@@ -477,3 +477,68 @@ def test_benchmark_only_plants_clear_contradictions():
     assert clearly_different("english", "German", "nationality")
     assert not _looks_like_a_person("Andaman Islanders")
     assert _looks_like_a_person("Jefferson Hope") and _looks_like_a_person("Toby")
+
+
+def test_scorer_matches_surnames_and_sets_aside_side_effects():
+    from canonkeeper.eval.inject import Injection
+    from canonkeeper.eval.score import score
+    from canonkeeper.models import Candidate, Finding
+
+    sentence = "Susan Cushing pushed back a lock of black hair and said nothing."
+    inj = Injection("Susan Cushing", "hair_color", "grizzled", "black", "05-hound", 4, 2, sentence)
+    hope = Injection(
+        "Jefferson Hope",
+        "birthplace",
+        "salt lake city",
+        "Edinburgh",
+        "02-sign",
+        1,
+        3,
+        '"I was born in Edinburgh," said Jefferson Hope, "and I have never once regretted leaving it."',
+    )
+
+    def finding(claims, heuristic="slot_mismatch"):
+        return Finding(
+            candidate=Candidate(claims=claims, reason="r", heuristic=heuristic),
+            verdict="contradiction",
+            severity="medium",
+            explanation="e",
+            adjudicator_model="m",
+        )
+
+    cushing = finding(
+        [
+            _claim("Miss Cushing", "hair_color", "grizzled", book=3, q="grizzled hair"),
+            _claim("Miss Cushing", "hair_color", "black", book=4, chapter=2, q=sentence),
+        ]
+    )
+    for c in cushing.candidate.claims[1:]:
+        c.provenance.book = "05-hound"
+    dead = finding(
+        [
+            _claim("Jefferson Hope", "dead", "true", book=0, q="the aneurism burst"),
+            _claim(  # the 'acting' fact is the speech, not the planted birthplace
+                "Jefferson Hope",
+                "habit",
+                "never regretted leaving",
+                book=1,
+                q='"I was born in Edinburgh," said Jefferson Hope',
+            ),
+        ],
+        heuristic="dead_speaks",
+    )
+    dead.candidate.claims[1].provenance.book = "02-sign"
+    unrelated = finding(
+        [
+            _claim("Theresa Wright", "nationality", "scotch", q="a"),
+            _claim("Theresa Wright", "nationality", "australian", book=2, q="b"),
+        ]
+    )
+    s = score([inj, hope], [cushing, dead, unrelated])
+    assert s.tp == 1 and s.matched[0][0] is inj  # 'Miss Cushing' is Susan Cushing
+    assert s.fn == 1 and s.missed[0] is hope  # the birthplace itself was not reported...
+    assert s.side_effects == [dead]  # ...but the dead-man-speaks finding quotes it: not an FP
+    assert s.fp == 1 and s.extra == [unrelated]
+    # And a different person with the same surname is not a match.
+    other = finding([_claim("Mr. Cushing", "hair_color", "black", book=4, q="x")])
+    assert score([inj], [other]).tp == 0

@@ -135,3 +135,33 @@ def test_provider_outage_exits_cleanly_with_resume_hint(tmp_path, monkeypatch):
     flat = " ".join(r.output.split())
     assert "HTTP 503" in flat and "rerun the same command" in flat
     assert "Traceback" not in flat
+
+
+def test_eval_then_rescore_from_saved_files(tmp_path, monkeypatch):
+    """`eval` keeps what it needs; `rescore` reproduces the result with no model calls."""
+    from canonkeeper import cli
+    from canonkeeper.llm import MockLLM
+    from tests.conftest import mock_handler
+
+    monkeypatch.setattr(cli, "make_llm", lambda settings: MockLLM(mock_handler))
+    m = _write_series(tmp_path)
+    wd = str(tmp_path / "wd")
+    assert (
+        runner.invoke(app, ["build", str(m), "--provider", "mock", "--workdir", wd]).exit_code == 0
+    )
+    r = runner.invoke(
+        app, ["eval", str(m), "--n", "3", "--seed", "1", "--provider", "mock", "--workdir", wd]
+    )
+    assert r.exit_code == 0, r.output
+    eval_dir = next((tmp_path / "wd").rglob("eval-seed1"))
+    for name in ("baseline.json", "report.json", "injections.json", "bible.jsonl", "result.md"):
+        assert (eval_dir / name).exists(), name
+    first = (eval_dir / "result.md").read_text().split("\n")[2]
+
+    def no_calls(settings):  # rescoring must not need a model
+        raise AssertionError("rescore called a model")
+
+    monkeypatch.setattr(cli, "make_llm", no_calls)
+    r = runner.invoke(app, ["rescore", str(eval_dir)])
+    assert r.exit_code == 0, r.output
+    assert (eval_dir / "result.md").read_text().split("\n")[2] == first

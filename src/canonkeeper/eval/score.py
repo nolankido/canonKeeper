@@ -18,6 +18,7 @@ class Score:
     matched: list[tuple[Injection, Finding]] = field(default_factory=list)
     missed: list[Injection] = field(default_factory=list)
     extra: list[Finding] = field(default_factory=list)
+    side_effects: list[Finding] = field(default_factory=list)
 
     @property
     def precision(self) -> float:
@@ -33,19 +34,43 @@ class Score:
         return 2 * p * r / (p + r) if (p + r) else 0.0
 
     def markdown(self) -> str:
-        return (
+        table = (
             "| injected | reported | TP | FP | FN | precision | recall | F1 |\n"
             "|---:|---:|---:|---:|---:|---:|---:|---:|\n"
             f"| {self.n_injected} | {self.n_reported} | {self.tp} | {self.fp} | {self.fn} | "
             f"{self.precision:.2f} | {self.recall:.2f} | {self.f1:.2f} |"
         )
+        if self.side_effects:
+            table += (
+                f"\n\n{len(self.side_effects)} other contradiction(s) quote a planted sentence "
+                "for a different reason; counted neither as hits nor as false positives:\n"
+                + "\n".join(f"- {f.candidate.reason}" for f in self.side_effects)
+            )
+        return table
 
 
 _ORIGIN = {"nationality", "birthplace"}
 
 
 def _subject_ok(inj: Injection, c: Claim) -> bool:
-    return fuzz.token_set_ratio(c.subject.lower(), inj.subject.lower()) >= 85
+    """Same person: close spelling, or the same surname under compatible names (the planted
+    'Susan Cushing' extracted as 'Miss Cushing')."""
+    from canonkeeper.canon.normalize import name_parts, names_compatible
+
+    if fuzz.token_set_ratio(c.subject.lower(), inj.subject.lower()) >= 85:
+        return True
+    sa, sb = name_parts(c.subject)[2], name_parts(inj.subject)[2]
+    return bool(sa and sa == sb and names_compatible(c.subject, inj.subject))
+
+
+def _cites(f: Finding, inj: Injection) -> bool:
+    """The finding quotes the planted sentence itself."""
+    sentence = " ".join(inj.sentence.split()).lower()
+    for c in f.candidate.claims:
+        q = " ".join(c.provenance.quote.split()).lower()
+        if c.provenance.book == inj.book and len(q) >= 12 and fuzz.partial_ratio(q, sentence) >= 90:
+            return True
+    return False
 
 
 def _claim_hit(inj: Injection, c: Claim) -> bool:
@@ -160,7 +185,12 @@ def score(
         else:
             s.fn += 1
             s.missed.append(inj)
-    s.extra = [f for i, f in enumerate(reported) if i not in taken]
+    rest = [f for i, f in enumerate(reported) if i not in taken]
+    # A contradiction that quotes a planted sentence for another reason (the planted
+    # birthplace made a dead man speak) is about the planted defect: neither a hit for the
+    # defect that was planted nor a false positive. Counted separately.
+    s.side_effects = [f for f in rest if any(_cites(f, inj) for inj in injections)]
+    s.extra = [f for f in rest if f not in s.side_effects]
     s.fp = len(s.extra)
     return s
 

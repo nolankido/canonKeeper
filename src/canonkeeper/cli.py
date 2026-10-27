@@ -548,6 +548,9 @@ def eval_cmd(
     baseline = _run_or_explain(run_audit, series, clean_store, llm, settings)
     baseline_ids = {finding_key(f) for f in baseline.errors}
     console.print(f"pre-existing contradictions in source: {len(baseline_ids)}")
+    eval_dir = report_dir / f"eval-seed{seed}"
+    eval_dir.mkdir(parents=True, exist_ok=True)
+    (eval_dir / "baseline.json").write_text(baseline.model_dump_json(indent=1), encoding="utf-8")
 
     console.rule(f"injecting {n} defects (seed={seed})")
     iset = inject(series, clean_store, n, seed=seed)
@@ -556,8 +559,6 @@ def eval_cmd(
             f"  • {inj.subject}.{inj.predicate}: {inj.original!r} → {inj.injected!r} in {inj.book}"
         )
 
-    eval_dir = report_dir / f"eval-seed{seed}"
-    eval_dir.mkdir(parents=True, exist_ok=True)
     mutated_store = _run_or_explain(
         build_bible, iset.series, llm, settings, eval_dir / "bible.jsonl", progress=True
     )
@@ -588,6 +589,40 @@ def eval_cmd(
     )
     (eval_dir / "report.json").write_text(report.model_dump_json(indent=1), encoding="utf-8")
     console.print(f"[dim]cost ${llm.usage.cost_usd:.3f}[/dim]")
+
+
+@app.command()
+def rescore(
+    eval_dir: Annotated[Path, typer.Argument(help="An eval-seedN folder written by `eval`")],
+    baseline: Annotated[
+        Path | None,
+        typer.Option(help="Clean-run report.json (default: baseline.json in the folder)"),
+    ] = None,
+) -> None:
+    """Re-score a finished benchmark from its saved files, with no model calls."""
+    from canonkeeper.canon import CanonStore
+    from canonkeeper.eval.inject import Injection
+    from canonkeeper.eval.score import diagnose, finding_key, misses_markdown, score
+    from canonkeeper.models import AuditReport
+
+    injections = [
+        Injection(**d)
+        for d in json.loads((eval_dir / "injections.json").read_text(encoding="utf-8"))
+    ]
+    report = AuditReport.model_validate_json((eval_dir / "report.json").read_text("utf-8"))
+    base_path = baseline or eval_dir / "baseline.json"
+    base = AuditReport.model_validate_json(base_path.read_text("utf-8"))
+    baseline_ids = {finding_key(f) for f in base.errors}
+    s = score(injections, report.findings, baseline_ids=baseline_ids)
+    claims = CanonStore.load(eval_dir / "bible.jsonl").claims
+    misses = diagnose(s.missed, claims, report.findings, baseline_ids=baseline_ids)
+    judged = report.models.get("adjudicated_by", "-")
+    console.print(s.markdown())
+    (eval_dir / "result.md").write_text(
+        s.markdown() + f"\n\nJudged by: {judged}\n" + misses_markdown(misses) + "\n",
+        encoding="utf-8",
+    )
+    console.print(f"[dim]wrote {eval_dir / 'result.md'}[/dim]")
 
 
 @app.command()

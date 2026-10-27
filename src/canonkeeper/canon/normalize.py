@@ -294,6 +294,8 @@ def name_parts(name: str) -> tuple[str | None, str | None, str | None, tuple[str
         return gender, None, None, ()
     if len(toks) == 1:
         return gender, None, toks[0], ()
+    if gender is None:  # "Susan Cushing" is not "Mr. Cushing"
+        gender = "f" if toks[0] in _FEMALE_GIVEN else "m" if toks[0] in _MALE_GIVEN else None
     return gender, toks[0], toks[-1], tuple(toks[1:-1])
 
 
@@ -478,6 +480,56 @@ _GIVEN_NAMES = {
     "nancy",
     "rose",
 }
+
+
+_FEMALE_GIVEN = {
+    "mary",
+    "elizabeth",
+    "sarah",
+    "anne",
+    "ann",
+    "jane",
+    "margaret",
+    "emily",
+    "alice",
+    "helen",
+    "julia",
+    "lucy",
+    "violet",
+    "agnes",
+    "edith",
+    "ellen",
+    "emma",
+    "kate",
+    "irene",
+    "hattie",
+    "hatty",
+    "effie",
+    "maud",
+    "laura",
+    "rachel",
+    "susan",
+    "martha",
+    "catherine",
+    "isabel",
+    "beatrice",
+    "eva",
+    "flora",
+    "grace",
+    "louisa",
+    "nancy",
+    "rose",
+    "annie",
+    "theresa",
+    "ivy",
+    "hester",
+    "elsie",
+    "mabel",
+    "sophy",
+    "amelia",
+    "charlotte",
+}
+_MALE_GIVEN = _GIVEN_NAMES - _FEMALE_GIVEN
 
 
 def looks_like_victim(value: str) -> bool:
