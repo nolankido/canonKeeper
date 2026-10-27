@@ -52,7 +52,21 @@ injects contradictions into public-domain novels and scores precision/recall.
   harness pointed straight at extraction, which is the point of having one.
 
 ## What we learned
-(fill in)
+- Provenance is the product. Requiring a verbatim quote for every fact (and dropping the
+  ~1% that cannot be located in the text) is what makes a finding trustworthy enough to pay
+  for; the report shows passages, not opinions.
+- The judgement is the hard part, and it needs context. "Dark eyes" vs "grey eyes" is an error
+  until you read that Holmes is in disguise. A screen that over-generates and a judge that
+  reads the surrounding chapters beats a clever screen on its own.
+- Measure the pipeline, not the demo. The first benchmark run scored recall 0.05 and pointed
+  at extraction, not judgement; two prompt changes measured by the same harness took recall on
+  planted chunks from 7/20 to 15/20. The README table is generated, never typed.
+- A free tier is a budget, not a limit. Daily caps (and the discovery that 503s count against
+  them) turned into a client-side budget guard, a model fallback ladder, a cache that makes
+  every run resumable, and `build --dry-run` that says exactly what a run will spend.
+- The real PayPal sandbox differs from any fake: orders start `PAYER_ACTION_REQUIRED`, not
+  `CREATED`; the create response omits the amount. Running `doctor --paypal` against the
+  sandbox found two bugs the in-process fake had hidden.
 
 ## What's next
 Vocative names in dialogue as `first_name` claims (Mary Watson calling her husband "James" is
