@@ -185,6 +185,21 @@ def _is_death(c: Claim, store: CanonStore, entities: set[str]) -> bool:
     return False
 
 
+# Facts that put a person somewhere now, whatever kind the extractor gave them. "He is still in
+# Pentonville, and he has written to me twice this year" came back as an *attribute*
+# (residence), so a resurrected Jefferson Hope slipped past a kind-only check.
+_PRESENT_TENSE = {
+    "residence",
+    "location",
+    "imprisoned",
+    "married_to",
+    "engaged_to",
+    "employed_by",
+    "arrived",
+    "departed",
+}
+
+
 def dead_speaks(store: CanonStore) -> list[Candidate]:
     out: list[Candidate] = []
     entities = {e.lower() for e in store.entities()}
@@ -202,12 +217,8 @@ def dead_speaks(store: CanonStore) -> list[Candidate]:
             cpos = (c.provenance.book_index, c.provenance.chapter_index)
             if cpos <= pos or c is death:
                 continue
-            if c.kind in (ClaimKind.STATE, ClaimKind.EVENT) and c.predicate not in {
-                "dead",
-                "died",
-                "alive",
-                "buried",
-            }:
+            acts = c.kind in (ClaimKind.STATE, ClaimKind.EVENT) or c.predicate in _PRESENT_TENSE
+            if acts and c.predicate not in {"dead", "died", "alive", "buried"}:
                 out.append(
                     Candidate(
                         claims=[death, c],

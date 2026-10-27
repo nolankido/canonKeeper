@@ -429,3 +429,36 @@ def test_draft_check_only_pays_to_judge_the_drafts_conflicts(tmp_path):
     assert all("04-the-ledger" in block for block in judged)
     assert "Oswin Reed dies" not in "".join(judged)  # a published-vs-published conflict
     assert {f.candidate.claims[0].subject for f in report.errors} == {"Ivy Marlowe", "Tobias Crane"}
+
+
+def test_dead_character_living_somewhere_later_is_raised_whatever_the_kind(tmp_path):
+    from canonkeeper.audit.candidates import dead_speaks
+    from canonkeeper.canon import CanonStore
+    from canonkeeper.models import ClaimKind
+
+    st = CanonStore(tmp_path / "b.jsonl")
+    st.add(
+        _claim(
+            "Jefferson Hope",
+            "died",
+            "cell",
+            book=0,
+            chapter=13,
+            q="the aneurism burst",
+            kind=ClaimKind.EVENT,
+        )
+    )
+    st.add(_claim("Jefferson Hope", "occupation", "cabman", book=6, chapter=0, q="a cabman"))
+    assert dead_speaks(st) == []  # remembering what he did is not acting
+    st.add(
+        _claim(
+            "Jefferson Hope",
+            "residence",
+            "Pentonville",
+            book=6,
+            chapter=0,
+            q="still in Pentonville",
+        )
+    )
+    hits = dead_speaks(st)
+    assert len(hits) == 1 and hits[0].claims[1].predicate == "residence"
