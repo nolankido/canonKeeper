@@ -358,14 +358,13 @@ def test_daily_budget_guard_stops_before_the_provider_does(tmp_path):
     import time as _t
 
     ts = _t.strftime("%Y-%m-%dT%H:%M:%S")
-    log.write_text(
-        "\n".join(
-            json.dumps({"ts": ts, "model": "lite", "attempt": 0, "ok": True, "latency_s": 1.0})
-            for _ in range(2)
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    rows = [
+        {"ts": ts, "model": "lite", "attempt": 0, "ok": True, "latency_s": 1.0},
+        # A 503 reached the model and counts against the day; a 429 was refused and does not.
+        {"ts": ts, "model": "lite", "attempt": 1, "ok": False, "status": 503, "error": "x"},
+        {"ts": ts, "model": "lite", "attempt": 2, "ok": False, "status": 429, "error": "x"},
+    ]
+    log.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     seen: list[str] = []
 
     def create(**kwargs):

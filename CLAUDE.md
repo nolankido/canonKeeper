@@ -24,9 +24,12 @@ tokens of context) → HTML report. Default provider is the Gemini free tier (no
   through it; the CLI warns. Private manuscripts go through `--provider openweights` (local).
 - **No credit card, ever.** Every default must work on a free tier or a local model.
 - **Daily quotas are the budget.** Gemini free tier: Flash-Lite 500 req/day, 3.6/3.8 Flash
-  20 req/day, reset midnight Pacific. A full Holmes build is ~444 Flash-Lite requests. Plan
-  runs by the day; never burn requests on probes right before a full run. Everything is cached,
-  so a run stopped by quota resumes with the same command.
+  20 req/day, reset midnight Pacific (21:00 HST). A full Holmes build is ~444 Flash-Lite
+  requests. **503s count against the daily cap** (3.1-flash-lite tripped at 339 ok + 163 503s);
+  429s do not. So an overloaded model is doubly expensive — the ladder's "move on after 3"
+  rule and the client-side budget guard (`remaining_today`) both rely on this. Plan runs by
+  the day; never burn requests on probes right before a full run. Everything is cached, so a
+  run stopped by quota resumes with the same command.
 - **Keep the mock provider working.** CI and tests run offline via `MockLLM`. Any change to the
   extraction or adjudication contract must keep `tests/` green with no API key.
 - **Measure, don't eyeball.** Prompt changes are evaluated with `canonkeeper eval`, and the

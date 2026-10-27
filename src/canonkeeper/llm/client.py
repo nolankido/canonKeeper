@@ -273,7 +273,10 @@ class OpenAICompatibleLLM:
         return (datetime.now(UTC) + timedelta(hours=self._day_offset)).date().isoformat()
 
     def _count_today(self) -> dict[str, int]:
-        """Successful requests per model today, from this workdir's request log."""
+        """Requests per model today that the provider is likely to have counted, from this
+        workdir's request log: successes, plus 5xx/timeouts (the request reached the model).
+        Observed on Gemini 2026-10-26: 3.1-flash-lite's 500/day cap tripped at exactly
+        339 successes + 163 503s. Requests refused with 429 are not counted."""
         counts: dict[str, int] = {}
         if not self._request_log or not self._request_log.exists():
             return counts
@@ -284,11 +287,13 @@ class OpenAICompatibleLLM:
                     d = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                if (
-                    d.get("ok")
-                    and "latency_s" in d
-                    and self._to_provider_day(d.get("ts", "")) == today
-                ):
+                if self._to_provider_day(d.get("ts", "")) != today:
+                    continue
+                status = d.get("status")
+                reached = (d.get("ok") and "latency_s" in d) or (
+                    not d.get("ok") and (status is None or int(status) >= 500) and "attempt" in d
+                )
+                if reached and not str(d.get("error", "")).startswith("daily budget reached"):
                     counts[d["model"]] = counts.get(d["model"], 0) + 1
         except OSError:
             pass
