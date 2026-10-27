@@ -622,10 +622,13 @@ def rescore(
         if bible.exists()
         else []  # the stage breakdown needs the mutated bible; the score does not
     )
-    judged = report.models.get("adjudicated_by", "-")
+    judged = report.models.get("adjudicated_by")  # absent in runs that predate the field
     console.print(s.markdown())
     (eval_dir / "result.md").write_text(
-        s.markdown() + f"\n\nJudged by: {judged}\n" + misses_markdown(misses) + "\n",
+        s.markdown()
+        + (f"\n\nJudged by: {judged}\n" if judged else "\n")
+        + misses_markdown(misses)
+        + "\n",
         encoding="utf-8",
     )
     console.print(f"[dim]wrote {eval_dir / 'result.md'}[/dim]")

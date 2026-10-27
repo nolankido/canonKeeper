@@ -14,9 +14,14 @@ Six public-domain Holmes volumes; 20 contradictions planted in later books by `c
 canonkeeper rescore evals/results/holmes-seed0-2026-10-27
 ```
 
+`result.md` also lists each miss by the stage that lost it. That table needs the mutated
+series' `bible.jsonl` (1.7 MB, not committed); copy it into the folder from
+`.canonkeeper/sherlock-holmes/reports/eval-seed0/` to regenerate it. Without it, `rescore`
+writes the score alone.
+
 Judging: 4 batches on `gemini-3.6-flash`, then 4 on `gemini-3.5-flash-lite` after the free-tier
 fallback (3.6/3.8 Flash were overloaded or out of their 20 requests/day). The per-stage miss
-breakdown is in the run's own `result.raw.md`: 9 of 13 misses were lost at extraction.
+breakdown is in `result.md`: 8 of the 12 misses were lost at extraction, 4 at judgement.
 
 Known benchmark-quality issues in this run, fixed for later runs: three plants were not clear
 contradictions ("thumb" vs "hand", "dark" vs "brown" eyes, a birthplace for "Andaman
