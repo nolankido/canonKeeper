@@ -49,6 +49,10 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+MAX_BOOKS = 40
+MAX_TOTAL_BYTES = 40 * 10**6  # ~10M tokens; the six Holmes volumes are 2.6 MB
+
+
 class JobStore:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -90,7 +94,22 @@ class JobStore:
     def create_from_upload(
         self, series_name: str, files: list[tuple[str, bytes]]
     ) -> tuple[Job, Quote]:
-        """`files` are (filename, bytes) in reading order. Text is decoded as UTF-8."""
+        """`files` are (filename, bytes) in reading order. Text is decoded as UTF-8.
+        Raises ValueError on an upload outside the service's limits (the caller turns that
+        into a 4xx); the limits are generous for prose and tight enough for a public host."""
+        if not files:
+            raise ValueError("upload at least one book")
+        if len(files) > MAX_BOOKS:
+            raise ValueError(f"at most {MAX_BOOKS} books per series")
+        total = sum(len(data) for _, data in files)
+        if total > MAX_TOTAL_BYTES:
+            raise ValueError(
+                f"series too large ({total / 1e6:.0f} MB; limit {MAX_TOTAL_BYTES // 10**6} MB)"
+            )
+        for fname, blob in files:
+            if b"\x00" in blob[:4096]:
+                raise ValueError(f"{Path(fname).name} is not a text file; upload .txt or .md")
+        series_name = series_name.strip()[:200] or "Untitled series"
         job_id = secrets.token_urlsafe(8)
         d = self.dir(job_id)
         (d / "books").mkdir(parents=True, exist_ok=True)

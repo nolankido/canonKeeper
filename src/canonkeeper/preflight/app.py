@@ -97,7 +97,10 @@ def create_app(
             if not f.filename:
                 continue
             payload.append((f.filename, await f.read()))
-        job, q = store.create_from_upload(series_name.strip() or "Untitled series", payload)
+        try:
+            job, q = store.create_from_upload(series_name, payload)
+        except ValueError as e:
+            raise HTTPException(413 if "large" in str(e) else 400, str(e)) from None
         return render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
 
     @app.post("/jobs/{job_id}/order")

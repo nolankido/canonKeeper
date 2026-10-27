@@ -301,3 +301,17 @@ def test_fake_paypal_shares_orders_across_processes(tmp_path):
     web.approve(o.id)
     assert agent.capture_order(o.id).status == "COMPLETED"
     assert FakePayPal(state_path=state).get_order(o.id).status == "COMPLETED"
+
+
+def test_upload_limits(tmp_path):
+    from canonkeeper.preflight.jobs import MAX_BOOKS, JobStore
+
+    store = JobStore(tmp_path / "pf")
+    with pytest.raises(ValueError, match="at most"):
+        store.create_from_upload("s", [(f"{i}.txt", b"x") for i in range(MAX_BOOKS + 1)])
+    with pytest.raises(ValueError, match="not a text file"):
+        store.create_from_upload("s", [("book.docx", b"PK\x03\x04\x00\x00binary")])
+    with pytest.raises(ValueError, match="too large"):
+        store.create_from_upload("s", [("big.txt", b"a" * (40 * 10**6 + 1))])
+    job, _ = store.create_from_upload("   ", [("01 - The Harbour.txt", b"Once upon a time.")])
+    assert job.series_name == "Untitled series" and job.books == ["01-The-Harbour.txt"]
