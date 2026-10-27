@@ -70,6 +70,21 @@ class ProviderDefaults:
     # 250k is the historical figure). Stay under it so a long adjudication call is not
     # followed by a 429 for the next one.
     tokens_per_minute: dict[str, int] = {"gemini": 150_000, "meta": 0, "openweights": 0, "mock": 0}
+    # Settings whose general default is tuned for a cloud API. A 4B model on a laptop CPU
+    # answers a short JSON request in ~3 s with thinking off and was still thinking after
+    # 55 s at "low" (qwen3:4b, Ollama 0.21, 2026-10-26); its context window is set by the
+    # server (OLLAMA_CONTEXT_LENGTH=16384 recommended), so the adjudicator's series excerpt
+    # must stay well inside it.
+    overrides: dict[str, dict[str, object]] = {
+        "openweights": {
+            "extract_reasoning_effort": "none",
+            "extract_sweep_reasoning_effort": "none",
+            "adjudicate_reasoning_effort": "none",
+            "adjudicate_context_tokens": 8_000,
+            "adjudicate_batch_size": 4,
+            "request_timeout_s": 900,
+        }
+    }
     # Free-tier Gemini prompts are "used to improve our products" (pricing page). Public-domain
     # corpora: fine. Private manuscripts: not fine. The CLI warns when this is true.
     trains_on_prompts: dict[str, bool] = {
@@ -171,6 +186,11 @@ class Settings(BaseSettings):
             self.tokens_per_minute = ProviderDefaults.tokens_per_minute[p]
         if not self.daily_budget:
             self.daily_budget = dict(ProviderDefaults.daily_budget.get(p, {}))
+        # Provider-specific values for settings whose general default suits a cloud API. Only
+        # applied when the user did not set the field themselves.
+        for field, value in ProviderDefaults.overrides.get(p, {}).items():
+            if field not in self.model_fields_set:
+                setattr(self, field, value)
         return self
 
     @property

@@ -423,3 +423,13 @@ def test_openweights_defaults_and_base_url_scope():
     assert lm.base_url == "http://localhost:1234/v1"
     g = Settings(provider="gemini", openweights_base_url="http://localhost:1234/v1", _env_file=None)
     assert g.base_url.startswith("https://generativelanguage")
+
+
+def test_local_provider_turns_thinking_off_unless_asked():
+    from canonkeeper.config import Settings
+
+    local = Settings(provider="openweights", _env_file=None)
+    assert local.extract_reasoning_effort == "none" and local.adjudicate_context_tokens == 8_000
+    mine = Settings(provider="openweights", extract_reasoning_effort="low", _env_file=None)
+    assert mine.extract_reasoning_effort == "low"
+    assert Settings(provider="gemini", _env_file=None).extract_reasoning_effort == "medium"
