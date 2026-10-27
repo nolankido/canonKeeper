@@ -752,6 +752,8 @@ def mcp(provider: str | None = None, workdir: Path | None = None) -> None:
 
 
 def _print_summary(report: AuditReport) -> None:
+    from canonkeeper.report.display import headline
+
     t = Table(show_header=True)
     t.add_column("verdict")
     t.add_column("count", justify="right")
@@ -759,7 +761,7 @@ def _print_summary(report: AuditReport) -> None:
         t.add_row(v, str(sum(1 for f in report.findings if f.verdict == v)))
     console.print(t)
     for f in report.errors[:10]:
-        console.print(f"[bold red]{f.severity.upper()}[/bold red] {f.candidate.reason}")
+        console.print(f"[bold red]{f.severity.upper()}[/bold red] {headline(f.candidate)}")
         console.print(f"   {f.explanation}")
 
 
