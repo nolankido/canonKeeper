@@ -4,6 +4,7 @@ Uses the fake PayPal and the mock provider; no network."""
 from __future__ import annotations
 
 import json
+import time
 from decimal import Decimal
 
 import httpx
@@ -712,3 +713,28 @@ def test_draft_titles_read_like_book_titles():
     assert draft_title("draft-04-the-ledger.txt") == "The Ledger (draft)"
     assert draft_title("04 - The Ledger.md") == "The Ledger (draft)"
     assert draft_title("draft.txt") == "New draft"
+
+
+def test_runner_pings_its_own_url_while_a_job_runs(tmp_path, monkeypatch):
+    """On a free host that sleeps when idle, a paid audit keeps the instance awake."""
+    import threading
+
+    import httpx as _httpx
+
+    from canonkeeper.preflight.jobs import JobStore, Runner
+
+    pings: list[str] = []
+    monkeypatch.setattr(_httpx, "get", lambda url, **kw: pings.append(url))
+    release = threading.Event()
+    runner = Runner(JobStore(tmp_path / "pf"), Settings(provider="mock", _env_file=None))
+    runner.keepalive_url, runner.keepalive_every = "http://host/healthz", 0.01
+    monkeypatch.setattr(runner, "_run", lambda job_id: release.wait(5))
+    runner.submit("job1")
+    deadline = time.time() + 5
+    while not pings and time.time() < deadline:
+        time.sleep(0.01)
+    assert pings and pings[0] == "http://host/healthz"
+    release.set()
+    runner.wait("job1", timeout=5)
+    time.sleep(0.05)
+    assert runner._keepalive is not None and not runner._keepalive.is_alive()  # stops when idle

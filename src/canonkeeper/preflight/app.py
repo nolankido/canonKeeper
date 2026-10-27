@@ -90,12 +90,16 @@ def create_app(
     settings = settings or load_settings()
     workdir = workdir or settings.workdir / "preflight"
     store = JobStore(workdir / "jobs")
-    runner = Runner(store, settings)
-    runner.resume_interrupted()
-    pp = paypal or make_paypal(state_dir=settings.workdir / "preflight")
     base = (
         public_base_url or os.environ.get("PREFLIGHT_PUBLIC_URL") or "http://127.0.0.1:8787"
     ).rstrip("/")
+    runner = Runner(store, settings)
+    if os.environ.get("RENDER") or os.environ.get("PREFLIGHT_KEEPALIVE"):
+        # Render's free plan spins an instance down after ~15 min without inbound requests,
+        # running audit or not; a paid job must not die because nobody is watching its page.
+        runner.keepalive_url = f"{base}/healthz"
+    runner.resume_interrupted()
+    pp = paypal or make_paypal(state_dir=settings.workdir / "preflight")
 
     app = FastAPI(title="Preflight by canonkeeper", docs_url=None, redoc_url=None)
     app.state.store, app.state.runner, app.state.paypal = store, runner, pp

@@ -276,7 +276,15 @@ canonkeeper doctor --paypal            # proves the credentials: OAuth + a sandb
 ```
 
 `render.yaml` deploys the same service as a free Render web service (set the three keys in the
-dashboard, or none for demo mode); `--public-url` is what PayPal sends the buyer back to.
+dashboard, or none for demo mode); `--public-url` is what PayPal sends the buyer back to. The
+free plan sleeps after ~15 idle minutes and its disk does not survive a restart: while an audit
+runs the service pings its own URL so it is not put to sleep mid-job, but download the report
+you want to keep.
+
+After payment the money path is one function (`preflight/payments.py`): a job is paid only on a
+completed capture of the quoted amount, a buyer who approved and closed the tab can press
+"check payment", and an audit that fails can be refunded in full through PayPal instead of
+retried.
 
 <p align="center">
 <img src="docs/img/preflight-quote.png" width="49%" alt="Quote page: price with the arithmetic shown, Pay with PayPal">

@@ -7,6 +7,7 @@ daemon thread because the free-tier pacing makes a real series take tens of minu
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import secrets
@@ -330,6 +331,22 @@ class Runner:
         self._sem = threading.Semaphore(max_workers)
         self._threads: dict[str, threading.Thread] = {}
         self._submit_lock = threading.Lock()
+        self.keepalive_url: str | None = None  # pinged while jobs run (see create_app)
+        self.keepalive_every = 240.0
+        self._keepalive: threading.Thread | None = None
+
+    def busy(self) -> bool:
+        return any(t.is_alive() for t in list(self._threads.values()))
+
+    def _keep_alive(self) -> None:
+        import httpx
+
+        while True:
+            time.sleep(self.keepalive_every)
+            if not self.busy():
+                return
+            with contextlib.suppress(httpx.HTTPError):  # a missed ping fails nothing
+                httpx.get(self.keepalive_url or "", timeout=10)
 
     def resume_interrupted(self, *, stale_after_s: float = 600.0) -> list[str]:
         """Re-queue paid jobs that a restart left behind: paid but never started, or 'running'
@@ -362,6 +379,11 @@ class Runner:
             )
             self._threads[job_id] = t
             t.start()
+            if self.keepalive_url and not (self._keepalive and self._keepalive.is_alive()):
+                self._keepalive = threading.Thread(
+                    target=self._keep_alive, name="preflight-keepalive", daemon=True
+                )
+                self._keepalive.start()
 
     def wait(self, job_id: str, timeout: float | None = None) -> None:
         t = self._threads.get(job_id)

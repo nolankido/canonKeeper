@@ -9,7 +9,8 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -e .
-    # Free instances have ephemeral storage: jobs and caches last until the next deploy.
+    # Free instances have ephemeral storage (jobs and caches last until the next restart) and
+    # sleep after ~15 idle minutes; RENDER is set by Render, so running audits keep it awake.
     startCommand: canonkeeper serve --host 0.0.0.0 --port $PORT --public-url $RENDER_EXTERNAL_URL
     envVars:
       - key: PYTHON_VERSION
