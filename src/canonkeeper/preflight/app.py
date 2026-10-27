@@ -112,13 +112,32 @@ def create_app(
         return templates.TemplateResponse(
             request,
             name,
-            {"paypal_mode": pp.mode, "trains_on_prompts": settings.trains_on_prompts, **ctx},
+            {
+                "paypal_mode": pp.mode,
+                "trains_on_prompts": settings.trains_on_prompts,
+                "no_model": None if settings.can_run_models else no_model,
+                **ctx,
+            },
             status_code=status_code,
         )
 
+    no_model = (
+        "This instance has no model key configured, so it cannot run an audit; quotes and "
+        "payments are switched off until it does (set GEMINI_API_KEY)."
+    )
+
+    def require_model() -> None:
+        if not settings.can_run_models:
+            raise HTTPException(503, no_model)
+
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
-        return {"ok": "true", "paypal": pp.mode, "provider": settings.provider}
+        return {
+            "ok": "true",
+            "paypal": pp.mode,
+            "provider": settings.provider,
+            "model": "ready" if settings.can_run_models else "no key",
+        }
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request) -> HTMLResponse:
@@ -131,6 +150,7 @@ def create_app(
     def quote_demo(request: Request) -> HTMLResponse:
         """Quote the invented three-book Saltmarsh series (five planted errors), so a visitor
         can walk the whole flow without having a series of their own to hand."""
+        require_model()
         from canonkeeper.demo import BOOK1, BOOK2, BOOK3, SERIES_NAME
 
         files = [
@@ -156,6 +176,7 @@ def create_app(
         request: Request, series_name: str = Form(...), files: list[UploadFile] | None = None
     ) -> HTMLResponse:
         files = files or []
+        require_model()
         if not files or not any(f.filename for f in files):
             raise HTTPException(400, "upload at least one .txt or .md file")
         named = [f for f in files if f.filename]
@@ -173,6 +194,7 @@ def create_app(
 
     @app.post("/jobs/{job_id}/order")
     def order(job_id: str) -> RedirectResponse:
+        require_model()
         job = store.get(job_id)
         if job is None:
             raise HTTPException(404)
@@ -241,6 +263,7 @@ def create_app(
     @app.post("/jobs/{job_id}/check")
     async def make_check(request: Request, job_id: str, draft: UploadFile) -> HTMLResponse:
         """Quote a check of one new draft against this finished audit's bible."""
+        require_model()
         _refuse_before_reading([draft])
         data = await draft.read()
         try:

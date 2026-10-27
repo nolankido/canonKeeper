@@ -1034,3 +1034,17 @@ def test_paypal_returning_with_a_replaced_order_still_pays_the_job(client):
     client.app.state.runner.wait(job_id, timeout=60)
     job = store.get(job_id)
     assert job.status == "done" and job.order_id == first
+
+
+def test_no_model_key_means_no_quotes_and_no_payments(tmp_path):
+    """Taking payment for a run that cannot happen is the one thing a paid service must not
+    do: without a key the landing page says so and every paying route refuses."""
+    settings = Settings(
+        provider="gemini", gemini_api_key=None, workdir=tmp_path / "w", _env_file=None
+    )
+    c = TestClient(create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pf"))
+    assert "no model key configured" in c.get("/").text
+    assert c.get("/healthz").json()["model"] == "no key"
+    assert c.post("/quote-demo").status_code == 503
+    files = [("files", ("01.txt", b"Ivy has green eyes.", "text/plain"))]
+    assert c.post("/quote", data={"series_name": "S"}, files=files).status_code == 503

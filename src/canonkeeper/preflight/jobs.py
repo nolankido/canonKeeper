@@ -147,7 +147,18 @@ class JobStore:
         job.updated_at = _now()
         with self._lock:
             self.dir(job.id).mkdir(parents=True, exist_ok=True)
-            self._path(job.id).write_text(json.dumps(asdict(job), indent=2), encoding="utf-8")
+            # write-then-rename: a reader in another thread or process never sees half a file
+            path = self._path(job.id)
+            tmp = path.with_name(f"job.{secrets.token_hex(4)}.tmp")
+            tmp.write_text(json.dumps(asdict(job), indent=2), encoding="utf-8")
+            for attempt in range(50):
+                try:
+                    tmp.replace(path)
+                    break
+                except PermissionError:  # Windows: a reader has it open for a moment
+                    if attempt == 49:
+                        raise
+                    time.sleep(0.01)
 
     def lock(self, job_id: str) -> contextlib.AbstractContextManager[None]:
         """Exclusive across threads and processes (serve and mcp share this folder)."""
@@ -182,9 +193,16 @@ class JobStore:
         if not _JOB_ID.fullmatch(job_id):
             return None
         p = self._path(job_id)
-        if not p.exists():
-            return None
-        return Job(**json.loads(p.read_text(encoding="utf-8")))
+        for attempt in range(50):
+            try:
+                return Job(**json.loads(p.read_text(encoding="utf-8")))
+            except FileNotFoundError:
+                return None
+            except PermissionError:  # Windows: being replaced this instant
+                if attempt == 49:
+                    raise
+                time.sleep(0.01)
+        return None
 
     def create_check(self, parent_id: str, name: str, data: bytes) -> tuple[Job, Quote]:
         """A check of one new draft against a finished audit's bible. The check gets its own

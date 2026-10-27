@@ -218,6 +218,12 @@ class Settings(BaseSettings):
         }[self.provider]
 
     @property
+    def can_run_models(self) -> bool:
+        """A key is configured for the provider (or none is needed). Preflight refuses to
+        quote or take payment without one: every paid run would fail."""
+        return bool(self.api_key)
+
+    @property
     def trains_on_prompts(self) -> bool:
         return ProviderDefaults.trains_on_prompts.get(self.provider, False)
 

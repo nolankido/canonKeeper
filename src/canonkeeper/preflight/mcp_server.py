@@ -54,6 +54,8 @@ class PreflightService:
 
     def quote_series(self, series_name: str, books: list[dict[str, str]]) -> dict[str, Any]:
         """`books`: [{"name": "01-first.txt", "text": "..."}, …] in reading order."""
+        if not self.settings.can_run_models:
+            raise ValueError("this service has no model key configured; it cannot run audits")
         if not books:
             raise ValueError("at least one book is required")
         files = [(str(b["name"]), str(b["text"]).encode("utf-8")) for b in books]
@@ -125,6 +127,8 @@ class PreflightService:
 
     def check_draft(self, job_id: str, name: str, text: str) -> dict[str, Any]:
         """Quote a check of one new draft against a finished audit (`job_id`)."""
+        if not self.settings.can_run_models:
+            raise ValueError("this service has no model key configured; it cannot run audits")
         try:
             job, q = self.store.create_check(job_id, name, text.encode("utf-8"))
         except KeyError:
