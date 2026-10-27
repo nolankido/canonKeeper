@@ -448,8 +448,8 @@ def build(
         console.print(
             f"[dim]extraction: {st.chunks} chunks · {st.claims_raw} claims returned · "
             f"{st.claims_kept} grounded · {st.dropped_ungrounded} dropped (quote not in text) · "
-            f"{st.dropped_invalid} invalid · {st.json_repaired} JSON repaired · "
-            f"{st.json_failed} chunks unreadable[/dim]"
+            f"{st.dropped_invalid} invalid · {store.dropped_generic} unnamed subjects dropped · "
+            f"{st.json_repaired} JSON repaired · {st.json_failed} chunks unreadable[/dim]"
         )
     console.print(
         f"[dim]cost ${llm.usage.cost_usd:.3f} · {llm.usage.calls} calls ({llm.usage.cached_calls} cached)[/dim]"

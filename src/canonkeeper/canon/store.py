@@ -14,7 +14,7 @@ from pathlib import Path
 
 from rapidfuzz import fuzz, process
 
-from canonkeeper.canon.normalize import normalize_claim
+from canonkeeper.canon.normalize import is_generic_name, normalize_claim
 from canonkeeper.models import Claim, ExtractionResult
 
 
@@ -29,6 +29,7 @@ class CanonStore:
         self._ids: set[str] = set()
         self._canon_cache: dict[str, str] = {}
         self._indexed_count = 0
+        self.dropped_generic = 0
         self.last_extract_stats: object | None = None
 
     # --- persistence -----------------------------------------------------------------------
@@ -61,8 +62,12 @@ class CanonStore:
         self._canon_cache.clear()
         self._indexed_count = -1  # force a reindex: resolutions may have changed
         for canon, names in aliases.items():
+            if is_generic_name(canon):
+                continue
             lst = self.aliases.setdefault(canon, [])
             for n in names:
+                if is_generic_name(n):
+                    continue  # "he" is not a name for anyone
                 if n not in lst and n != canon:
                     lst.append(n)
                 self._alias_to_canon[n.lower()] = canon
@@ -112,6 +117,9 @@ class CanonStore:
         self.register_aliases(result.aliases)
         added = 0
         for c in result.claims:
+            if is_generic_name(c.subject):
+                self.dropped_generic += 1  # "he has grey eyes" with no name is not a fact
+                continue
             predicate, value = normalize_claim(c.predicate, c.object)
             if (
                 predicate == "died"

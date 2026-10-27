@@ -133,6 +133,65 @@ def normalize_value(v: str, predicate: str | None = None) -> str:
     return VALUE_SYNONYMS.get(low, low)
 
 
+# Surface forms that name nobody in particular. Models offer them as aliases ("he", "my
+# friend", "the stranger"); accepting them would route every later "he" to one character.
+_PRONOUNS = {
+    "i",
+    "me",
+    "my",
+    "mine",
+    "myself",
+    "you",
+    "your",
+    "yours",
+    "yourself",
+    "he",
+    "him",
+    "his",
+    "himself",
+    "she",
+    "her",
+    "hers",
+    "herself",
+    "it",
+    "its",
+    "we",
+    "us",
+    "our",
+    "ours",
+    "they",
+    "them",
+    "their",
+    "theirs",
+    "who",
+    "whom",
+    "one",
+    "someone",
+    "somebody",
+    "nobody",
+}
+_GENERIC_NOUNS = (
+    "friend|companion|comrade|master|servant|man|woman|lady|gentleman|boy|girl|fellow|lodger|"
+    "stranger|visitor|client|guest|doctor|detective|inspector|narrator|speaker|reader|person|"
+    "unknown|other|same|latter|former|deceased|prisoner|victim|witness|lad|chap|sir|madam|"
+    "guv'nor|guvnor|"
+    # household and street roles: "the landlady" is a different person in every house
+    "landlady|landlord|housekeeper|butler|maid|cook|coachman|groom|page|clerk|constable|"
+    "sergeant|officer|policeman|cabman|driver|porter|waiter|messenger|commissionaire"
+)
+_GENERIC = re.compile(
+    rf"^(?:(?:my|our|his|her|your|their|the|a|an|this|that|these|those|some|old|young|poor|dear|"
+    rf"fellow|good)[\s-]+)*(?:{_GENERIC_NOUNS})s?$",
+    re.I,
+)
+
+
+def is_generic_name(name: str) -> bool:
+    """True for pronouns and descriptions that could be anyone ("he", "the man", "my friend")."""
+    n = _WS.sub(" ", name.strip().strip(".,;:'\"")).lower()
+    return not n or n in _PRONOUNS or bool(_GENERIC.match(n))
+
+
 # Demonym → country/region, for comparing `nationality` against `birthplace`. Small on purpose:
 # a conflict is only raised when both sides map to a known place and the places differ.
 DEMONYMS: dict[str, str] = {

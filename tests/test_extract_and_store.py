@@ -207,3 +207,32 @@ def test_extractor_repairs_bad_json_via_model_and_skips_hopeless_chunks(series, 
     assert ext.stats.json_repaired >= 1
     assert ext.stats.json_failed == 0
     assert ext.stats.chunks > 0
+
+
+def test_generic_names_are_neither_aliases_nor_subjects(tmp_path):
+    from canonkeeper.canon.normalize import is_generic_name
+    from canonkeeper.models import ExtractionResult
+
+    assert is_generic_name("he") and is_generic_name("my old companion")
+    assert is_generic_name("the landlady") and is_generic_name("Stranger")
+    assert not is_generic_name("Mrs. Hudson") and not is_generic_name("the sleuth-hound")
+
+    store = CanonStore(tmp_path / "b.jsonl")
+    prov = Provenance(book="01", book_index=0, chapter="I", chapter_index=0, quote="q")
+    mk = lambda s, q: Claim(  # noqa: E731
+        kind=ClaimKind.ATTRIBUTE,
+        subject=s,
+        predicate="eye_color",
+        object="grey",
+        provenance=prov.model_copy(update={"quote": q}),
+    )
+    store.ingest(
+        ExtractionResult(
+            claims=[mk("Sherlock Holmes", "q1"), mk("he", "q2"), mk("the landlady", "q3")],
+            aliases={"Sherlock Holmes": ["he", "my friend", "Holmes"], "I": ["me"]},
+        )
+    )
+    assert store.aliases == {"Sherlock Holmes": ["Holmes"]}
+    assert store.canonical("he") == "he"  # not routed anywhere
+    assert [c.subject for c in store.claims] == ["Sherlock Holmes"]
+    assert store.dropped_generic == 2
