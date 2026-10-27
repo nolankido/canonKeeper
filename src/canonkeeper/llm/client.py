@@ -56,8 +56,17 @@ class Usage:
     by_model: dict[str, dict[str, float]] = field(default_factory=dict)
     answered_by: dict[str, int] = field(default_factory=dict)
     """Calls per model that actually produced the answer, cached or not (after any fallback)."""
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def add(self, model: str, prompt: int, completion: int, cached: bool) -> None:
+        with self._lock:  # extraction runs requests on several threads
+            self._add(model, prompt, completion, cached)
+
+    def add_retry(self) -> None:
+        with self._lock:
+            self.retries += 1
+
+    def _add(self, model: str, prompt: int, completion: int, cached: bool) -> None:
         self.calls += 1
         self.answered_by[model] = self.answered_by.get(model, 0) + 1
         if cached:
@@ -266,6 +275,7 @@ class OpenAICompatibleLLM:
         self._overloaded: set[str] = set()
         """Models that answered 503 `overload_threshold` times in a row this run."""
         self._consecutive_503: dict[str, int] = {}
+        self._state = threading.RLock()
         self.usage = Usage()
         if cache_dir:
             cache_dir.mkdir(parents=True, exist_ok=True)
@@ -335,10 +345,12 @@ class OpenAICompatibleLLM:
         """One JSON line per attempt: what was sent, what came back, how long it took."""
         if not self._request_log:
             return
+        line = json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), **fields}) + "\n"
         try:
-            self._request_log.parent.mkdir(parents=True, exist_ok=True)
-            with self._request_log.open("a", encoding="utf-8") as f:
-                f.write(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), **fields}) + "\n")
+            with self._state:  # one whole line per attempt, even with requests in parallel
+                self._request_log.parent.mkdir(parents=True, exist_ok=True)
+                with self._request_log.open("a", encoding="utf-8") as f:
+                    f.write(line)
         except OSError:
             pass
 
@@ -370,8 +382,9 @@ class OpenAICompatibleLLM:
             t0 = time.monotonic()
             try:
                 resp = self._client.chat.completions.create(**kwargs)
-                self._consecutive_503[model] = 0
-                self._today_count[model] = self._today_count.get(model, 0) + 1
+                with self._state:
+                    self._consecutive_503[model] = 0
+                    self._today_count[model] = self._today_count.get(model, 0) + 1
                 u = getattr(resp, "usage", None)
                 self._log(
                     model=model,
@@ -413,8 +426,9 @@ class OpenAICompatibleLLM:
                     # ladder rather than burning the whole retry budget on one model. A
                     # timeout counts double: each one has already cost `timeout_s` (observed:
                     # 3.8-flash hanging for 5 min per attempt mid-audit).
-                    n = self._consecutive_503.get(model, 0) + (2 if timed_out else 1)
-                    self._consecutive_503[model] = n
+                    with self._state:
+                        n = self._consecutive_503.get(model, 0) + (2 if timed_out else 1)
+                        self._consecutive_503[model] = n
                     if n >= self._overload_threshold and self._next_model(model):
                         self._overloaded.add(model)
                         self._log(
@@ -441,7 +455,7 @@ class OpenAICompatibleLLM:
                 if attempt >= self._max_retries or not _is_retryable(exc):
                     raise
                 attempt += 1
-                self.usage.retries += 1
+                self.usage.add_retry()
                 delay = _retry_after_seconds(exc)
                 if delay is None:
                     delay = min(60.0, 2.0**attempt) + random.uniform(0, 1)
@@ -526,10 +540,16 @@ class OpenAICompatibleLLM:
             cached=False,
         )
         if self._cache_dir:
-            (self._cache_dir / f"{key}.json").write_text(
+            path = self._cache_dir / f"{key}.json"
+            tmp = path.with_suffix(f".{threading.get_ident()}.tmp")  # never half a file
+            tmp.write_text(
                 json.dumps({"model": model, "content": content}, ensure_ascii=False),
                 encoding="utf-8",
             )
+            try:
+                tmp.replace(path)
+            except PermissionError:  # Windows: being read this instant; the cache is a convenience
+                tmp.unlink(missing_ok=True)
         return content
 
 

@@ -295,3 +295,46 @@ def test_salience_hints_find_fact_sentences_and_stay_off_by_default(series, sett
     assert sweep_only.hints_for(sweep_pass=True) and not sweep_only.hints_for(sweep_pass=False)
     both = settings.model_copy(update={"extract_hints": True})
     assert both.hints_for(sweep_pass=True) and both.hints_for(sweep_pass=False)
+
+
+def test_parallel_extraction_gives_the_same_bible_as_sequential(series, settings):
+    """Requests overlap and finish out of order; results are merged in submission order, so
+    claims, aliases and counts must match a one-at-a-time run exactly."""
+    import random
+    import time
+
+    from canonkeeper.llm.rules import handler as rules
+
+    def jittery(model, messages):
+        time.sleep(random.uniform(0, 0.02))
+        return rules(model, messages)
+
+    out = {}
+    for n in (1, 4):
+        s = settings.model_copy(update={"extract_concurrency": n})
+        ext = Extractor(MockLLM(jittery), s)
+        res = ext.extract_series(series, progress=False)
+        out[n] = (
+            [(c.subject, c.predicate, c.object, c.provenance.char_start) for c in res.claims],
+            res.aliases,
+            vars(ext.stats),
+        )
+    assert out[1] == out[4] and out[1][0]
+
+
+def test_a_quota_error_in_one_request_stops_parallel_extraction(series, settings):
+    import pytest
+
+    from canonkeeper.llm.client import DailyQuotaExhausted
+
+    calls = {"n": 0}
+
+    def exhausted_after_two(model, messages):
+        calls["n"] += 1
+        if calls["n"] > 2:
+            raise DailyQuotaExhausted(model, 3600)
+        return '{"claims": [], "aliases": {}}'
+
+    s = settings.model_copy(update={"extract_concurrency": 3})
+    with pytest.raises(DailyQuotaExhausted):
+        Extractor(MockLLM(exhausted_after_two), s).extract_series(series, progress=False)

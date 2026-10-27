@@ -135,6 +135,12 @@ class Settings(BaseSettings):
     Holmes chunks it cut facts from 305 to 274 and descriptive/biographical ones from 175 to
     160 (scripts/probe_hints_real.py). It helps text that looks like the benchmark, not books."""
 
+    extract_concurrency: int = 3
+    """Extraction requests in flight at once. The rate limiter still enforces the provider's
+    requests-per-minute, so this only stops one slow reply from idling the budget: on the free
+    tier a request takes ~12 s, which alone paces 5/min against a cap of 9. Results are merged
+    in order, so the bible is the same at any setting."""
+
     extract_hint_passes: str = ""
     """Which extraction passes get the salience hints: "none", "sweep" or "all" (empty: "all"
     if `extract_hints` else "none"). Measured 2026-10-27 by pass (scripts/probe_hints_by_pass.py,

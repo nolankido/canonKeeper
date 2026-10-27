@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import re
+import threading
+from collections import Counter
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from rapidfuzz import fuzz
@@ -171,6 +174,7 @@ class Extractor:
         self.llm = llm
         self.settings = settings
         self.stats = ExtractStats()
+        self._stats_lock = threading.Lock()
 
     @staticmethod
     def messages_for(
@@ -197,6 +201,10 @@ class Extractor:
 
             user += hints_block(text)
         return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+    def _count(self, stat: str) -> None:
+        with self._stats_lock:
+            setattr(self.stats, stat, getattr(self.stats, stat) + 1)
 
     def _hints(self, system: str) -> bool:
         return self.settings.hints_for(sweep_pass=system == prompts.SWEEP_SYSTEM)
@@ -253,25 +261,25 @@ class Extractor:
         except ValueError:
             data = repair_json(self.llm, self.settings.extract_model, raw)
             if data is None:
-                self.stats.json_failed += 1
-                self.stats.chunks += 1
+                self._count("json_failed")
+                self._count("chunks")
                 return ExtractionResult(claims=[], aliases={})
-            self.stats.json_repaired += 1
+            self._count("json_repaired")
         if not isinstance(data, dict):
             data = {}
-        self.stats.chunks += 1
+        self._count("chunks")
 
         claims: list[Claim] = []
         grounder = Grounder(text)
         for raw_claim in data.get("claims", []) or []:
-            self.stats.claims_raw += 1
+            self._count("claims_raw")
             c = repair_claim(raw_claim) if isinstance(raw_claim, dict) else None
             if c is None:
-                self.stats.dropped_invalid += 1
+                self._count("dropped_invalid")
                 continue
             hit = grounder.find(str(c.get("quote", "")))
             if hit is None:
-                self.stats.dropped_ungrounded += 1
+                self._count("dropped_ungrounded")
                 continue
             span = (hit[0], hit[1])
             quote = hit[2]
@@ -300,9 +308,9 @@ class Extractor:
                         ),
                     )
                 )
-                self.stats.claims_kept += 1
+                self._count("claims_kept")
             except (KeyError, ValueError, TypeError):
-                self.stats.dropped_invalid += 1
+                self._count("dropped_invalid")
         aliases = {str(k): [str(a) for a in v] for k, v in (data.get("aliases") or {}).items()}
         return ExtractionResult(claims=claims, aliases=aliases)
 
@@ -320,31 +328,48 @@ class Extractor:
         done = 0
         if on_progress:
             on_progress("extracting", 0, total)
-        with Progress(disable=not progress) as bar:
+        tasks = [
+            (book, chapter, text, offset, note, system, effort)
+            for book in series.books
+            for chapter in book.chapters
+            for text, offset, note in _chunks(chapter, self.settings)
+            for system, effort in extraction_passes(self.settings)
+        ]
+        remaining = Counter((t[0].key, t[1].index) for t in tasks)
+
+        def run(t: tuple) -> ExtractionResult:
+            book, chapter, text, offset, note, system, effort = t
+            return self.extract_chunk(
+                series.name, book, chapter, text, offset, note, system=system,
+                reasoning_effort=effort,
+            )  # fmt: skip
+
+        workers = max(1, self.settings.extract_concurrency)
+        with (
+            Progress(disable=not progress) as bar,
+            ThreadPoolExecutor(max_workers=workers, thread_name_prefix="extract") as pool,
+        ):
             task = bar.add_task("extracting", total=total)
-            for book in series.books:
-                for chapter in book.chapters:
-                    for text, offset, note in _chunks(chapter, self.settings):
-                        passes = extraction_passes(self.settings)
-                        for system, effort in passes:
-                            res = self.extract_chunk(
-                                series.name,
-                                book,
-                                chapter,
-                                text,
-                                offset,
-                                note,
-                                system=system,
-                                reasoning_effort=effort,
-                            )
-                            all_claims.extend(res.claims)
-                            for k, v in res.aliases.items():
-                                aliases.setdefault(k, [])
-                                aliases[k].extend(a for a in v if a not in aliases[k])
-                    bar.advance(task)
-                    done += 1
-                    if on_progress:
-                        on_progress("extracting", done, total)
+            try:
+                # map() yields in submission order, so the bible is identical at any
+                # concurrency; requests overlap while the rate limiter keeps the pace
+                for t, res in zip(tasks, pool.map(run, tasks), strict=True):
+                    all_claims.extend(res.claims)
+                    for k, v in res.aliases.items():
+                        aliases.setdefault(k, [])
+                        aliases[k].extend(a for a in v if a not in aliases[k])
+                    key = (t[0].key, t[1].index)
+                    remaining[key] -= 1
+                    if remaining[key] == 0:  # every chunk and pass of the chapter is in
+                        bar.advance(task)
+                        done += 1
+                        if on_progress:
+                            on_progress("extracting", done, total)
+            except BaseException:
+                pool.shutdown(wait=False, cancel_futures=True)  # stop queued requests
+                raise
+        if done < total and on_progress:  # chapters with no text had no requests
+            on_progress("extracting", total, total)
         return ExtractionResult(claims=all_claims, aliases=aliases)
 
 
