@@ -21,8 +21,16 @@ and the only tool for that is a spreadsheet and memory. Readers notice when it f
 Reads an entire book series, builds a series bible where every fact carries the exact passage
 that asserted it, screens for facts that cannot all be true, and has a model rule on each one
 with the series text in context: a real contradiction (with a fix aimed at the later book), a
-deliberate reveal, or noise. The audit's price is known before it runs — the token count is —
-so Preflight quotes it, takes payment through PayPal, and only then spends any compute.
+deliberate reveal, or noise. A ruling that clears a conflict must quote the passage that
+clears it, or it goes to the author as "needs your judgement". The audit's price is known
+before it runs — the token count is — so Preflight quotes it, takes payment through PayPal,
+and only then spends any compute.
+
+When the author is writing the next book, they upload the draft on the finished audit's page:
+a smaller quote on the draft alone, the same PayPal checkout, and only the places where the
+draft disagrees with what is already published. The same service is an MCP server, so an
+author's AI assistant can price, order, check and read the findings — while the payment
+approval always goes to the person.
 
 ## How we built it
 Python. Extraction with a cheap long-context model under a strict schema with mandatory
