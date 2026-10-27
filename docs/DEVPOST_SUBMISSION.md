@@ -40,6 +40,9 @@ series bible as a browsable page and as a spreadsheet with the passage behind ev
 findings as JSON. If a paid audit cannot finish, the author chooses a free retry or a full
 refund through PayPal. And the finding guarantee: an author who marks a reported contradiction
 wrong gets $0.50 back through PayPal for it (up to half the price), and the mark goes on the report.
+Items the model could not call either way ("needs your judgement") get the author's own ruling,
+free, written onto the report beside the model's note. The bible also opens in an AG Grid
+explorer: every fact with its passage, sorted, filtered, disputed rows flagged, CSV out.
 
 ## How we built it
 Python. Extraction with a cheap long-context model under a strict schema with mandatory
@@ -68,6 +71,12 @@ injects contradictions into public-domain novels and scores precision/recall.
   the Reichenbach Falls and then acting in *The Hound* ("aided by the diary which I kept at the
   time": it is set earlier). Two of its four contradictions were wrong (a disguise; a maiden
   name), and the README says so rather than hiding it.
+- Agentic commerce with the person in charge: an assistant connected to the hosted MCP endpoint
+  opens a budget, the person approves it once on PayPal, and the assistant then buys audits and
+  draft checks on its own, never past the balance; closing refunds the unused rest as a partial
+  refund of the funding capture. An independent review of every money path (double spend,
+  races, timeouts, webhook shapes) found six defects; each is now a regression test, and no
+  lock is ever held across a PayPal call.
 - Benchmark (seeded defects, 6 volumes, 20 planted contradictions): precision 0.80, recall
   0.40, F1 0.53 (0.64 / 0.35 / 0.45 as first scored; both kept, with the files to reproduce
   them). The first run scored 1.00 / 0.05; the harness pointed straight at extraction, and the
@@ -88,13 +97,19 @@ injects contradictions into public-domain novels and scores precision/recall.
   every run resumable, and `build --dry-run` that says exactly what a run will spend.
 - Test where the users are. A line-ending change passed every Linux test and broke a draft
   check on Windows, the maintainer's own platform; CI now runs on both.
+- An assistant needs a limit, not a key. Approving every payment makes the assistant a
+  messenger; giving it credentials makes it a risk. A balance the person funds once through
+  PayPal, spent under a lock and refunded on close, lets it act without ever holding a secret.
+- Money code fails at the timeouts. Every refund is recorded with its amount and request id
+  before PayPal is asked, so a retry after a lost answer sends the same refund, never a new one.
 - The real PayPal sandbox differs from any fake: orders start `PAYER_ACTION_REQUIRED`, not
   `CREATED`; the create response omits the amount. Running `doctor --paypal` against the
   sandbox found two bugs the in-process fake had hidden.
 
 ## What's next
-Vocative names in dialogue as `first_name` claims (Mary Watson calling her husband "James" is
-still missed); subscriptions for ongoing series via PayPal Subscriptions; a hosted instance.
+Names spoken in dialogue (Mary Watson calling her husband "James" is the one real Holmes slip
+still missed) are built and opt-in until the benchmark measures them; then a standing series
+bible that updates as each book is published, paid through PayPal Subscriptions.
 
 ## Built with
 python, fastapi, paypal-orders-v2, paypal-js-sdk, paypal-webhooks, mcp, gemini-api, ag-grid, ollama, pydantic, jinja2, rapidfuzz, tiktoken, render
@@ -102,12 +117,16 @@ python, fastapi, paypal-orders-v2, paypal-js-sdk, paypal-webhooks, mcp, gemini-a
 ## PayPal tools used
 PayPal REST Orders v2 (sandbox): create order with `payment_source.paypal.experience_context`
 (`PAY_NOW`, return/cancel URLs), capture on return, idempotency via `PayPal-Request-Id`;
-Payments v2 capture refunds (`/v2/payments/captures/{id}/refund`) when a paid audit fails
-and the buyer chooses their money back over a free retry (web button or MCP tool).
+Payments v2 capture refunds (`/v2/payments/captures/{id}/refund`): full, when a paid audit
+fails and the buyer chooses their money back over a free retry; partial, for the finding
+guarantee and for the unused balance when an assistant budget is closed, each with its own
+`PayPal-Request-Id` recorded before the call. The JS SDK buttons (PayPal, Venmo, Pay Later) on
+the quote page, and webhooks (`CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`) checked
+with verify-webhook-signature.
 Verified against the sandbox (`canonkeeper doctor --paypal`): orders come back
 `PAYER_ACTION_REQUIRED` with a `payer-action` link; early captures answer `ORDER_NOT_APPROVED`
 and are handled. Two surfaces: the web app (`canonkeeper serve`) and an MCP server
-(`canonkeeper mcp`) through which an author's AI assistant quotes and orders the audit while
+(hosted at `/mcp` over streamable HTTP, or `canonkeeper mcp` locally) through which an author's AI assistant quotes and orders the audit while
 the person approves the payment on PayPal — agent-initiated, human-approved commerce.
 `scripts/mcp_flow_demo.py` shows the whole exchange from the client side.
 
@@ -125,8 +144,9 @@ locally on a laptop CPU with Ollama and `qwen3:4b` for private manuscripts (a so
 candidate list; its verdicts are not trusted, and the evidence rule sends them to the author).
 
 ## Video beats (< 3:00)
-See docs/DEMO_SCRIPT.md: problem → the Holmes finding → buy an audit (sandbox checkout) →
-the same through an assistant over MCP (agent cannot approve) → `check` a draft → benchmark →
+See docs/DEMO_SCRIPT.md (v2): problem, audience and value in 15 seconds → the Holmes audit and
+its bible explorer → buy an audit (sandbox checkout) → Claude Desktop, given a PayPal-funded
+budget, checks the next draft on its own → the guarantee and the budget refund → benchmark →
 close.
 
 ## Testing instructions (paste into Devpost; fill the two blanks)
@@ -134,8 +154,12 @@ close.
 three-book series with five planted errors), then *Pay with PayPal*. PayPal sandbox buyer:
 `<sandbox buyer email>` / `<password>` — no real money moves. You return to the job page, which
 updates itself; the audit takes about a minute (instant if someone ran it before you: demo-series
-responses are shared). Open the report. *See what you get first* on the home page opens the real
+responses are shared). Open the report. *See a finished audit* on the home page opens the real
 six-volume Sherlock Holmes audit without paying.
+
+**As an AI assistant's customer:** in Claude Desktop, Settings → Connectors → Add custom
+connector → `<RENDER URL>/mcp`. Ask: "Open a $20 Preflight budget." Approve the link it gives
+you with the sandbox buyer, then: "Audit the Saltmarsh demo series and pay from the budget."
 
 The hosted instance runs on Gemini's free tier, which may use submitted text for training:
 please upload only public-domain text or the demo series.
