@@ -101,7 +101,7 @@ def create_app(
         # running audit or not; a paid job must not die because nobody is watching its page.
         runner.keepalive_url = f"{base}/healthz"
     runner.resume_interrupted()
-    runner.watch()  # and again every few minutes: see Runner.watch
+    runner.watch(on_held=lambda job: settle(job, pp, store, runner))  # see Runner.watch
     pp = paypal or make_paypal(state_dir=settings.workdir / "preflight")
 
     app = FastAPI(title="Preflight by canonkeeper", docs_url=None, redoc_url=None)

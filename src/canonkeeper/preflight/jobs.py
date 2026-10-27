@@ -80,6 +80,22 @@ class _Stopped(Exception):
     """Raised inside a run when its job stopped being "running" (refunded, deleted)."""
 
 
+def _read_json(path: Path) -> dict[str, Any] | None:
+    """A job file, or None if it is not there; retries through Windows' brief sharing error
+    while another process renames a new version into place."""
+    for attempt in range(50):
+        try:
+            data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+            return data
+        except FileNotFoundError:
+            return None
+        except PermissionError:
+            if attempt == 49:
+                raise
+            time.sleep(0.01)
+    return None
+
+
 def _unchanged_since(seen: str) -> Callable[[Job], bool]:
     return lambda j: j.updated_at == seen
 
@@ -192,17 +208,8 @@ class JobStore:
     def get(self, job_id: str) -> Job | None:
         if not _JOB_ID.fullmatch(job_id):
             return None
-        p = self._path(job_id)
-        for attempt in range(50):
-            try:
-                return Job(**json.loads(p.read_text(encoding="utf-8")))
-            except FileNotFoundError:
-                return None
-            except PermissionError:  # Windows: being replaced this instant
-                if attempt == 49:
-                    raise
-                time.sleep(0.01)
-        return None
+        data = _read_json(self._path(job_id))
+        return Job(**data) if data is not None else None
 
     def create_check(self, parent_id: str, name: str, data: bytes) -> tuple[Job, Quote]:
         """A check of one new draft against a finished audit's bible. The check gets its own
@@ -316,15 +323,15 @@ class JobStore:
 
     def by_order(self, order_id: str) -> Job | None:
         for p in self.root.glob("*/job.json"):
-            data = json.loads(p.read_text(encoding="utf-8"))
-            if data.get("order_id") == order_id or order_id in data.get("earlier_orders", []):
+            data = _read_json(p)
+            if data and (
+                data.get("order_id") == order_id or order_id in data.get("earlier_orders", [])
+            ):
                 return Job(**data)
         return None
 
     def all(self) -> list[Job]:
-        jobs = [
-            Job(**json.loads(p.read_text(encoding="utf-8"))) for p in self.root.glob("*/job.json")
-        ]
+        jobs = [Job(**d) for p in self.root.glob("*/job.json") if (d := _read_json(p))]
         return sorted(jobs, key=lambda j: j.created_at, reverse=True)
 
     # --- creation ---------------------------------------------------------------------------
@@ -479,16 +486,23 @@ class Runner:
             except (OSError, TimeoutError):
                 continue  # a missed beat is fine; the next one counts
 
-    def watch(self, every_s: float = 300.0) -> threading.Event:
-        """Re-run resume_interrupted every few minutes. At startup a job whose process just
-        died still looks alive (its last heartbeat is recent); checking once is not enough.
-        Returns an event that stops the watcher."""
+    def watch(
+        self, every_s: float = 300.0, *, on_held: Callable[[Job], object] | None = None
+    ) -> threading.Event:
+        """Every few minutes: re-run resume_interrupted (at startup a job whose process just
+        died still looks alive, since its last heartbeat is recent), and hand each "held" job
+        to `on_held`, which asks PayPal whether the payment has cleared. Returns an event that
+        stops the watcher."""
         stop = threading.Event()
 
         def loop() -> None:
             while not stop.wait(every_s):
                 with contextlib.suppress(Exception):
                     self.resume_interrupted()
+                for job in self.store.all() if on_held else []:
+                    if job.status == "held" and on_held:
+                        with contextlib.suppress(Exception):
+                            on_held(job)
 
         threading.Thread(target=loop, name="preflight-resume", daemon=True).start()
         return stop

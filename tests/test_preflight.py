@@ -1048,3 +1048,66 @@ def test_no_model_key_means_no_quotes_and_no_payments(tmp_path):
     assert c.post("/quote-demo").status_code == 503
     files = [("files", ("01.txt", b"Ivy has green eyes.", "text/plain"))]
     assert c.post("/quote", data={"series_name": "S"}, files=files).status_code == 503
+
+
+def _held_job(client):
+    import copy
+
+    store, pp = client.app.state.store, client.app.state.paypal
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    client.post(f"/jobs/{job_id}/order")
+    pp.approve(store.get(job_id).order_id)
+    real = pp.capture_order
+
+    def status(value):
+        def capture(oid):
+            o = copy.deepcopy(real(oid))
+            o.raw["purchase_units"][0]["payments"]["captures"][0]["status"] = value
+            return o
+
+        pp.capture_order = capture
+
+    status("PENDING")
+    client.post(f"/jobs/{job_id}/confirm")
+    assert store.get(job_id).status == "held"
+    return job_id, status, real
+
+
+def test_the_watcher_starts_a_held_job_once_paypal_clears_it(client):
+    from canonkeeper.preflight.payments import settle
+
+    store, runner, pp = client.app.state.store, client.app.state.runner, client.app.state.paypal
+    job_id, _, real = _held_job(client)
+    pp.capture_order = real  # cleared, and nobody presses anything
+    stop = runner.watch(every_s=0.05, on_held=lambda j: settle(j, pp, store, runner))
+    try:
+        deadline = time.time() + 30
+        while store.get(job_id).status != "done" and time.time() < deadline:
+            time.sleep(0.05)
+    finally:
+        stop.set()
+    assert store.get(job_id).status == "done"
+
+
+def test_a_held_payment_that_is_declined_frees_the_job(client):
+    store = client.app.state.store
+    job_id, status, _ = _held_job(client)
+    status("DECLINED")
+    r = client.post(f"/jobs/{job_id}/confirm")
+    assert "declined" in r.text and store.get(job_id).status == "cancelled"
+    assert client.post(f"/jobs/{job_id}/delete", data={"confirm": "yes"}).status_code == 303
+
+
+def test_a_refund_answered_with_a_server_error_stays_refunding(client):
+    store, pp = client.app.state.store, client.app.state.paypal
+    job_id, _ = _paid_job(client)
+    store.update(job_id, status="failed", error="quota")
+
+    def unavailable(cap):
+        req = httpx.Request("POST", f"https://api/v2/payments/captures/{cap}/refund")
+        raise httpx.HTTPStatusError("503", request=req, response=httpx.Response(503, request=req))
+
+    pp.refund_capture = unavailable
+    client.post(f"/jobs/{job_id}/refund", data={"confirm": "yes"})
+    assert store.get(job_id).status == "refunding"  # unknown outcome: no Retry

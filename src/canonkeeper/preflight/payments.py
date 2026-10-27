@@ -17,6 +17,7 @@ from canonkeeper.preflight.jobs import Job, JobStore, Runner, order_description
 from canonkeeper.preflight.paypal import (
     UNAPPROVED,
     PayPal,
+    capture_failed,
     capture_held,
     capture_id_of,
     capture_problem,
@@ -99,6 +100,11 @@ def settle(
     def ours(j: Job) -> bool:  # this job's order, or one a re-order replaced
         return order_id == j.order_id or order_id in j.earlier_orders
 
+    if problem and capture_failed(o):
+        # the held payment did not clear: nothing was charged; the buyer can order again
+        store.update(job.id, expect=OPEN, where=ours, status="cancelled", hold_reason=None)
+        _sync(job, store.get(job.id))
+        return "PayPal declined the payment, so nothing was charged; start the checkout again"
     if problem and capture_held(o):
         # captured, but PayPal holds the money until it clears: never "unpaid", never pruned
         store.update(
@@ -174,7 +180,9 @@ def refund(job: Job, paypal: PayPal, store: JobStore) -> str | None:
         if not cap:
             return give_back("PayPal has no capture for this order")
         r = paypal.refund_capture(cap)
-    except httpx.HTTPStatusError as e:  # PayPal answered, and said no
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code >= 500:  # PayPal's own trouble: we do not know; stay put
+            raise
         return give_back(f"PayPal refused the refund ({e.response.status_code})")
     # Any other failure (a timeout, a dropped connection) propagates and leaves the job
     # "refunding": PayPal may already have refunded, so a retry must not start. Asking again

@@ -55,6 +55,13 @@ def capture_id_of(o: Order) -> str | None:
     return str(caps[0]["id"]) if caps and caps[0].get("id") else None
 
 
+def capture_failed(o: Order) -> bool:
+    """The capture was declined or failed: no money moved."""
+    pu = (o.raw.get("purchase_units") or [{}])[0]
+    caps = (pu.get("payments") or {}).get("captures") or []
+    return bool(caps) and str(caps[0].get("status", "")) in ("DECLINED", "FAILED")
+
+
 def capture_held(o: Order) -> bool:
     """The order was captured, but PayPal is holding the money (an eCheck clearing, a review):
     it is ours once it clears, so the job must not look unpaid or be cleaned up."""

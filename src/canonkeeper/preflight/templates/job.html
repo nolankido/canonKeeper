@@ -54,7 +54,7 @@
   </form>
   {% endif %}
 {% elif job.status == 'held' %}
-  <p>PayPal has your payment but is holding it until it clears{% if job.hold_reason %} ({{ job.hold_reason }}){% endif %}. The audit starts as soon as it does; nothing more is charged.</p>
+  <p>PayPal has your payment but is holding it until it clears{% if job.hold_reason %} ({{ job.hold_reason }}){% endif %}. The audit starts within a few minutes of it clearing (this page checks for you), and nothing more is charged.</p>
   <form action="/jobs/{{ job.id }}/confirm" method="post"><button type="submit" class="secondary">Check again</button></form>
 {% elif job.status == 'refunding' %}
   <p>Refund in progress with PayPal. If this page has said so for more than a few minutes, ask PayPal again — a refund is never made twice.</p>
