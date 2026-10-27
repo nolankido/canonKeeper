@@ -14,6 +14,7 @@ GET  /healthz
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -294,6 +295,23 @@ def create_app(
         if not p.exists():
             raise HTTPException(404, "report not ready")
         return FileResponse(p)
+
+    @app.get("/jobs/{job_id}/download/{name}")
+    def download(job_id: str, name: str) -> FileResponse:
+        """The finished files as attachments, named after the series: a free host's disk does
+        not keep them forever, and the JSON is what other tools (or an assistant) can read."""
+        if name not in ("report.html", "report.json", "bible.html"):
+            raise HTTPException(404)
+        job = store.get(job_id)
+        if job is None:
+            raise HTTPException(404)
+        p = store.dir(job_id) / "reports" / name
+        if not p.exists():
+            raise HTTPException(404, "not ready")
+        slug = re.sub(r"[^a-z0-9]+", "-", job.series_name.lower()).strip("-") or "series"
+        kind = "check" if job.kind == "check" else "audit"
+        stem, ext = name.rsplit(".", 1)
+        return FileResponse(p, filename=f"{slug}-{kind}-{stem}.{ext}")
 
     @app.get("/jobs/{job_id}/bible")
     def bible(job_id: str) -> FileResponse:

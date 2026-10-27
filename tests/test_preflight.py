@@ -759,3 +759,20 @@ def test_uploads_in_word_processor_encodings_are_read_not_refused(tmp_path):
     store = JobStore(tmp_path / "pf")
     job, _ = store.create_from_upload("S", [("01-the-harbour.txt", prose.encode("utf-16"))])
     assert store.load_series(job).books[0].text == prose
+
+
+def test_finished_files_download_with_series_names(client):
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    token = client.post(f"/jobs/{job_id}/order").headers["location"].split("token=")[1]
+    client.get(client.post("/fake-approve", data={"token": token}).headers["location"])
+    client.app.state.runner.wait(job_id, timeout=60)
+    assert "download/report.json" in client.get(f"/jobs/{job_id}").text
+    r = client.get(f"/jobs/{job_id}/download/report.json")
+    assert r.status_code == 200 and r.json()["claims_total"] > 0
+    assert (
+        'filename="the-saltmarsh-chronicles-audit-report.json"' in r.headers["content-disposition"]
+    )
+    assert client.get(f"/jobs/{job_id}/download/bible.html").status_code == 200
+    assert client.get(f"/jobs/{job_id}/download/job.json").status_code == 404  # not a file server
+    assert client.get(f"/jobs/{job_id}/download/..%2Fjob.json").status_code == 404
