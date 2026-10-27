@@ -37,6 +37,12 @@
   <p>Your manuscripts, the series bible, the reports and every cached model response for this job have been deleted from this server. Only a receipt remains: order <code>{{ job.order_id or '—' }}</code>, ${{ job.quote_usd }}.</p>
 {% elif job.status == 'failed' %}
   <p>The audit failed: <code>{{ job.error }}</code></p>
+  {% set e = (job.error or '') | lower %}
+  {% if 'ratelimit' in e or 'quota' in e or '429' in e or 'budget' in e %}
+  <p>The model provider's daily allowance ran out mid-run. It resets at midnight Pacific time; a retry after that picks up where this one stopped.</p>
+  {% elif '503' in e or 'overloaded' in e or 'unavailable' in e or 'timeout' in e or 'timed out' in e %}
+  <p>The model provider was overloaded. A retry in a few minutes usually goes through.</p>
+  {% endif %}
   <p class="note">You were charged; the run can be retried at no extra cost (responses are cached, so a retry resumes where it stopped).</p>
   <form action="/jobs/{{ job.id }}/retry" method="post"><button type="submit">Retry</button></form>
   {% if job.order_id %}

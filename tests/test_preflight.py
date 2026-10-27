@@ -667,6 +667,7 @@ def test_a_failed_paid_audit_can_be_refunded_and_nothing_else_can(client):
     store.save(job)
     page = client.get(f"/jobs/{job_id}").text
     assert "Refund my payment" in page and "Retry" in page
+    assert "resets at midnight Pacific" in page  # a quota failure is explained in plain words
     assert client.post(f"/jobs/{job_id}/refund").status_code == 400  # box not ticked
     r = client.post(f"/jobs/{job_id}/refund", data={"confirm": "yes"})
     assert r.status_code == 303
