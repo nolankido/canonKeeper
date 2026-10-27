@@ -23,7 +23,7 @@ sponsor prize. Target: Best Use of Agentic Commerce; sponsor: AG Grid (Render cr
 | T3 | Oct 28 | Lead with the product: README and home page open on Preflight (problem, who it is for, price, a finished Holmes report one click away); privacy stated plainly (hosted demo = public-domain only; private books via a no-training paid tier or local mode) | Design, Impact | A fresh agent says what it does, for whom, and how a private book is protected, in 10 seconds | done 10-27 |
 | T4 | Oct 28 | Judging-proof hosting: real Gemini answers for the demo series shipped in the package, so demo runs cost 0 requests and a keyless local run shows real AI output, not mock text; quota checked before taking money; keep-awake through judging | Design, Tech | Cold start runs the demo with 0 requests; a quota-short quote refuses before PayPal | code done 10-27; the recording itself runs tonight after T2 (`scripts/record_demo.py`) |
 | T5 | Oct 29 (after N1) | Hosted check: smoke test, fix deploy issues, real sandbox screenshots replace every fake-mode image, hosted URL into README and Devpost draft | Design, Presentation | `smoke_hosted.py <url> --order` green; no "simulated" screen left in README | open |
-| T6 | Oct 29 | PayPal JS SDK buttons on the quote page (PayPal, Venmo, Pay Later); `PAYMENT.CAPTURE.COMPLETED` webhook as a fourth route into `settle`; receipt panel (order, capture, amount, refund) | Tech, Design | Sandbox buttons and webhook verified; tests green | open |
+| T6 | Oct 29 | PayPal JS SDK buttons on the quote page (PayPal, Venmo, Pay Later); `PAYMENT.CAPTURE.COMPLETED` webhook as a fourth route into `settle`; receipt panel (order, capture, amount, refund) | Tech, Design | Sandbox buttons and webhook verified; tests green | code done 10-27; buttons and webhook verified on the sandbox at T5 |
 | T7 | Oct 30 | Hosted MCP over streamable HTTP; books arrive by an upload link, not inline text; the assistant is a customer of the hosted shop and holds no merchant keys | Agentic commerce | Claude Desktop connects to the hosted URL and gets a quote | open |
 | T8 | Oct 31 | Agent budget (decision 2): the person funds a balance through PayPal once; the assistant spends it on audits and draft checks, never past it; every spend on a receipt; the rest refunds to PayPal | Agentic commerce, Innovation | Agent checks two drafts in sandbox and refunds the remainder | open |
 | T9 | Oct 31 | Finding guarantee (decision 1): an author marks a finding wrong and a capped partial refund goes back through PayPal | Innovation, Tech | Partial refund in sandbox; cap and double-refund tests | open |
@@ -47,7 +47,7 @@ sponsor prize. Target: Best Use of Agentic Commerce; sponsor: AG Grid (Render cr
 ## Nolan's steps
 | # | Step | By | Unblocks |
 |---|---|---|---|
-| N1 | Render deploy: GitHub sign-in, New → Blueprint, paste GEMINI_API_KEY / PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET, send the URL | Oct 29 | T5 |
+| N1 | Render deploy: GitHub sign-in, New → Blueprint, paste GEMINI_API_KEY / PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET, send the URL; then (optional, 3 min) developer.paypal.com → the sandbox app → Webhooks → add `<url>/paypal/webhook` for CHECKOUT.ORDER.APPROVED and PAYMENT.CAPTURE.COMPLETED and paste its ID as PAYPAL_WEBHOOK_ID | Oct 29 | T5 |
 | N2 | `canonkeeper doctor --round-trip`, approve as the sandbox buyer | Oct 28 | proof of the real money path |
 | N3 | Record the real sandbox checkout, and Claude Desktop buying a draft check (after T6–T9) | Nov 7 | T18 |
 | N4 | Voiceover, if decision 4 is "own voice" | Nov 8 | T19 |

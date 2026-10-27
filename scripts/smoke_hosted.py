@@ -86,6 +86,14 @@ def main(argv: list[str] | None = None) -> int:
         return failures
     assert m is not None
     job = m.group(1)
+    if mode in ("sandbox", "live"):
+        check("PayPal buttons on the quote page", "paypal.com/sdk/js?client-id=" in text)
+        status, _, _ = fetch(f"{base}/paypal/webhook", data={})
+        # 400 = configured and refusing an unsigned notice; 503 = PAYPAL_WEBHOOK_ID not set
+        print(
+            f"{'ok  ' if status == 400 else 'note'} webhook "
+            + ("configured" if status == 400 else f"not configured (HTTP {status}); optional")
+        )
 
     if a.order:
         status, headers, _ = fetch(f"{base}/jobs/{job}/order", data={})

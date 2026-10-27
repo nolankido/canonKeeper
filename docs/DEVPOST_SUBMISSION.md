@@ -42,8 +42,10 @@ refund through PayPal.
 Python. Extraction with a cheap long-context model under a strict schema with mandatory
 verbatim quotes (claims whose quote isn't in the source are dropped). Local heuristics find
 candidate conflicts for free. Batched adjudication sends the series text once per batch as a
-stable prefix. PayPal Orders v2 in the sandbox: OAuth → create (PAY_NOW) → buyer approves →
-capture → job runs in a background thread, persisted as JSON. A seeded-defect benchmark
+stable prefix. PayPal Orders v2 in the sandbox: OAuth → create (PAY_NOW) → the buyer approves with PayPal's JS SDK
+buttons (or PayPal's page) → capture → job runs in a background thread, persisted as JSON. A verified
+PayPal webhook and a "check payment" button finish a payment whose buyer closed the tab; all three
+routes go through one settle() that pays a job only on a completed capture of the quoted amount. A seeded-defect benchmark
 injects contradictions into public-domain novels and scores precision/recall.
 
 ## Challenges

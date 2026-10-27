@@ -22,8 +22,42 @@
     <div>Turnaround</div><div>Minutes for a novella, up to an hour for a long series — the page updates itself.</div>
     <div>If it fails</div><div>Retry at no charge, or take a full refund to your PayPal account. Nothing runs until PayPal confirms the payment.</div>
   </div>
+  {% if paypal_client_id and not quota_error %}
+  <div id="paypal-buttons" data-testid="paypal-buttons" style="max-width: 420px; margin-top: 18px"></div>
+  <p id="paypal-message" class="note" role="status" aria-live="polite"></p>
+  <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id | urlencode }}&currency={{ currency }}&intent=capture&components=buttons&enable-funding=venmo,paylater"></script>
+  <script>
+  (function () {
+    var msg = document.getElementById("paypal-message");
+    if (!window.paypal) { msg.textContent = "PayPal's buttons did not load here; use the button below instead."; return; }
+    var json = { method: "POST", headers: { Accept: "application/json" } };
+    window.paypal.Buttons({
+      style: { layout: "vertical", label: "pay" },
+      createOrder: function () {
+        return fetch("/jobs/{{ job.id }}/order", json).then(function (r) {
+          return r.json().then(function (d) {
+            if (!d.order_id) { msg.textContent = d.error || "This audit can no longer be ordered."; throw new Error(msg.textContent); }
+            return d.order_id;
+          });
+        });
+      },
+      onApprove: function () {
+        msg.textContent = "Approved. Confirming the payment with PayPal…";
+        return fetch("/jobs/{{ job.id }}/confirm", json).then(function (r) { return r.json(); })
+          .then(function (d) { window.location = d.job_url; });
+      },
+      onCancel: function () { msg.textContent = "Checkout cancelled. Nothing was charged."; },
+      onError: function () { if (!msg.textContent) { msg.textContent = "PayPal could not start the checkout; use the button below instead."; } }
+    }).render("#paypal-buttons");
+  })();
+  </script>
+  {% endif %}
   <form action="/jobs/{{ job.id }}/order" method="post">
+    {% if paypal_client_id and not quota_error %}
+    <button type="submit" class="secondary">Or pay on PayPal's page</button>
+    {% else %}
     <button type="submit"{% if quota_error %} disabled{% endif %}>Pay ${{ quote.total_str }} with PayPal</button>
+    {% endif %}
     <a class="btn secondary" href="/">Start over</a>
   </form>
   <p class="note">{% if job.kind == 'check' %}Checked against: {% else %}Books in order: {% endif %}{% for b in job.books %}<code>{{ b }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>

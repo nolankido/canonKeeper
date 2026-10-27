@@ -1312,3 +1312,129 @@ def test_an_order_the_days_quota_cannot_finish_is_refused_before_paypal(tmp_path
     )  # a fresh day: the same order goes through
     r = web.post(f"/jobs/{job_id}/order", follow_redirects=False)
     assert r.status_code == 303 and web.app.state.store.get(job_id).order_id
+
+
+def _demo_job(web) -> str:
+    return web.post("/quote-demo").text.split('action="/jobs/')[1].split("/order")[0]
+
+
+def test_paypal_buttons_appear_only_with_real_credentials(tmp_path, client):
+    """T6: PayPal's own JS SDK buttons on the quote page in sandbox/live; the fake keeps its
+    page; the plain redirect stays as a fallback for no-script and for agents."""
+
+    class SandboxLike(FakePayPal):
+        mode = "sandbox"
+        client_id = "SB-CLIENT-ID"
+
+    assert 'data-testid="paypal-buttons"' not in client.post("/quote-demo").text  # fake mode
+    settings = Settings(provider="mock", workdir=tmp_path / "s", _env_file=None)
+    web = TestClient(create_app(settings=settings, paypal=SandboxLike(), workdir=tmp_path / "spf"))
+    page = web.post("/quote-demo").text
+    assert 'data-testid="paypal-buttons"' in page
+    assert "https://www.paypal.com/sdk/js?client-id=SB-CLIENT-ID&currency=USD" in page
+    assert "Or pay on PayPal&#39;s page" in page or "Or pay on PayPal's page" in page
+
+
+def test_buttons_create_and_confirm_through_json(client):
+    store = client.app.state.store
+    job_id = _demo_job(client)
+    hdr = {"Accept": "application/json"}
+    first = client.post(f"/jobs/{job_id}/order", headers=hdr).json()
+    again = client.post(f"/jobs/{job_id}/order", headers=hdr).json()
+    assert first["order_id"].startswith("FAKE") and again == first  # the window reopened: reused
+    early = client.post(f"/jobs/{job_id}/confirm", headers=hdr).json()
+    assert early["ok"] is False and early["job_url"] == f"/jobs/{job_id}"
+    client.app.state.paypal.approve(first["order_id"])  # the buyer approves in PayPal's window
+    done = client.post(f"/jobs/{job_id}/confirm", headers=hdr).json()
+    assert done == {"ok": True, "problem": None, "job_url": f"/jobs/{job_id}"}
+    client.app.state.runner.wait(job_id, timeout=60)
+    assert store.get(job_id).status == "done"
+    late = client.post(f"/jobs/{job_id}/order", headers=hdr)
+    assert late.status_code == 409 and late.json()["status"] == "done"
+
+
+def _event(kind: str, order_id: str) -> dict:
+    if kind == "CHECKOUT.ORDER.APPROVED":
+        return {"event_type": kind, "resource": {"id": order_id}}
+    related = {"supplementary_data": {"related_ids": {"order_id": order_id}}}
+    return {"event_type": kind, "resource": {"id": "CAP", **related}}
+
+
+def test_webhook_only_prompts_a_check_with_paypal(client):
+    """A PayPal notice settles a job whose buyer approved and closed the tab; an unverified
+    notice is refused; and even a verified notice about an unapproved order pays nothing,
+    because settle asks PayPal and pays only on a completed capture."""
+    store, pp = client.app.state.store, client.app.state.paypal
+    signed = {"paypal-transmission-sig": FakePayPal.WEBHOOK_SIGNATURE}
+    job_id = _demo_job(client)
+    client.post(f"/jobs/{job_id}/order", follow_redirects=False)
+    order_id = store.get(job_id).order_id
+
+    approved = _event("CHECKOUT.ORDER.APPROVED", order_id)
+    assert client.post("/paypal/webhook", json=approved).status_code == 400  # no signature
+    r = client.post("/paypal/webhook", json=approved, headers=signed)
+    assert r.json()["settled"] is False and store.get(job_id).status == "ordered"  # not approved
+
+    pp.approve(order_id)  # approved in PayPal, then the buyer closed the tab
+    r = client.post("/paypal/webhook", json=approved, headers=signed)
+    assert r.json() == {"job": job_id, "settled": True, "problem": None}
+    client.app.state.runner.wait(job_id, timeout=60)
+    assert store.get(job_id).status == "done" and store.get(job_id).capture_id
+    # The capture's own notice arriving afterwards changes nothing (settle is idempotent).
+    r = client.post(
+        "/paypal/webhook", json=_event("PAYMENT.CAPTURE.COMPLETED", order_id), headers=signed
+    )
+    assert r.status_code == 200 and store.get(job_id).status == "done"
+    other = {"event_type": "PAYMENT.CAPTURE.DENIED", "resource": {}}
+    assert client.post("/paypal/webhook", json=other, headers=signed).json() == {
+        "ignored": "PAYMENT.CAPTURE.DENIED"
+    }
+    unknown = _event("CHECKOUT.ORDER.APPROVED", "NOPE")
+    assert client.post("/paypal/webhook", json=unknown, headers=signed).json() == {
+        "ignored": "unknown order"
+    }
+
+
+def test_webhooks_refused_in_sandbox_without_a_webhook_id(tmp_path, monkeypatch):
+    class SandboxLike(FakePayPal):
+        mode = "sandbox"
+
+    monkeypatch.delenv("PAYPAL_WEBHOOK_ID", raising=False)
+    settings = Settings(provider="mock", workdir=tmp_path / "s", _env_file=None)
+    web = TestClient(create_app(settings=settings, paypal=SandboxLike(), workdir=tmp_path / "spf"))
+    assert web.post("/paypal/webhook", json={}).status_code == 503
+
+
+@respx.mock
+def test_real_client_verifies_webhooks_with_paypal():
+    respx.post(f"{SANDBOX}/v1/oauth2/token").mock(
+        return_value=httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+    )
+    route = respx.post(f"{SANDBOX}/v1/notifications/verify-webhook-signature")
+    pp = PayPalClient("cid", "sec", mode="sandbox")
+    headers = {"PAYPAL-TRANSMISSION-SIG": "sig", "PAYPAL-TRANSMISSION-ID": "t1"}
+    body = json.dumps({"event_type": "CHECKOUT.ORDER.APPROVED"}).encode()
+    route.mock(return_value=httpx.Response(200, json={"verification_status": "SUCCESS"}))
+    assert pp.verify_webhook(headers, body, "WH-1") is True
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["webhook_id"] == "WH-1" and sent["transmission_sig"] == "sig"
+    assert sent["webhook_event"]["event_type"] == "CHECKOUT.ORDER.APPROVED"
+    route.mock(return_value=httpx.Response(200, json={"verification_status": "FAILURE"}))
+    assert pp.verify_webhook(headers, body, "WH-1") is False
+    route.mock(return_value=httpx.Response(500))
+    assert pp.verify_webhook(headers, body, "WH-1") is False
+    assert pp.verify_webhook(headers, b"not json", "WH-1") is False
+
+
+def test_job_page_carries_a_payment_receipt(client):
+    store = client.app.state.store
+    job_id = _demo_job(client)
+    client.post(f"/jobs/{job_id}/order", follow_redirects=False)
+    page = client.get(f"/jobs/{job_id}").text
+    assert 'data-testid="receipt"' in page and "Nothing yet" in page and "simulated" in page
+    order_id = store.get(job_id).order_id
+    client.app.state.paypal.approve(order_id)
+    client.post(f"/jobs/{job_id}/confirm")
+    client.app.state.runner.wait(job_id, timeout=60)
+    page = client.get(f"/jobs/{job_id}").text
+    assert store.get(job_id).capture_id in page and order_id in page and "Nothing yet" not in page

@@ -328,6 +328,16 @@ answers for the demo series ship in the package (`preflight/demo_recording/`, ma
 run answers the demo series with those recorded answers, labelled as such on every page and on the
 report, instead of the rule-based stand-in. A test fails if a prompt change makes the recording stale.
 
+**Three ways a payment reaches Preflight, one rule for all of them.** With sandbox or live
+credentials the quote page shows PayPal's own JS SDK buttons (PayPal, Venmo and Pay Later where the
+buyer is eligible), approved in PayPal's window; the plain redirect to PayPal's page stays beside them
+and is what an AI agent's link uses. If the buyer approves and closes the tab, PayPal's webhook
+(`/paypal/webhook`: `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, each signature verified
+with PayPal) or the "check payment" button finishes the job. Every route ends in the same `settle()`,
+which asks PayPal for the order and pays the job only on a completed capture of the quoted amount, so
+a forged notice could not mark anything paid. The job page carries a receipt: amount, order,
+capture, and any refund.
+
 After payment the money path is one function (`preflight/payments.py`): a job is paid only on a
 completed capture of the quoted amount, a buyer who approved and closed the tab can press
 "check payment", and an audit that fails can be refunded in full through PayPal instead of

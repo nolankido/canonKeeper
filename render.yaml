@@ -25,3 +25,6 @@ services:
         sync: false
       - key: PAYPAL_CLIENT_SECRET
         sync: false
+      - key: PAYPAL_WEBHOOK_ID   # optional: developer.paypal.com → your app → Webhooks →
+        sync: false              # <url>/paypal/webhook, events CHECKOUT.ORDER.APPROVED and
+                                 # PAYMENT.CAPTURE.COMPLETED; paste the webhook's ID here

@@ -64,6 +64,24 @@
 {% endif %}
 </div>
 
+{% if job.order_id %}
+<div class="card" data-testid="receipt">
+  <strong>Payment receipt</strong>
+  <div class="kv" style="margin-top: 8px">
+    <div>Amount</div><div>${{ job.quote_usd }} USD{% if paypal_mode == 'sandbox' %} · PayPal sandbox, test money{% elif paypal_mode == 'fake' %} · simulated, no money moved{% endif %}</div>
+    <div>PayPal order</div><div><code>{{ job.order_id }}</code></div>
+    {% if job.capture_id %}
+    <div>Capture</div><div><code>{{ job.capture_id }}</code>{% if job.paid_at %} · {{ job.paid_at[:16] | replace('T', ' ') }} UTC{% endif %}{% if job.status == 'held' %} · PayPal is holding it until it clears{% endif %}</div>
+    {% else %}
+    <div>Charged</div><div>Nothing yet: the payment is taken only when PayPal confirms it</div>
+    {% endif %}
+    {% if job.refund_id %}
+    <div>Refund</div><div><code>{{ job.refund_id }}</code>{% if job.refund_status %} · {{ job.refund_status | lower }}{% endif %}{% if job.refunded_at %} · {{ job.refunded_at[:10] }}{% endif %}</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 {% if job.status == 'done' and job.kind == 'audit' %}
 <form class="card" action="/jobs/{{ job.id }}/check" method="post" enctype="multipart/form-data">
   <h2 style="margin-top:0">Writing the next book?</h2>

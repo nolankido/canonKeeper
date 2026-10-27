@@ -14,7 +14,7 @@ import json
 import secrets
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -72,6 +72,8 @@ def capture_held(o: Order) -> bool:
 
 class PayPal(Protocol):
     mode: str
+    client_id: str | None
+    """Public client id for PayPal's JS SDK buttons; None where there are no real buttons."""
 
     def create_order(
         self,
@@ -89,6 +91,8 @@ class PayPal(Protocol):
     def capture_order(self, order_id: str) -> Order: ...
 
     def refund_capture(self, capture_id: str) -> Refund: ...
+
+    def verify_webhook(self, headers: Mapping[str, str], body: bytes, webhook_id: str) -> bool: ...
 
 
 def _parse(data: dict[str, Any]) -> Order:
@@ -145,6 +149,7 @@ class PayPalClient:
         self, client_id: str, secret: str, *, mode: str = "sandbox", timeout_s: float = 30.0
     ) -> None:
         self.mode = mode
+        self.client_id: str | None = client_id  # public: PayPal's JS SDK loads with it
         self._base = SANDBOX if mode == "sandbox" else LIVE
         self._auth = base64.b64encode(f"{client_id}:{secret}".encode()).decode()
         self._http = httpx.Client(base_url=self._base, timeout=timeout_s)
@@ -211,6 +216,30 @@ class PayPalClient:
             o.amount, o.currency = amount, currency
         return o
 
+    def verify_webhook(self, headers: Mapping[str, str], body: bytes, webhook_id: str) -> bool:
+        """Ask PayPal whether a webhook delivery is genuine (its signature, for this webhook).
+        Anything but SUCCESS, or no answer, is False: an unverified event is ignored."""
+        h = {k.lower(): v for k, v in headers.items()}
+        try:
+            event = json.loads(body)
+            r = self._http.post(
+                "/v1/notifications/verify-webhook-signature",
+                json={
+                    "auth_algo": h.get("paypal-auth-algo", ""),
+                    "cert_url": h.get("paypal-cert-url", ""),
+                    "transmission_id": h.get("paypal-transmission-id", ""),
+                    "transmission_sig": h.get("paypal-transmission-sig", ""),
+                    "transmission_time": h.get("paypal-transmission-time", ""),
+                    "webhook_id": webhook_id,
+                    "webhook_event": event,
+                },
+                headers=self._headers(),
+            )
+            r.raise_for_status()
+        except (httpx.HTTPError, ValueError):
+            return False
+        return str(r.json().get("verification_status", "")) == "SUCCESS"
+
     def get_order(self, order_id: str) -> Order:
         r = self._http.get(f"/v2/checkout/orders/{order_id}", headers=self._headers())
         r.raise_for_status()
@@ -261,6 +290,12 @@ class FakePayPal:
     served by `canonkeeper serve`, and the agent's `confirm_payment` then finds it approved."""
 
     mode = "fake"
+    client_id: str | None = None  # no JS SDK buttons for the fake: it has its own page
+    WEBHOOK_SIGNATURE = "fake-signature"  # what a test sends to stand for PayPal's signature
+
+    def verify_webhook(self, headers: Mapping[str, str], body: bytes, webhook_id: str) -> bool:
+        h = {k.lower(): v for k, v in headers.items()}
+        return h.get("paypal-transmission-sig") == self.WEBHOOK_SIGNATURE
 
     def __init__(
         self, approve_base: str = "/fake-approve", *, state_path: Path | None = None

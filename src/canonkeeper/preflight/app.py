@@ -13,6 +13,7 @@ GET  /healthz
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from datetime import UTC, datetime, timedelta
@@ -21,7 +22,7 @@ from urllib.parse import urlencode
 
 import httpx
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
@@ -145,6 +146,7 @@ def create_app(
             {
                 "paypal_mode": pp.mode,
                 "provider": settings.provider,
+                "paypal_client_id": pp.client_id if pp.mode in ("sandbox", "live") else None,
                 "demo_recorded": demo_recorded,
                 "trains_on_prompts": settings.trains_on_prompts,
                 "no_model": None if settings.can_run_models else no_model,
@@ -238,8 +240,12 @@ def create_app(
         page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
         return remember(request, page, job.id)
 
+    def wants_json(request: Request) -> bool:
+        """PayPal's JS SDK buttons call the same routes with fetch and want JSON back."""
+        return "application/json" in request.headers.get("accept", "")
+
     @app.post("/jobs/{job_id}/order", response_model=None)
-    def order(request: Request, job_id: str) -> RedirectResponse | HTMLResponse:
+    def order(request: Request, job_id: str) -> RedirectResponse | HTMLResponse | JSONResponse:
         require_model()
         job = store.get(job_id)
         if job is None:
@@ -247,6 +253,8 @@ def create_app(
         try:
             job = place_order(job, pp, store, runner, base)
         except QuotaShort as short:
+            if wants_json(request):
+                return JSONResponse({"error": str(short)}, status_code=503)
             # Refused before PayPal: no order exists and nothing was charged.
             kind = "check" if job.kind == "check" else "audit"
             q = quote(job.tokens, words=job.words, books=len(job.books), kind=kind)
@@ -258,6 +266,14 @@ def create_app(
                 quote=q,
                 currency=CURRENCY,
                 quota_error=str(short),
+            )
+        if wants_json(request):
+            # The buttons approve the order in PayPal's own window; an order already placed
+            # for this job (the buyer closed the window and pressed again) is reused.
+            if job.status == "ordered" and job.order_id:
+                return JSONResponse({"order_id": job.order_id})
+            return JSONResponse(
+                {"status": job.status, "job_url": f"/jobs/{job_id}"}, status_code=409
             )
         if job.status == "ordered":
             if not job.approve_url:
@@ -283,13 +299,17 @@ def create_app(
         return RedirectResponse(f"/jobs/{job.id}", status_code=303)
 
     @app.post("/jobs/{job_id}/confirm", response_model=None)
-    def confirm(request: Request, job_id: str) -> RedirectResponse | HTMLResponse:
+    def confirm(request: Request, job_id: str) -> RedirectResponse | HTMLResponse | JSONResponse:
         """For a buyer who approved on PayPal but never came back (closed the tab, lost
         the connection): ask PayPal, and capture if they did approve."""
         job = store.get(job_id)
         if job is None:
             raise HTTPException(404)
         problem = settle(job, pp, store, runner)
+        if wants_json(request):
+            return JSONResponse(
+                {"ok": not problem, "problem": problem, "job_url": f"/jobs/{job_id}"}
+            )
         if problem:
             return render(
                 request,
@@ -299,6 +319,42 @@ def create_app(
                 note=problem,
             )
         return RedirectResponse(f"/jobs/{job_id}", status_code=303)
+
+    @app.post("/paypal/webhook")
+    async def paypal_webhook(request: Request) -> JSONResponse:
+        """PayPal's own notice that an order was approved or a capture completed: the buyer
+        approved and then closed the tab, or the return never arrived. A notice is only a
+        prompt to ask PayPal: `settle` reads the order from PayPal and pays the job only on a
+        completed capture of the quoted amount, so even a forged notice could not mark a job
+        paid. Notices are still verified with PayPal first (PAYPAL_WEBHOOK_ID)."""
+        webhook_id = os.environ.get("PAYPAL_WEBHOOK_ID", "")
+        if pp.mode != "fake" and not webhook_id:
+            raise HTTPException(503, "webhooks are not configured (PAYPAL_WEBHOOK_ID)")
+        body = await request.body()
+        ok = await run_in_threadpool(pp.verify_webhook, dict(request.headers), body, webhook_id)
+        if not ok:
+            raise HTTPException(400, "webhook signature not verified")
+        try:
+            event = json.loads(body)
+        except ValueError:
+            raise HTTPException(400, "not JSON") from None
+        kind = str(event.get("event_type", ""))
+        resource = event.get("resource") or {}
+        if kind == "CHECKOUT.ORDER.APPROVED":
+            order_id = resource.get("id")
+        elif kind == "PAYMENT.CAPTURE.COMPLETED":
+            order_id = ((resource.get("supplementary_data") or {}).get("related_ids") or {}).get(
+                "order_id"
+            )
+        else:
+            return JSONResponse({"ignored": kind})
+        job = await run_in_threadpool(store.by_order, str(order_id or ""))
+        if job is None:
+            return JSONResponse({"ignored": "unknown order"})
+        problem = await run_in_threadpool(
+            settle, job, pp, store, runner, order_id_hint=str(order_id)
+        )
+        return JSONResponse({"job": job.id, "settled": not problem, "problem": problem})
 
     @app.get("/cancel")
     def paypal_cancel(job: str) -> RedirectResponse:
