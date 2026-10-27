@@ -34,6 +34,23 @@ Severity (meaningful for "contradiction")
 - medium: physical description, dates off by a little, geography.
 - low:    minor props, phrasing-level slips.
 
+Each candidate names the screen that raised it. What they mean:
+- slot_mismatch:   one entity, one single-valued attribute, two values.
+- dead_speaks:     an entity is dead at one point and acts later. A flashback, a narrated
+                   backstory, or a report of past deeds is not a conflict; a scene set after
+                   the death in which the person acts is.
+- name_drift:      two different given names or surnames for one person.
+- origin_mismatch: nationality and birthplace point to different countries.
+- timeline:        years that go backwards for a birth or death.
+- role_collision:  two different people hold a one-per-household role (the landlady, the
+                   butler) in the same household. If the text explains a change of staff it is
+                   "deliberate"; if the second person simply appears in the role with no
+                   explanation and the first is still in it elsewhere, it is a "contradiction",
+                   severity medium, and the fix renames the person in the later passage. The
+                   screen may have tied the second person to the household only because the
+                   household's head is in the scene; check the scene, and if the person
+                   plainly belongs to another house it is "not_conflict".
+
 Be concrete: quote the exact words that create the conflict. For a "contradiction", propose the
 smallest edit to the LATER passage that fixes it. Earlier books are already published; never
 propose changing them.
