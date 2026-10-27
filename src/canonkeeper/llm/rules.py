@@ -87,9 +87,9 @@ _REVEAL_MARKERS = (
 _QUOTE = re.compile(r"quote: “(.*?)”")
 
 
-def _explained_nearby(block: str, context: str, window: int = 400) -> bool:
-    """True if any quoted passage is followed, in the same paragraph of the series text and
-    within `window` chars, by an explicit explanation marker."""
+def _explained_nearby(block: str, context: str, window: int = 400) -> str | None:
+    """The explaining text if any quoted passage is followed, in the same paragraph of the
+    series text and within `window` chars, by an explicit explanation marker."""
     for q in _QUOTE.findall(block):
         i = context.find(q)
         if i == -1:
@@ -97,10 +97,24 @@ def _explained_nearby(block: str, context: str, window: int = 400) -> bool:
         start = i + len(q)
         end = context.find("\n\n", start)
         end = start + window if end == -1 else min(end, start + window)
-        tail = context[start:end].lower()
-        if any(marker in tail for marker in _REVEAL_MARKERS):
-            return True
-    return False
+        tail = context[start:end]
+        if any(marker in tail.lower() for marker in _REVEAL_MARKERS):
+            return tail.strip()
+    return None
+
+
+def _paragraph_around(block: str, context: str) -> str | None:
+    """The paragraph of the series text containing the first quoted passage."""
+    for q in _QUOTE.findall(block):
+        i = context.find(q)
+        if i == -1:
+            continue
+        start = context.rfind("\n\n", 0, i) + 2 if context.rfind("\n\n", 0, i) != -1 else 0
+        end = context.find("\n\n", i)
+        para = context[start : end if end != -1 else len(context)].strip()
+        if len(para) > len(q) + 10:
+            return para
+    return None
 
 
 def adjudicate(user: str, context: str = "") -> dict:
@@ -111,13 +125,15 @@ def adjudicate(user: str, context: str = "") -> dict:
     for m in _CAND.finditer(user):
         cid, heuristic, reason = int(m.group(1)), m.group(2), m.group(3)
         block = blocks.get(cid, "")
-        if _explained_nearby(block, context):
+        explained = _explained_nearby(block, context)
+        if explained:
             verdicts.append(
                 {
                     "id": cid,
                     "verdict": "deliberate",
                     "severity": "low",
                     "explanation": "The later passage explains the change explicitly.",
+                    "evidence": explained,
                 }
             )
             continue
@@ -128,6 +144,7 @@ def adjudicate(user: str, context: str = "") -> dict:
                     "verdict": "deliberate",
                     "severity": "low",
                     "explanation": "Change over time supported by the text.",
+                    "evidence": _paragraph_around(block, context),
                 }
             )
         else:

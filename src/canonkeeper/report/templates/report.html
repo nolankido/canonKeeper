@@ -73,14 +73,34 @@
   </div>
   {% endfor %}
 
-  {% if others %}
+  {% set review = others | selectattr("verdict", "equalto", "ambiguous") | list %}
+  {% set cleared = others | rejectattr("verdict", "equalto", "ambiguous") | list %}
+  {% if review %}
+  <h2>Needs your judgement</h2>
+  {% for f in review %}
+  <div class="f medium">
+    <span class="tag medium">ambiguous</span><span class="tag">{{ f.candidate.heuristic }}</span>
+    <strong>{{ f.candidate.reason }}</strong>
+    {% for c in f.candidate.claims %}
+    <div class="claim">
+      <div class="loc">Book {{ c.provenance.book_index + 1 }} · {{ c.provenance.chapter }} — <code>{{ c.subject }}.{{ c.predicate }} = {{ c.object }}</code></div>
+      <q>{{ c.provenance.quote }}</q>
+    </div>
+    {% endfor %}
+    <p>{{ f.explanation }}</p>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if cleared %}
   <h2>Reviewed and cleared</h2>
-  <details><summary>{{ others | length }} candidates judged deliberate, ambiguous, or not a conflict</summary>
-  {% for f in others %}
+  <details><summary>{{ cleared | length }} candidates judged deliberate or not a conflict, each on a quoted passage</summary>
+  {% for f in cleared %}
   <div class="f other">
     <span class="tag ok">{{ f.verdict }}</span><span class="tag">{{ f.candidate.heuristic }}</span>
     <strong>{{ f.candidate.reason }}</strong>
     <p>{{ f.explanation }}</p>
+    {% if f.evidence %}<div class="claim"><div class="loc">Why it is cleared</div><q>{{ f.evidence }}</q></div>{% endif %}
   </div>
   {% endfor %}
   </details>

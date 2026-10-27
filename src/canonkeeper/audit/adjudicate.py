@@ -10,6 +10,7 @@ from canonkeeper.audit import prompts
 from canonkeeper.canon import CanonStore
 from canonkeeper.config import Settings
 from canonkeeper.corpus import Series
+from canonkeeper.extract.extractor import Grounder
 from canonkeeper.llm import LLM
 from canonkeeper.llm.client import parse_json
 from canonkeeper.models import Candidate, Finding, Verdict
@@ -17,6 +18,10 @@ from canonkeeper.tokens import count_tokens
 
 _VERDICTS: set[str] = {"contradiction", "deliberate", "ambiguous", "not_conflict"}
 _SEVERITIES: set[str] = {"high", "medium", "low"}
+
+
+def _ws(text: str) -> str:
+    return " ".join(text.split()).lower()
 
 
 @dataclass
@@ -153,13 +158,43 @@ class Adjudicator:
         if severity not in _SEVERITIES:
             severity = "medium"
         fix = data.get("suggested_fix")
+        ev = data.get("evidence")
         return Finding(
             candidate=cand,
             verdict=verdict,  # type: ignore[arg-type]
             severity=severity,  # type: ignore[arg-type]
             explanation=str(data.get("explanation", "")).strip() or "(no explanation returned)",
             suggested_fix=(str(fix).strip() if fix and str(fix).lower() != "null" else None),
+            evidence=(str(ev).strip() if ev and str(ev).lower() != "null" else None),
             adjudicator_model=model,
+        )
+
+    @staticmethod
+    def _require_evidence(f: Finding, shown: Grounder) -> Finding:
+        """Provenance for verdicts too: a conflict is only cleared (deliberate / not_conflict)
+        on a passage that really occurs in the text the adjudicator was shown, and a
+        'deliberate' needs a passage beyond the conflicting quotes themselves. Otherwise the
+        finding becomes 'ambiguous' and goes to the author, instead of being dismissed on a
+        rationale the text does not support (observed: a 4B local model ruled planted eye-
+        colour and birthplace slips 'deliberate, likely character development')."""
+        if f.verdict not in ("deliberate", "not_conflict"):
+            return f
+        hit = shown.find(f.evidence) if f.evidence else None
+        if hit is not None:
+            passage = _ws(hit[2])
+            own = [_ws(c.provenance.quote) for c in f.candidate.claims]
+            if f.verdict == "not_conflict" or not any(passage in q for q in own):
+                return f.model_copy(update={"evidence": hit[2]})
+        why = "quoted no passage" if f.evidence is None else "quoted nothing"
+        return f.model_copy(
+            update={
+                "verdict": "ambiguous",
+                "evidence": None,
+                "explanation": (
+                    f"Needs your judgement: the adjudicator ruled this {f.verdict} but {why} "
+                    "from the text that shows it. Its reasoning: " + f.explanation
+                ),
+            }
         )
 
     def judge_batch(
@@ -168,7 +203,9 @@ class Adjudicator:
         """Judge a batch; any candidate the model leaves out of its verdict list is re-asked
         on its own (one small call) rather than silently marked ambiguous."""
         model = self.settings.adjudicate_model
-        raw = self.llm.complete(model, self.messages_for(batch, store, series_name), json_mode=True)
+        messages = self.messages_for(batch, store, series_name)
+        raw = self.llm.complete(model, messages, json_mode=True)
+        shown = Grounder("\n\n".join(m["content"] for m in messages[1:]))
         try:
             data = parse_json(raw)
         except Exception:
@@ -190,7 +227,9 @@ class Adjudicator:
             if entry is None and _retry and len(batch) > 1:
                 findings.append(self.judge_batch([cand], store, series_name, _retry=False)[0])
             else:
-                findings.append(self._finding(cand, entry or {}, model))
+                findings.append(
+                    self._require_evidence(self._finding(cand, entry or {}, model), shown)
+                )
         return findings
 
     def judge(self, cand: Candidate, store: CanonStore, series_name: str) -> Finding:

@@ -55,10 +55,20 @@ Be concrete: quote the exact words that create the conflict. For a "contradictio
 smallest edit to the LATER passage that fixes it. Earlier books are already published; never
 propose changing them.
 
+Clearing a conflict needs proof. For "deliberate" and "not_conflict", put in `evidence` a
+passage copied exactly from the series text above (up to ~300 characters) that shows why:
+- deliberate: the passage where the story explains the difference (the disguise, the lie, the
+  passage of years). Not one of the conflicting quotes on its own.
+- not_conflict: the passage that shows the bible misread it (e.g. the sentence where "died"
+  really means the subject killed someone).
+If you cannot point to such a passage, the verdict is "contradiction" or "ambiguous" — never
+infer a reveal, a character development or a mislabel that the text does not state.
+
 Return ONLY JSON of this shape, one entry per candidate, using the candidate's id:
 {"verdicts": [
   {"id": 1, "verdict": "contradiction|deliberate|ambiguous|not_conflict",
-   "severity": "high|medium|low", "explanation": "...", "suggested_fix": "... or null"}
+   "severity": "high|medium|low", "explanation": "...", "suggested_fix": "... or null",
+   "evidence": "exact passage from the text, or null"}
 ]}
 """
 

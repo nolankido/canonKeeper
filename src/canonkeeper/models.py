@@ -98,6 +98,9 @@ class Finding(BaseModel):
     severity: Literal["high", "medium", "low"]
     explanation: str
     suggested_fix: str | None = None
+    evidence: str | None = None
+    """For deliberate / not_conflict: the passage from the series text that justifies clearing
+    the conflict, verified to occur in what the adjudicator was shown."""
     adjudicator_model: str
 
     @property

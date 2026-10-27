@@ -28,14 +28,25 @@ def test_batches_share_one_context_and_parse_by_id(series, settings, mock_llm, t
     assert all("## Candidate 1" in msgs[2]["content"] for _, msgs in recorder.calls)
 
 
+def _passage(messages) -> str:
+    """A real passage from the series text the adjudicator was shown (the longest line)."""
+    return max(messages[1]["content"].splitlines(), key=len)
+
+
 def test_missing_or_malformed_verdicts_degrade_to_ambiguous(series, settings, mock_llm, tmp_path):
     store = build_bible(series, mock_llm, settings, tmp_path / "b.jsonl", progress=False)
     cands = find_candidates(store)[:3]
 
     def handler(model, messages):
         # Only answers candidate 2, with junk for the rest.
+        ev = _passage(messages)
         return json.dumps(
-            {"verdicts": [{"id": 2, "verdict": "deliberate", "severity": "weird"}, "garbage"]}
+            {
+                "verdicts": [
+                    {"id": 2, "verdict": "deliberate", "severity": "weird", "evidence": ev},
+                    "garbage",
+                ]
+            }
         )
 
     settings.adjudicate_batch_size = 10
@@ -85,11 +96,12 @@ def test_candidates_missing_from_a_batch_verdict_are_re_asked_alone(
         n = messages[-1]["content"].count("## Candidate ")
         calls.append(n)
         if n > 1:  # the batch answer omits candidate 2
+            ev = _passage(messages)
             return json.dumps(
                 {
                     "verdicts": [
-                        {"id": 1, "verdict": "not_conflict"},
-                        {"id": 3, "verdict": "deliberate"},
+                        {"id": 1, "verdict": "not_conflict", "evidence": ev},
+                        {"id": 3, "verdict": "deliberate", "evidence": ev},
                     ]
                 }
             )
@@ -112,3 +124,32 @@ def test_candidates_missing_from_a_batch_verdict_are_re_asked_alone(
     assert [f.verdict for f in findings] == ["not_conflict", "contradiction", "deliberate"]
     assert findings[1].explanation == "re-asked"
     assert calls == [3, 1]
+
+
+def test_clearing_a_conflict_needs_a_passage_from_the_text(series, settings, mock_llm, tmp_path):
+    """Provenance for verdicts: 'deliberate' needs an explaining passage that is really in the
+    text and is more than the conflicting quotes; 'not_conflict' needs a real passage."""
+    store = build_bible(series, mock_llm, settings, tmp_path / "b.jsonl", progress=False)
+    cand = find_candidates(store)[0]
+    own_quote = cand.claims[1].provenance.quote
+
+    def run(entry):
+        def handler(model, messages):
+            return json.dumps({"verdicts": [{"id": 1, **entry(messages)}]})
+
+        return Adjudicator(MockLLM(handler), settings, series).judge_batch(
+            [cand], store, series.name
+        )[0]
+
+    invented = run(lambda m: {"verdict": "deliberate", "evidence": "It was all a dream."})
+    assert invented.verdict == "ambiguous" and "Needs your judgement" in invented.explanation
+    bare = run(lambda m: {"verdict": "deliberate", "explanation": "character development"})
+    assert bare.verdict == "ambiguous" and "character development" in bare.explanation
+    own = run(lambda m: {"verdict": "deliberate", "evidence": own_quote})
+    assert own.verdict == "ambiguous"  # the conflicting quote itself explains nothing
+    explained = run(lambda m: {"verdict": "deliberate", "evidence": _passage(m)})
+    assert explained.verdict == "deliberate" and explained.evidence
+    misread = run(lambda m: {"verdict": "not_conflict", "evidence": own_quote})
+    assert misread.verdict == "not_conflict"
+    real = run(lambda m: {"verdict": "contradiction"})
+    assert real.verdict == "contradiction"  # contradictions need no extra proof
