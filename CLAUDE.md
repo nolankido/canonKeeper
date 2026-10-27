@@ -29,7 +29,11 @@ tokens of context) → HTML report. Default provider is the Gemini free tier (no
   429s do not. So an overloaded model is doubly expensive — the ladder's "move on after 3"
   rule and the client-side budget guard (`remaining_today`) both rely on this. Plan runs by
   the day; never burn requests on probes right before a full run. Everything is cached, so a
-  run stopped by quota resumes with the same command.
+  run stopped by quota resumes with the same command. `build --dry-run` gives the exact
+  request count and a time estimate from today's measured pace; extraction keeps 3 requests
+  in flight (9/min cap ≈ 50 min for a full Holmes build). A side experiment can share the
+  main cache and quota log: `CANONKEEPER_CACHE_DIR=.canonkeeper/cache
+  CANONKEEPER_REQUEST_LOG_PATH=.canonkeeper/requests.jsonl ... --workdir <elsewhere>`.
 - **Keep the mock provider working.** CI and tests run offline via `MockLLM`. Any change to the
   extraction or adjudication contract must keep `tests/` green with no API key.
 - **Measure, don't eyeball.** Prompt changes are evaluated with `canonkeeper eval`, and the
