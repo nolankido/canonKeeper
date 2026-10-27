@@ -23,17 +23,19 @@ class ProviderDefaults:
     base_url: dict[str, str] = {
         "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
         "meta": "https://api.meta.ai/v1",
+        # Ollama's OpenAI-compatible endpoint; LM Studio is http://localhost:1234/v1.
+        "openweights": "http://localhost:11434/v1",
     }
     extract_model: dict[str, str] = {
         "gemini": "gemini-3.5-flash-lite",  # fast and actually serving on the free tier
         "meta": "muse-spark-1.3",
-        "openweights": "muse-spark-open",
+        "openweights": "qwen3.5:4b",  # ~3 GB, runs on a laptop CPU; `ollama pull qwen3.5:4b`
         "mock": "mock-extract",
     }
     adjudicate_model: dict[str, str] = {
         "gemini": "gemini-3.6-flash",  # 3.8 Flash when it is not overloaded; Argon is paid-only
         "meta": "muse-wonder-1.0",
-        "openweights": "muse-spark-open",
+        "openweights": "qwen3.5:4b",
         "mock": "mock-adjudicate",
     }
     # If a model keeps answering 503 (overloaded) the client moves down this ladder for the rest
@@ -157,7 +159,8 @@ class Settings(BaseSettings):
     def _apply_provider_defaults(self) -> Settings:
         p = self.provider
         if not self.base_url:
-            self.base_url = self.openweights_base_url or ProviderDefaults.base_url.get(p, "")
+            local = self.openweights_base_url if p == "openweights" else None
+            self.base_url = local or ProviderDefaults.base_url.get(p, "")
         if not self.extract_model:
             self.extract_model = ProviderDefaults.extract_model[p]
         if not self.adjudicate_model:

@@ -409,3 +409,17 @@ def test_is_cached_sees_answers_from_any_model_on_the_ladder(tmp_path):
     llm.complete("flash", msgs, json_mode=True)  # answered by the fallback model
     assert llm.is_cached("lite", msgs, json_mode=True) is True
     assert llm.is_cached("lite", msgs, json_mode=False) is False
+
+
+def test_openweights_defaults_and_base_url_scope():
+    from canonkeeper.config import Settings
+
+    local = Settings(provider="openweights", _env_file=None)
+    assert local.base_url == "http://localhost:11434/v1" and local.extract_model == "qwen3.5:4b"
+    assert local.trains_on_prompts is False
+    lm = Settings(
+        provider="openweights", openweights_base_url="http://localhost:1234/v1", _env_file=None
+    )
+    assert lm.base_url == "http://localhost:1234/v1"
+    g = Settings(provider="gemini", openweights_base_url="http://localhost:1234/v1", _env_file=None)
+    assert g.base_url.startswith("https://generativelanguage")

@@ -11,7 +11,12 @@
   <label for="files">Manuscripts (.txt or .md), one file per book — they are sorted by filename, so prefix with 01-, 02-, …</label>
   <input id="files" name="files" type="file" multiple accept=".txt,.md,text/plain,text/markdown" required>
   <button type="submit">Get a quote</button>
-  <p class="note">Nothing is sent to a model until you pay. Public-domain text and your own work only; files are kept on this server only for the audit, and the job page has a button that deletes them along with everything derived from them.</p>
+  <p class="note">Nothing is sent to a model until you pay. Files are kept on this server only for the audit, and the job page has a button that deletes them along with everything derived from them.</p>
+</form>
+
+<form class="card" action="/quote-demo" method="post">
+  <p>No series to hand? Try the flow with <strong>The Saltmarsh Chronicles</strong>, an invented three-book series with five planted continuity errors.</p>
+  <button type="submit" class="secondary">Try it with the demo series</button>
 </form>
 
 {% if jobs %}

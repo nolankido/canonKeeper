@@ -346,3 +346,22 @@ def test_sample_report_and_no_public_job_list(tmp_path, client):
         create_app(settings=settings, paypal=SandboxLike(), workdir=tmp_path / "pf")
     )
     assert ">The Saltmarsh Chronicles</a>" not in public.get("/").text  # same store, unlisted
+
+
+def test_demo_series_button_quotes_saltmarsh(client):
+    assert 'action="/quote-demo"' in client.get("/").text
+    r = client.post("/quote-demo")
+    assert r.status_code == 200 and "The Saltmarsh Chronicles" in r.text and "Pay $" in r.text
+    job = client.app.state.store.all()[0]
+    assert job.books == ["01-the-harbour.txt", "02-the-wreck.txt", "03-the-return.txt"]
+
+
+def test_free_tier_privacy_banner(tmp_path):
+    settings = Settings(
+        provider="gemini", gemini_api_key="x", workdir=tmp_path / "w", _env_file=None
+    )
+    app = create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pf")
+    assert "never an unpublished manuscript" in TestClient(app).get("/").text
+    local = Settings(provider="openweights", workdir=tmp_path / "w2", _env_file=None)
+    app2 = create_app(settings=local, paypal=FakePayPal(), workdir=tmp_path / "pf2")
+    assert "never an unpublished manuscript" not in TestClient(app2).get("/").text

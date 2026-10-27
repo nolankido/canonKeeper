@@ -76,7 +76,11 @@ def create_app(
     templates = Jinja2Templates(directory=str(_TEMPLATES))
 
     def render(request: Request, name: str, **ctx: object) -> HTMLResponse:
-        return templates.TemplateResponse(request, name, {"paypal_mode": pp.mode, **ctx})
+        return templates.TemplateResponse(
+            request,
+            name,
+            {"paypal_mode": pp.mode, "trains_on_prompts": settings.trains_on_prompts, **ctx},
+        )
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -88,6 +92,20 @@ def create_app(
         # would show every customer's series to every visitor. Demo mode is single-user.
         jobs = store.all()[:10] if pp.mode == "fake" else []
         return render(request, "index.html", jobs=jobs, sample=_SAMPLES.exists())
+
+    @app.post("/quote-demo")
+    def quote_demo(request: Request) -> HTMLResponse:
+        """Quote the invented three-book Saltmarsh series (five planted errors), so a visitor
+        can walk the whole flow without having a series of their own to hand."""
+        from canonkeeper.demo import BOOK1, BOOK2, BOOK3, SERIES_NAME
+
+        files = [
+            ("01-the-harbour.txt", BOOK1.encode()),
+            ("02-the-wreck.txt", BOOK2.encode()),
+            ("03-the-return.txt", BOOK3.encode()),
+        ]
+        job, q = store.create_from_upload(SERIES_NAME, files)
+        return render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
 
     @app.get("/sample", response_class=HTMLResponse)
     def sample() -> FileResponse:
