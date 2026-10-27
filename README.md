@@ -125,7 +125,9 @@ Every fact behind it is browsable in the bible page, with its source passage one
 
 The famous landlady slip (Mrs. Hudson in *The Sign of the Four*, Mrs. Turner in *A Scandal in
 Bohemia*) is now raised by the `role_collision` screen and goes to the adjudicator on the next
-run; Mary Watson calling her husband James is captured as a fact but still needs a heuristic.
+run. Mary Watson calling her husband "James" (*The Man with the Twisted Lip*) is not caught:
+the extractor does not yet record a vocative inside dialogue as a `first_name` claim. That is
+the kind of gap the benchmark below is for.
 
 ## Does it actually work? The seeded-defect benchmark
 
