@@ -31,6 +31,11 @@ def main() -> None:
     ap.add_argument("manifest", nargs="?", default="evals/corpora/sherlock-holmes/series.json")
     ap.add_argument("--n", type=int, default=20)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument(
+        "--mode",
+        default="two-pass",
+        help="two-pass | merged | general | all (runs every variant for a side-by-side)",
+    )
     args = ap.parse_args()
 
     settings = load_settings()
@@ -67,10 +72,20 @@ def main() -> None:
             continue
         ch, text, offset = target
         row: dict[str, bool] = {"found_chunk": True}
-        for name, system, effort in (
-            ("general", prompts.SYSTEM, settings.extract_reasoning_effort),
-            ("sweep", prompts.SWEEP_SYSTEM, settings.extract_sweep_reasoning_effort),
-        ):
+        variants = {
+            "general": (prompts.SYSTEM, settings.extract_reasoning_effort),
+            "sweep": (prompts.SWEEP_SYSTEM, settings.extract_sweep_reasoning_effort),
+            "merged": (prompts.MERGED_SYSTEM, settings.extract_reasoning_effort),
+        }
+        chosen = (
+            list(variants)
+            if args.mode == "all"
+            else ["general", "sweep"]
+            if args.mode == "two-pass"
+            else [args.mode]
+        )
+        for name in chosen:
+            system, effort = variants[name]
             res = ext.extract_chunk(
                 series.name, book, ch, text, offset, "", system=system, reasoning_effort=effort
             )

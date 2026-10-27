@@ -93,6 +93,19 @@ def repair_claim(c: dict) -> dict | None:
     return c
 
 
+def extraction_passes(settings: Settings) -> list[tuple[str, str]]:
+    """(system prompt, reasoning effort) per call, by `extract_mode`."""
+    mode = settings.extract_mode
+    if mode == "merged":
+        return [(prompts.MERGED_SYSTEM, settings.extract_reasoning_effort)]
+    if mode == "general":
+        return [(prompts.SYSTEM, settings.extract_reasoning_effort)]
+    return [
+        (prompts.SYSTEM, settings.extract_reasoning_effort),
+        (prompts.SWEEP_SYSTEM, settings.extract_sweep_reasoning_effort),
+    ]
+
+
 class Grounder:
     """Locates verbatim quotes in a chunk. One instance per chunk; the collapsed text is
     computed once."""
@@ -259,11 +272,7 @@ class Extractor:
             for book in series.books:
                 for chapter in book.chapters:
                     for text, offset, note in _chunks(chapter, self.settings):
-                        passes = [(prompts.SYSTEM, self.settings.extract_reasoning_effort)]
-                        if self.settings.extract_sweep:
-                            passes.append(
-                                (prompts.SWEEP_SYSTEM, self.settings.extract_sweep_reasoning_effort)
-                            )
+                        passes = extraction_passes(self.settings)
                         for system, effort in passes:
                             res = self.extract_chunk(
                                 series.name,

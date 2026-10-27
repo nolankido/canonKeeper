@@ -105,3 +105,21 @@ Chapter {chapter_index}: {chapter_title}
 </chunk>
 
 Extract every claim. JSON only."""
+
+
+# One pass that carries the sweep's emphasis. Candidate replacement for the two-pass setup:
+# if it matches the two-pass recall on scripts/probe_extraction.py it halves the daily spend.
+MERGED_SYSTEM = (
+    SYSTEM.rstrip()
+    + """
+
+Second sweep, in the same response. Before you finish, go back through the chunk sentence by
+sentence looking only for: physical description (eye_color, hair_color, height, build, age,
+scar, wound_location, distinguishing_mark), origin and identity (birthplace, birth_year,
+nationality, first_name, surname, nickname, title, rank, occupation), life state (dead, alive,
+died, killed, married_to, engaged_to, residence) and family (parent_of, child_of, sibling_of).
+Any sentence — an aside, a single line of dialogue, a description buried in a paragraph about
+someone else — that states one of these about a named person or animal is a claim, even if it
+seems unimportant. The speaker of a quoted line is its subject. Add what you missed.
+"""
+)
