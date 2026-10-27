@@ -9,16 +9,20 @@ Docs: https://developer.paypal.com/docs/api/orders/v2/
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import secrets
 import threading
 import time
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Protocol
 
 import httpx
+
+from canonkeeper.preflight.filelock import file_lock
 
 SANDBOX = "https://api-m.sandbox.paypal.com"
 LIVE = "https://api-m.paypal.com"
@@ -240,6 +244,7 @@ class FakePayPal:
         self, approve_base: str = "/fake-approve", *, state_path: Path | None = None
     ) -> None:
         self._orders: dict[str, Order] = {}
+        self._mem_lock = threading.RLock()
         self._approve_base = approve_base
         self._state_path = state_path
         self._load()
@@ -268,6 +273,18 @@ class FakePayPal:
         self._load()  # another process may have approved it
         return self._orders[order_id]
 
+    @contextlib.contextmanager
+    def _txn(self) -> Iterator[None]:
+        """Read-modify-write of the shared state file under a cross-process lock, so one
+        process's change is never overwritten by another's stale copy."""
+        lock = (
+            file_lock(self._state_path.with_suffix(".lock")) if self._state_path else self._mem_lock
+        )
+        with lock:
+            self._load()
+            yield
+            self._save()
+
     def create_order(
         self,
         *,
@@ -289,47 +306,48 @@ class FakePayPal:
             # return_url, so the approval page cannot be used to redirect anywhere else
             raw={"description": description, "reference": reference, "return_url": return_url},
         )
-        self._orders[oid] = o
-        self._save()
+        with self._txn():
+            self._orders[oid] = o
         return o
 
     def approve(self, order_id: str) -> Order:
-        o = self._get(order_id)
-        if o.status in UNAPPROVED:
-            o.status = "APPROVED"
-            self._save()
+        with self._txn():
+            o = self._orders[order_id]
+            if o.status in UNAPPROVED:
+                o.status = "APPROVED"
         return o
 
     def get_order(self, order_id: str) -> Order:
         return self._get(order_id)
 
     def capture_order(self, order_id: str) -> Order:
-        o = self._get(order_id)
-        if o.status in UNAPPROVED:
-            return o  # like the real client: not approved, status unchanged
-        if o.status != "COMPLETED":
-            o.status = "COMPLETED"
-            o.raw["purchase_units"] = [
-                {
-                    "payments": {
-                        "captures": [
-                            {
-                                "id": "CAP" + o.id[4:],
-                                "status": "COMPLETED",
-                                "amount": {"value": o.amount, "currency_code": o.currency},
-                            }
-                        ]
+        with self._txn():
+            o = self._orders[order_id]
+            if o.status in UNAPPROVED:
+                return o  # like the real client: not approved, status unchanged
+            if o.status != "COMPLETED":
+                o.status = "COMPLETED"
+                o.raw["purchase_units"] = [
+                    {
+                        "payments": {
+                            "captures": [
+                                {
+                                    "id": "CAP" + o.id[4:],
+                                    "status": "COMPLETED",
+                                    "amount": {"value": o.amount, "currency_code": o.currency},
+                                }
+                            ]
+                        }
                     }
-                }
-            ]
-            self._save()
+                ]
         return o
 
     def refund_capture(self, capture_id: str) -> Refund:
-        self._load()
-        for o in self._orders.values():
-            if capture_id_of(o) == capture_id:
-                o.raw["refund_id"] = o.raw.get("refund_id") or "REF" + secrets.token_hex(5).upper()
-                self._save()
-                return Refund(id=str(o.raw["refund_id"]), status="COMPLETED")
+        with self._txn():
+            for o in self._orders.values():
+                if capture_id_of(o) == capture_id:
+                    o.raw["refund_id"] = (
+                        o.raw.get("refund_id") or "REF" + secrets.token_hex(5).upper()
+                    )
+                    return Refund(id=str(o.raw["refund_id"]), status="COMPLETED")
         raise KeyError(capture_id)

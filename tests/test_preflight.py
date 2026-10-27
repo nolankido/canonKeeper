@@ -393,7 +393,7 @@ def test_job_progress_is_recorded_while_running(client):
     r = _upload(client)
     job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
     store, runner = client.app.state.store, client.app.state.runner
-    job = store.get(job_id)
+    job = store.update(job_id, status="running")  # progress is only written to a running job
     seen: list[tuple[str, int, int]] = []
     tick = runner._progress_writer(job)
     for args in [("extracting", 0, 3), ("extracting", 3, 3), ("judging", 0, 5), ("judging", 5, 5)]:
@@ -401,9 +401,6 @@ def test_job_progress_is_recorded_while_running(client):
         j = store.get(job_id)
         seen.append((j.stage, j.progress_done, j.progress_total))
     assert seen[1] == ("extracting", 3, 3) and seen[-1] == ("judging", 5, 5)
-    job = store.get(job_id)
-    job.status = "running"
-    store.save(job)
     page = client.get(f"/jobs/{job_id}").text
     assert "Judging candidate conflicts" in page and "5 of 5 candidates" in page
 
@@ -780,3 +777,140 @@ def test_finished_files_download_with_series_names(client):
     assert any(r.startswith("Ivy Marlowe,eye colour,green,yes,The Harbour") for r in rows)
     assert client.get(f"/jobs/{job_id}/download/job.json").status_code == 404  # not a file server
     assert client.get(f"/jobs/{job_id}/download/..%2Fjob.json").status_code == 404
+
+
+# --- races and odd orders found in review ---------------------------------------------------
+
+
+def _paid_job(client):
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    token = client.post(f"/jobs/{job_id}/order").headers["location"].split("token=")[1]
+    client.get(client.post("/fake-approve", data={"token": token}).headers["location"])
+    client.app.state.runner.wait(job_id, timeout=60)
+    return job_id, token
+
+
+def test_a_refund_in_flight_blocks_a_retry_and_a_run_stops_if_refunded(client):
+    import threading
+
+    from canonkeeper.preflight.jobs import _Stopped
+    from canonkeeper.preflight.payments import refund
+
+    store, runner, pp = client.app.state.store, client.app.state.runner, client.app.state.paypal
+    job_id, _ = _paid_job(client)
+    store.update(job_id, status="failed", error="quota")
+
+    entered, release = threading.Event(), threading.Event()
+    real = pp.refund_capture
+
+    def slow_refund(cap):
+        entered.set()
+        release.wait(5)
+        return real(cap)
+
+    pp.refund_capture = slow_refund
+    out: list = []
+    t = threading.Thread(target=lambda: out.append(refund(store.get(job_id), pp, store)))
+    t.start()
+    assert entered.wait(5)
+    assert store.get(job_id).status == "refunding"
+    runner.submit(job_id)  # the buyer presses Retry while PayPal is refunding
+    runner.wait(job_id, timeout=10)
+    assert store.get(job_id).status == "refunding"  # the retry did not start
+    release.set()
+    t.join(5)
+    job = store.get(job_id)
+    assert out == [None] and job.status == "refunded" and job.refund_status == "COMPLETED"
+    assert refund(job, pp, store) is None  # idempotent
+
+    # and a run that is already going stops as soon as its job is no longer "running"
+    other, _ = _paid_job(client)
+    running = store.update(other, status="running")
+    tick = runner._progress_writer(running)
+    tick("extracting", 0, 3)
+    store.update(other, status="deleted")
+    with pytest.raises(_Stopped):
+        tick("judging", 0, 3)
+    assert store.get(other).status == "deleted"
+
+
+def test_a_cancel_racing_a_capture_still_ends_paid(client):
+    from canonkeeper.preflight.payments import settle
+
+    store, runner, pp = client.app.state.store, client.app.state.runner, client.app.state.paypal
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    client.post(f"/jobs/{job_id}/order")
+    job = store.get(job_id)
+    pp.approve(job.order_id)
+    real = pp.capture_order
+
+    def capture_then_cancel(order_id):
+        o = real(order_id)
+        client.get(f"/cancel?job={job_id}")  # the back button lands mid-capture
+        return o
+
+    pp.capture_order = capture_then_cancel
+    assert settle(job, pp, store, runner) is None
+    runner.wait(job_id, timeout=60)
+    job = store.get(job_id)
+    assert job.status == "done" and job.capture_id
+
+
+def test_reordering_after_an_approved_order_settles_it_instead_of_charging_twice(client):
+    store, pp = client.app.state.store, client.app.state.paypal
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    client.post(f"/jobs/{job_id}/order")
+    first = store.get(job_id).order_id
+    pp.approve(first)  # approved on PayPal ...
+    client.get(f"/cancel?job={job_id}")  # ... then the buyer came back through cancel
+    assert store.get(job_id).status == "cancelled"
+    r = client.post(f"/jobs/{job_id}/order")  # "Try again"
+    assert r.headers["location"] == f"/jobs/{job_id}"  # no second checkout
+    client.app.state.runner.wait(job_id, timeout=60)
+    job = store.get(job_id)
+    assert job.order_id == first and job.status == "done"
+
+
+def test_an_expired_order_lets_the_buyer_start_again(client):
+    store, pp = client.app.state.store, client.app.state.paypal
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    client.post(f"/jobs/{job_id}/order")
+
+    def gone(order_id):
+        req = httpx.Request("GET", f"https://api/v2/checkout/orders/{order_id}")
+        raise httpx.HTTPStatusError(
+            "404", request=req, response=httpx.Response(404, text="RESOURCE_NOT_FOUND", request=req)
+        )
+
+    pp.get_order = gone
+    r = client.post(f"/jobs/{job_id}/confirm")
+    assert r.status_code == 200 and "expired" in r.text
+    assert store.get(job_id).status == "cancelled"  # "Try again" is offered, nothing stuck
+
+
+def test_two_processes_sharing_the_fake_never_lose_each_others_orders(tmp_path):
+    state = tmp_path / "fake-paypal.json"
+    mcp, web = FakePayPal(state_path=state), FakePayPal(state_path=state)
+    o = mcp.create_order(
+        amount="5.00",
+        currency="USD",
+        description="d",
+        return_url="r",
+        cancel_url="c",
+        reference="a",
+    )
+    web.approve(o.id)
+    assert mcp.capture_order(o.id).status == "COMPLETED"
+    web.create_order(
+        amount="6.00",
+        currency="USD",
+        description="d",
+        return_url="r",
+        cancel_url="c",
+        reference="b",
+    )
+    assert FakePayPal(state_path=state).get_order(o.id).status == "COMPLETED"

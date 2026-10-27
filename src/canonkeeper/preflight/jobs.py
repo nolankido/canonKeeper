@@ -15,21 +15,31 @@ import shutil
 import threading
 import time
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from canonkeeper.config import Settings
 from canonkeeper.corpus.chapterize import chapterize
 from canonkeeper.corpus.loaders import Book, Series
 from canonkeeper.corpus.loaders import decode_text as decode_upload
+from canonkeeper.preflight.filelock import file_lock
 from canonkeeper.preflight.pricing import Quote, quote
 from canonkeeper.tokens import count_tokens
 
 Status = Literal[
-    "quoted", "ordered", "paid", "running", "done", "failed", "cancelled", "refunded", "deleted"
+    "quoted",
+    "ordered",
+    "paid",
+    "running",
+    "done",
+    "failed",
+    "cancelled",
+    "refunding",
+    "refunded",
+    "deleted",
 ]
 DELETABLE: frozenset[str] = frozenset({"quoted", "cancelled", "done", "failed", "refunded"})
 
@@ -49,6 +59,7 @@ class Job:
     capture_id: str | None = None  # PayPal's capture, needed to refund it
     refund_id: str | None = None
     refunded_at: str | None = None
+    refund_status: str | None = None  # PayPal's: COMPLETED, or PENDING while it clears
     error: str | None = None
     claims: int | None = None
     contradictions: int | None = None
@@ -60,6 +71,14 @@ class Job:
     progress_total: int = 0
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+
+
+class _Stopped(Exception):
+    """Raised inside a run when its job stopped being "running" (refunded, deleted)."""
+
+
+def _unchanged_since(seen: str) -> Callable[[Job], bool]:
+    return lambda j: j.updated_at == seen
 
 
 def order_description(job: Job) -> str:
@@ -127,6 +146,35 @@ class JobStore:
             self.dir(job.id).mkdir(parents=True, exist_ok=True)
             self._path(job.id).write_text(json.dumps(asdict(job), indent=2), encoding="utf-8")
 
+    def lock(self, job_id: str) -> contextlib.AbstractContextManager[None]:
+        """Exclusive across threads and processes (serve and mcp share this folder)."""
+        if not _JOB_ID.fullmatch(job_id):
+            raise KeyError(job_id)
+        return file_lock(self.root / ".locks" / f"{job_id}.lock")
+
+    def update(
+        self,
+        job_id: str,
+        *,
+        expect: Collection[str] | None = None,
+        where: Callable[[Job], bool] | None = None,
+        **fields: Any,
+    ) -> Job | None:
+        """Atomically change a job, only if its *stored* status is in `expect` (and `where`
+        holds). Returns the updated job, or None if it did not qualify. Every status change
+        goes through here: a decision made on a copy read earlier can be stale by the time
+        it is written (a refund racing a retry, a cancel racing a capture)."""
+        with self.lock(job_id):
+            job = self.get(job_id)
+            if job is None or (expect is not None and job.status not in expect):
+                return None
+            if where is not None and not where(job):
+                return None
+            for k, v in fields.items():
+                setattr(job, k, v)
+            self.save(job)
+            return job
+
     def get(self, job_id: str) -> Job | None:
         if not _JOB_ID.fullmatch(job_id):
             return None
@@ -178,6 +226,10 @@ class JobStore:
         """Delete everything the customer uploaded or that was derived from it — manuscripts,
         bible, reports, the model-response cache — keeping only job.json as a receipt (id,
         price, order id, timestamps). Not allowed while a payment or a run is in flight."""
+        with self.lock(job_id):
+            return self._purge_locked(job_id)
+
+    def _purge_locked(self, job_id: str) -> Job:
         job = self.get(job_id)
         if job is None:
             raise KeyError(job_id)
@@ -359,8 +411,15 @@ class Runner:
                     continue
                 if age < stale_after_s:
                     continue  # probably still running in another process
-                job.status = "paid"
-                self.store.save(job)
+                stale = self.store.update(
+                    job.id,
+                    expect=("running",),
+                    where=_unchanged_since(job.updated_at),  # no heartbeat since we looked
+                    status="paid",
+                )
+                if stale is None:
+                    continue
+                job = stale
             if job.status == "paid":
                 self.submit(job.id)
                 resumed.append(job.id)
@@ -386,6 +445,16 @@ class Runner:
         if t:
             t.join(timeout)
 
+    heartbeat_s = 60.0
+
+    def _heartbeat(self, job_id: str, stop: threading.Event) -> None:
+        """Touch a running job every minute, so a single long model call (a big adjudication
+        batch, a Retry-After wait) never makes it look abandoned to resume_interrupted in this
+        or another process."""
+        while not stop.wait(self.heartbeat_s):
+            if self.store.update(job_id, expect=("running",)) is None:
+                return
+
     def _progress_writer(self, job: Job) -> Callable[[str, int, int], None]:
         """Persist (stage, done, total) on the job so its page and audit_status show it; at
         most every 2 s, plus every stage change and the last step."""
@@ -397,8 +466,15 @@ class Runner:
             if stage == stage_seen["stage"] and done < total and now - state["at"] < 2.0:
                 return
             state["at"], stage_seen["stage"] = now, stage
-            job.stage, job.progress_done, job.progress_total = stage, done, total
-            self.store.save(job)
+            moved = self.store.update(
+                job.id,
+                expect=("running",),
+                stage=stage,
+                progress_done=done,
+                progress_total=total,
+            )
+            if moved is None:  # refunded, deleted or taken over meanwhile: stop working
+                raise _Stopped(job.id)
 
         return tick
 
@@ -409,12 +485,13 @@ class Runner:
         from canonkeeper.report.bible import write_bible
 
         with self._sem:
-            job = self.store.get(job_id)
-            if job is None or job.status not in ("paid", "failed"):
+            job = self.store.update(job_id, expect=("paid", "failed"), status="running", error=None)
+            if job is None:
                 return
-            job.status = "running"
-            job.error = None
-            self.store.save(job)
+            beat = threading.Event()
+            threading.Thread(
+                target=self._heartbeat, args=(job_id, beat), name=f"beat-{job_id}", daemon=True
+            ).start()
             try:
                 series = self.store.load_series(job)
                 d = self.store.dir(job.id)
@@ -443,14 +520,22 @@ class Runner:
                     write_bible(store, series.name, d / "reports" / "bible.html")
                     report = audit(series, store, llm, settings, progress=False, on_progress=tick)
                 write_report(report, d / "reports")
-                job.claims = report.claims_total
-                job.contradictions = len(report.errors)
-                job.status = "done"
-                job.stage = None
-            except Exception as e:  # noqa: BLE001 - the job page shows the failure
-                job.status = "failed"
-                job.error = f"{type(e).__name__}: {e}"
-                (self.store.dir(job.id) / "error.txt").write_text(
-                    traceback.format_exc(), encoding="utf-8"
+                self.store.update(
+                    job.id,
+                    expect=("running",),
+                    claims=report.claims_total,
+                    contradictions=len(report.errors),
+                    status="done",
+                    stage=None,
                 )
-            self.store.save(job)
+            except _Stopped:
+                pass  # the job's status was changed under us; it is no longer ours to write
+            except Exception as e:  # noqa: BLE001 - the job page shows the failure
+                if self.store.update(
+                    job.id, expect=("running",), status="failed", error=f"{type(e).__name__}: {e}"
+                ):
+                    (self.store.dir(job.id) / "error.txt").write_text(
+                        traceback.format_exc(), encoding="utf-8"
+                    )
+            finally:
+                beat.set()

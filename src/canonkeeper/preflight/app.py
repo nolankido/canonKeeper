@@ -29,9 +29,8 @@ from canonkeeper.preflight.jobs import (
     MAX_TOTAL_BYTES,
     JobStore,
     Runner,
-    order_description,
 )
-from canonkeeper.preflight.payments import refund, settle
+from canonkeeper.preflight.payments import place_order, refund, settle
 from canonkeeper.preflight.paypal import (
     FakePayPal,
     Order,
@@ -107,11 +106,12 @@ def create_app(
     app.state.store, app.state.runner, app.state.paypal = store, runner, pp
     templates = Jinja2Templates(directory=str(_TEMPLATES))
 
-    def render(request: Request, name: str, **ctx: object) -> HTMLResponse:
+    def render(request: Request, name: str, status_code: int = 200, **ctx: object) -> HTMLResponse:
         return templates.TemplateResponse(
             request,
             name,
             {"paypal_mode": pp.mode, "trains_on_prompts": settings.trains_on_prompts, **ctx},
+            status_code=status_code,
         )
 
     @app.get("/healthz")
@@ -174,30 +174,28 @@ def create_app(
         job = store.get(job_id)
         if job is None:
             raise HTTPException(404)
-        if job.status not in ("quoted", "cancelled"):
-            return RedirectResponse(f"/jobs/{job_id}", status_code=303)
-        o = pp.create_order(
-            amount=job.quote_usd,
-            currency=CURRENCY,
-            description=order_description(job),
-            return_url=f"{base}/return",
-            cancel_url=f"{base}/cancel?job={job_id}",
-            reference=job_id,
-        )
-        job.order_id, job.approve_url, job.status = o.id, o.approve_url, "ordered"
-        store.save(job)
-        if not o.approve_url:
-            raise HTTPException(502, "PayPal returned no approval link")
-        return RedirectResponse(o.approve_url, status_code=303)
+        job = place_order(job, pp, store, runner, base)
+        if job.status == "ordered":
+            if not job.approve_url:
+                raise HTTPException(502, "PayPal returned no approval link")
+            return RedirectResponse(job.approve_url, status_code=303)
+        return RedirectResponse(f"/jobs/{job_id}", status_code=303)
 
-    @app.get("/return")
-    def paypal_return(token: str) -> RedirectResponse:
+    @app.get("/return", response_model=None)
+    def paypal_return(request: Request, token: str) -> RedirectResponse | HTMLResponse:
         job = store.by_order(token)
         if job is None:
             raise HTTPException(404, "unknown order")
         problem = settle(job, pp, store, runner, known_approved=True)
-        if problem and job.status == "ordered":
-            raise HTTPException(402, problem)
+        if problem:
+            return render(
+                request,
+                "job.html",
+                job=job,
+                quote=quote(job.tokens, words=job.words, books=len(job.books)),
+                note=problem,
+                status_code=402,
+            )
         return RedirectResponse(f"/jobs/{job.id}", status_code=303)
 
     @app.post("/jobs/{job_id}/confirm", response_model=None)
@@ -220,10 +218,10 @@ def create_app(
 
     @app.get("/cancel")
     def paypal_cancel(job: str) -> RedirectResponse:
-        j = store.get(job)
-        if j and j.status == "ordered":
-            j.status = "cancelled"
-            store.save(j)
+        try:
+            store.update(job, expect=("ordered",), status="cancelled")
+        except KeyError:
+            raise HTTPException(404) from None
         return RedirectResponse(f"/jobs/{job}", status_code=303)
 
     @app.get("/jobs/{job_id}", response_class=HTMLResponse)

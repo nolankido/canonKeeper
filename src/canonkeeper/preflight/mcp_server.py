@@ -28,8 +28,8 @@ from typing import Any
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.models import Candidate
-from canonkeeper.preflight.jobs import JobStore, Runner, order_description
-from canonkeeper.preflight.payments import refund, settle
+from canonkeeper.preflight.jobs import JobStore, Runner
+from canonkeeper.preflight.payments import place_order, refund, settle
 from canonkeeper.preflight.paypal import FakePayPal, PayPal
 from canonkeeper.preflight.pricing import CURRENCY
 from canonkeeper.report.display import headline
@@ -72,27 +72,15 @@ class PreflightService:
         job = self.store.get(job_id)
         if job is None:
             raise ValueError("unknown job")
-        if job.status not in ("quoted", "cancelled"):
-            return {"job_id": job.id, "status": job.status, "approve_url": job.approve_url}
-        o = self.paypal.create_order(
-            amount=job.quote_usd,
-            currency=CURRENCY,
-            description=order_description(job),
-            return_url=f"{self.base}/return",
-            cancel_url=f"{self.base}/cancel?job={job_id}",
-            reference=job_id,
-        )
-        approve = o.approve_url or ""
-        if approve.startswith("/"):  # the fake's page lives on our own web app
-            approve = f"{self.base}{approve}"
-        job.order_id, job.approve_url, job.status = o.id, approve, "ordered"
-        self.store.save(job)
+        job = place_order(job, self.paypal, self.store, self.runner, self.base, absolute_links=True)
+        if job.status != "ordered":
+            return {"job_id": job.id, "status": job.status}
         return {
             "job_id": job.id,
             "status": job.status,
-            "order_id": o.id,
+            "order_id": job.order_id,
             "amount": f"{job.quote_usd} {CURRENCY}",
-            "approve_url": approve,
+            "approve_url": job.approve_url,
             "next": "ask the person to open approve_url and approve the payment, then call confirm_payment(job_id)",
         }
 
