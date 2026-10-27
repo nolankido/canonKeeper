@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from rapidfuzz import fuzz
 
 from canonkeeper.eval.inject import Injection
-from canonkeeper.models import Finding
+from canonkeeper.models import Claim, Finding
 
 
 @dataclass
@@ -41,31 +41,97 @@ class Score:
         )
 
 
+_ORIGIN = {"nationality", "birthplace"}
+
+
+def _subject_ok(inj: Injection, c: Claim) -> bool:
+    return fuzz.token_set_ratio(c.subject.lower(), inj.subject.lower()) >= 85
+
+
+def _claim_hit(inj: Injection, c: Claim) -> bool:
+    """`c` asserts the planted value for the planted subject."""
+    from canonkeeper.canon.normalize import same_country
+
+    if not _subject_ok(inj, c):
+        return False
+    if inj.predicate == "dead":
+        return c.predicate in {"dead", "died"}
+    pred_ok = c.predicate == inj.predicate or (c.predicate in _ORIGIN and inj.predicate in _ORIGIN)
+    if not pred_ok:
+        return False
+    if fuzz.partial_ratio(c.object.lower(), inj.injected.lower()) >= 85:
+        return True
+    return inj.predicate in _ORIGIN and same_country(c.object, inj.injected) is True
+
+
 def _hit(inj: Injection, f: Finding) -> bool:
-    subj_ok = any(
-        fuzz.token_set_ratio(c.subject.lower(), inj.subject.lower()) >= 85
-        for c in f.candidate.claims
-    )
-    if not subj_ok:
+    if not any(_subject_ok(inj, c) for c in f.candidate.claims):
         return False
     if inj.predicate == "dead":
         return f.candidate.heuristic == "dead_speaks" or any(
             c.predicate in {"dead", "died"} for c in f.candidate.claims
         )
-    from canonkeeper.canon.normalize import same_country
+    return any(_claim_hit(inj, c) for c in f.candidate.claims)
 
-    origin = {"nationality", "birthplace"}
-    for c in f.candidate.claims:
-        pred_ok = c.predicate == inj.predicate or (
-            c.predicate in origin and inj.predicate in origin
-        )
-        if not pred_ok:
+
+@dataclass
+class Miss:
+    """Where the pipeline lost a planted defect."""
+
+    injection: Injection
+    stage: str  # "extraction" | "screen" | "judgement" | "baseline"
+    detail: str
+
+
+def diagnose(
+    missed: list[Injection],
+    claims: list[Claim],
+    findings: list[Finding],
+    *,
+    baseline_ids: set[str] | None = None,
+) -> list[Miss]:
+    """For each missed defect: was the planted sentence extracted as a fact, did the screen
+    raise a conflict on it, and if so what did the adjudicator rule? Recall is only worth
+    improving at the stage that actually loses it."""
+    baseline_ids = baseline_ids or set()
+    out: list[Miss] = []
+    for inj in missed:
+        planted = [c for c in claims if c.provenance.book == inj.book and _claim_hit(inj, c)]
+        if not planted:
+            out.append(Miss(inj, "extraction", "no fact was extracted from the planted sentence"))
             continue
-        if fuzz.partial_ratio(c.object.lower(), inj.injected.lower()) >= 85:
-            return True
-        if inj.predicate in origin and same_country(c.object, inj.injected) is True:
-            return True
-    return False
+        f = next((f for f in findings if _hit(inj, f)), None)
+        if f is None:
+            c = planted[0]
+            out.append(
+                Miss(inj, "screen", f"extracted as {c.subject}.{c.predicate} = {c.object!r}")
+            )
+        elif f.is_error and finding_key(f) in baseline_ids:
+            out.append(Miss(inj, "baseline", "reported, but matched a pre-existing contradiction"))
+        else:
+            out.append(Miss(inj, "judgement", f"ruled {f.verdict}: {f.explanation[:160]}"))
+    return out
+
+
+def misses_markdown(misses: list[Miss]) -> str:
+    if not misses:
+        return ""
+    counts: dict[str, int] = {}
+    for m in misses:
+        counts[m.stage] = counts.get(m.stage, 0) + 1
+    lines = [
+        "",
+        "Misses by stage: "
+        + ", ".join(f"{k} {v}" for k, v in sorted(counts.items(), key=lambda kv: -kv[1])),
+        "",
+        "| planted | lost at | detail |",
+        "|---|---|---|",
+    ]
+    for m in misses:
+        i = m.injection
+        what = f"{i.subject}.{i.predicate} → {i.injected!r} ({i.book})"
+        lines.append(f"| {what} | {m.stage} | {m.detail.replace('|', '/')} |")
+    return "\n".join(lines)
 
 
 def score(

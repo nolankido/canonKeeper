@@ -14,6 +14,7 @@ canonkeeper mcp                              # Preflight as an MCP server for an
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Annotated
 
@@ -563,15 +564,26 @@ def eval_cmd(
     report = _run_or_explain(run_audit, iset.series, mutated_store, llm, settings)
     s = score(iset.injections, report.findings, baseline_ids=baseline_ids)
 
+    from canonkeeper.eval.score import diagnose, misses_markdown
+
+    misses = diagnose(s.missed, mutated_store.claims, report.findings, baseline_ids=baseline_ids)
     console.rule("result")
     console.print(s.markdown())
-    for inj in s.missed:
+    for miss in misses:
+        inj = miss.injection
         console.print(
-            f"[yellow]missed[/yellow] {inj.subject}.{inj.predicate} → {inj.injected!r} ({inj.book})"
+            f"[yellow]missed at {miss.stage}[/yellow] {inj.subject}.{inj.predicate} → "
+            f"{inj.injected!r} ({inj.book}): {miss.detail}"
         )
     for f in s.extra:
         console.print(f"[red]false positive[/red] {f.candidate.reason}")
-    (eval_dir / "result.md").write_text(s.markdown() + "\n", encoding="utf-8")
+    (eval_dir / "result.md").write_text(
+        s.markdown() + "\n" + misses_markdown(misses) + "\n", encoding="utf-8"
+    )
+    (eval_dir / "injections.json").write_text(
+        json.dumps([inj.__dict__ for inj in iset.injections], indent=1), encoding="utf-8"
+    )
+    (eval_dir / "report.json").write_text(report.model_dump_json(indent=1), encoding="utf-8")
     console.print(f"[dim]cost ${llm.usage.cost_usd:.3f}[/dim]")
 
 

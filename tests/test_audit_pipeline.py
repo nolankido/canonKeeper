@@ -366,3 +366,24 @@ def test_names_never_fuzzy_merge_across_gender_and_variants_do_merge(tmp_path):
     assert len(st.for_entity("Enoch J. Drebber")) == 3
     assert st.canonical("Enoch Drebber") == "Enoch J. Drebber"
     assert "Young Drebber" in st.entities()
+
+
+def test_misses_are_attributed_to_the_stage_that_lost_them(series, settings, mock_llm, tmp_path):
+    from canonkeeper.eval.score import diagnose, misses_markdown
+
+    clean = build_bible(series, mock_llm, settings, tmp_path / "clean.jsonl", progress=False)
+    iset = inject(series, clean, n=3, seed=1)
+    mutated = build_bible(iset.series, mock_llm, settings, tmp_path / "mut.jsonl", progress=False)
+    report = audit(iset.series, mutated, mock_llm, settings, progress=False)
+    inj, hit = score(iset.injections, report.findings).matched[0]
+
+    # Nothing extracted from the planted book → lost at extraction.
+    others = [c for c in mutated.claims if c.provenance.book != inj.book]
+    assert diagnose([inj], others, report.findings)[0].stage == "extraction"
+    # Extracted, but no candidate raised → lost at the screen.
+    assert diagnose([inj], mutated.claims, [])[0].stage == "screen"
+    # Raised, but the adjudicator cleared it → lost at judgement, with its reason.
+    cleared = hit.model_copy(update={"verdict": "deliberate", "explanation": "a disguise"})
+    m = diagnose([inj], mutated.claims, [cleared])[0]
+    assert m.stage == "judgement" and "a disguise" in m.detail
+    assert "| planted | lost at |" in misses_markdown([m])
