@@ -86,6 +86,8 @@ def main(argv: list[str] | None = None) -> int:
         return failures
     assert m is not None
     job = m.group(1)
+    status, _, _ = fetch(f"{base}/mcp")  # a bare GET is not an MCP request: 4xx, not 404
+    check("MCP endpoint at /mcp", status not in (404, 0) and status < 500, f"HTTP {status}")
     if mode in ("sandbox", "live"):
         check("PayPal buttons on the quote page", "paypal.com/sdk/js?client-id=" in text)
         status, _, _ = fetch(f"{base}/paypal/webhook", data={})

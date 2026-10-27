@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Upload your series{% endblock %}
+{% block body %}
+<h1>Upload your series</h1>
+<p class="lede">Your AI assistant asked Preflight for this page so that you can upload the books yourself. You will see the price before anything runs; your assistant then asks you to approve the payment on PayPal. It can never approve a payment for you.</p>
+
+{% if job %}
+<div class="card" data-testid="upload-used">
+  <p>This link has been used: <a href="/jobs/{{ job.id }}">{{ job.series_name }}</a> ({{ job.books | length }} books, ${{ job.quote_usd }}). Tell your assistant it is ready.</p>
+</div>
+{% else %}
+<div class="card privacy" data-testid="privacy">
+  {% if trains_on_prompts %}
+  <p><strong>Public-domain books only on this site.</strong> It runs on a free AI tier whose terms let Google use uploaded text to improve its products, so do not upload an unpublished manuscript here.</p>
+  {% elif provider == 'mock' %}
+  <p><strong>Demo mode: no text is sent to any model.</strong></p>
+  {% else %}
+  <p><strong>Where your text goes:</strong> to this site's model provider ({{ provider }}) for the audit, and nowhere else.</p>
+  {% endif %}
+</div>
+
+<form class="card" action="/upload/{{ token }}" method="post" enctype="multipart/form-data">
+  <label for="series_name">Series name</label>
+  <input id="series_name" name="series_name" type="text" value="{{ record.series_name }}" required>
+  <label for="files">Manuscripts (.txt or .md), one file per book, prefixed 01-, 02-, … in reading order</label>
+  <input id="files" name="files" type="file" multiple accept=".txt,.md,text/plain,text/markdown" required>
+  <button type="submit">Upload and see the price</button>
+  <p class="note">This link works once and expires 24 hours after your assistant asked for it.</p>
+</form>
+{% endif %}
+{% endblock %}

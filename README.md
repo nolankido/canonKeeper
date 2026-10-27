@@ -15,7 +15,7 @@ titles across four series imprints.
 | **Who it's for** | Authors of long-running series, their editors, small presses |
 | **What it costs** | $5 + $4 per 100,000 tokens (about 73,000 words of fiction), shown with its arithmetic before you pay: a 100,000-word novel is about $10.50, the six Sherlock Holmes volumes $30.20. A draft check is $2 + the same rate on the draft alone. |
 | **How you pay** | PayPal Checkout (Orders v2; this hackathon build runs on PayPal's sandbox, so it is test money). Nothing reaches a model until PayPal confirms the capture of exactly the quoted amount; an audit that cannot finish is refunded in full through PayPal. |
-| **Agents welcome** | The same service is an MCP server: an author's AI assistant can quote, order, check progress and read the findings, but the PayPal approval link always goes to the person. |
+| **Agents welcome** | The same service is an MCP server at `<url>/mcp` (streamable HTTP; or `canonkeeper mcp` on stdio): an author's AI assistant connects as a customer, holding no keys. It asks for an upload link, the person uploads the books and sees the price, the assistant orders, and the PayPal approval link always goes to the person. |
 | **What you get** | The report (HTML, prints to PDF), the series bible as a page and as a spreadsheet with the passage behind every row, and the findings as JSON |
 
 **See a finished audit first:** [the six Sherlock Holmes volumes](#what-it-found-in-sherlock-holmes),

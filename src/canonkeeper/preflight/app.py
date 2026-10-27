@@ -13,26 +13,31 @@ GET  /healthz
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import httpx
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.concurrency import run_in_threadpool
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.preflight.jobs import (
     MAX_BOOKS,
     MAX_TOTAL_BYTES,
+    Job,
     JobStore,
     Runner,
 )
+from canonkeeper.preflight.mcp_server import PreflightService, build_server
 from canonkeeper.preflight.payments import QuotaShort, place_order, refund, settle
 from canonkeeper.preflight.paypal import (
     FakePayPal,
@@ -40,7 +45,7 @@ from canonkeeper.preflight.paypal import (
     PayPal,
     PayPalClient,
 )
-from canonkeeper.preflight.pricing import CURRENCY, quote
+from canonkeeper.preflight.pricing import CURRENCY, Quote, quote
 
 _TEMPLATES = Path(__file__).parent / "templates"
 _SAMPLES = Path(__file__).parent / "samples"
@@ -73,6 +78,24 @@ def keep_awake_until(value: str | None) -> datetime | None:
             f"PREFLIGHT_KEEP_AWAKE_UNTIL={value!r} is not a date (YYYY-MM-DD) or ISO timestamp"
         ) from None
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
+def _mcp_security(base: str) -> TransportSecuritySettings:
+    """A server on localhost keeps the SDK's DNS-rebinding guard (a web page must not drive a
+    local server); a public one accepts its own host, which is the only way anyone reaches it."""
+    host = urlparse(base).netloc
+    local = host.split(":")[0] in ("127.0.0.1", "localhost", "[::1]")
+    if local:
+        return TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*"],
+            allowed_origins=["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"],
+        )
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[host],
+        allowed_origins=[f"{urlparse(base).scheme}://{host}"],
+    )
 
 
 def make_paypal(
@@ -135,8 +158,30 @@ def create_app(
     runner.watch(on_held=lambda job: settle(job, pp, store, runner))  # see Runner.watch
     pp = paypal or make_paypal(state_dir=settings.workdir / "preflight")
 
-    app = FastAPI(title="Preflight by canonkeeper", docs_url=None, redoc_url=None)
+    # The same service over MCP (streamable HTTP at /mcp), on this app's own jobs and PayPal:
+    # an author's assistant connects to the public URL as a customer and holds no keys.
+    service = PreflightService(
+        settings, pp, workdir, public_base_url=base, store=store, runner=runner
+    )
+    mcp_server = build_server(service, hosted=True)
+    mcp_http = mcp_server.streamable_http_app(
+        streamable_http_path="/mcp",
+        stateless_http=True,
+        json_response=True,
+        transport_security=_mcp_security(base),
+    )
+
+    @contextlib.asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        async with mcp_server.session_manager.run():
+            yield
+
+    app = FastAPI(
+        title="Preflight by canonkeeper", docs_url=None, redoc_url=None, lifespan=lifespan
+    )
+    app.router.routes.extend(mcp_http.routes)
     app.state.store, app.state.runner, app.state.paypal = store, runner, pp
+    app.state.mcp_service = service
     templates = Jinja2Templates(directory=str(_TEMPLATES))
 
     def render(request: Request, name: str, status_code: int = 200, **ctx: object) -> HTMLResponse:
@@ -222,6 +267,11 @@ def create_app(
     async def make_quote(
         request: Request, series_name: str = Form(...), files: list[UploadFile] | None = None
     ) -> HTMLResponse:
+        job, q = await quote_upload(series_name, files)
+        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
+        return remember(request, page, job.id)
+
+    async def quote_upload(series_name: str, files: list[UploadFile] | None) -> tuple[Job, Quote]:
         files = files or []
         require_model()
         if not files or not any(f.filename for f in files):
@@ -234,10 +284,38 @@ def create_app(
         await run_in_threadpool(store.prune_unpaid)
         try:
             # tokenising up to 40 MB takes seconds: not on the event loop
-            job, q = await run_in_threadpool(store.create_from_upload, series_name, payload)
+            return await run_in_threadpool(store.create_from_upload, series_name, payload)
         except ValueError as e:
             raise HTTPException(413 if "large" in str(e) else 400, str(e)) from None
-        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
+
+    def upload_link(token: str) -> dict[str, object]:
+        try:
+            return service.uploads.get(token)
+        except KeyError:
+            raise HTTPException(404, "this upload link does not exist or has expired") from None
+
+    @app.get("/upload/{token}", response_class=HTMLResponse)
+    def upload_page(request: Request, token: str) -> HTMLResponse:
+        """The page an assistant's upload link opens: the person uploads the books here."""
+        record = upload_link(token)
+        job = store.get(str(record["job_id"])) if record.get("job_id") else None
+        return render(request, "upload.html", token=token, record=record, job=job)
+
+    @app.post("/upload/{token}")
+    async def upload_books(
+        request: Request,
+        token: str,
+        series_name: str = Form(...),
+        files: list[UploadFile] | None = None,
+    ) -> HTMLResponse:
+        if upload_link(token).get("job_id"):
+            raise HTTPException(409, "this upload link has already been used")
+        job, q = await quote_upload(series_name, files)
+        try:
+            service.uploads.attach(token, job.id)
+        except ValueError as e:  # two uploads at once on one link: the first one counts
+            raise HTTPException(409, str(e)) from None
+        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY, via_agent=True)
         return remember(request, page, job.id)
 
     def wants_json(request: Request) -> bool:

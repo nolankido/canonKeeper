@@ -16,7 +16,12 @@ Tools
   check_draft(job_id, draft)               → quote a check of one new draft against an audit
   refund_failed_audit(job_id)              → full refund, only for a failed audit
   delete_job(job_id)                       → delete the uploads and results, keep a receipt
-  list_jobs()
+  request_upload_link(series_name)         → a page where the person uploads the books
+  upload_status(token)                     → the job id and price once they have
+  list_jobs()                              (stdio only: a hosted server lists nobody's jobs)
+
+Hosted: `canonkeeper serve` also serves these tools over streamable HTTP at /mcp, sharing the
+web service's jobs, so an assistant connects to the public URL and holds no keys.
 """
 
 from __future__ import annotations
@@ -32,6 +37,7 @@ from canonkeeper.preflight.jobs import JobStore, Runner
 from canonkeeper.preflight.payments import OPEN, QuotaShort, place_order, refund, settle
 from canonkeeper.preflight.paypal import FakePayPal, PayPal
 from canonkeeper.preflight.pricing import CURRENCY
+from canonkeeper.preflight.uploads import UploadLinks
 from canonkeeper.report.display import headline
 
 
@@ -45,12 +51,50 @@ class PreflightService:
         workdir: Path,
         *,
         public_base_url: str = "http://127.0.0.1:8787",
+        store: JobStore | None = None,
+        runner: Runner | None = None,
     ) -> None:
         self.settings = settings
         self.paypal = paypal
-        self.store = JobStore(workdir / "jobs")
-        self.runner = Runner(self.store, settings)
+        # Hosted inside the web service, the MCP tools share its store and runner: the agent is
+        # one more customer of the same shop, and holds no keys of its own.
+        self.store = store or JobStore(workdir / "jobs")
+        self.runner = runner or Runner(self.store, settings)
+        self.uploads = UploadLinks(workdir / "uploads")
         self.base = public_base_url.rstrip("/")
+
+    def request_upload_link(self, series_name: str | None = None) -> dict[str, Any]:
+        """A page where the person uploads the books themselves: a whole series does not belong
+        in a tool call, and the files are theirs."""
+        if not self.settings.can_run_models:
+            raise ValueError("this service has no model key configured; it cannot run audits")
+        token = self.uploads.create(series_name)
+        return {
+            "upload_url": f"{self.base}/upload/{token}",
+            "token": token,
+            "expires_in_hours": 24,
+            "next": "give upload_url to the person; they upload the books (one file per book) "
+            "and see the price; then call upload_status(token) for the job id and quote",
+        }
+
+    def upload_status(self, token: str) -> dict[str, Any]:
+        try:
+            record = self.uploads.get(token)
+        except KeyError:
+            raise ValueError("unknown or expired upload link") from None
+        job_id = record.get("job_id")
+        job = self.store.get(job_id) if job_id else None
+        if job is None:
+            return {"token": token, "status": "waiting for the upload"}
+        return {
+            "token": token,
+            "status": "quoted" if job.status == "quoted" else job.status,
+            "job_id": job.id,
+            "series": job.series_name,
+            "books": job.books,
+            "price": {"amount": job.quote_usd, "currency": CURRENCY},
+            "next": "order_audit(job_id) to create the PayPal order; the person approves it",
+        }
 
     def quote_series(self, series_name: str, books: list[dict[str, str]]) -> dict[str, Any]:
         """`books`: [{"name": "01-first.txt", "text": "..."}, …] in reading order."""
@@ -226,18 +270,35 @@ class PreflightService:
         ]
 
 
-def build_server(service: PreflightService):  # noqa: ANN201 - MCPServer type varies by SDK version
+def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: ANN201 - MCPServer type varies by SDK version
+    """`hosted`: served over HTTP by the public web service. Then nothing lists other people's
+    jobs; every job is reached only by its unguessable id, as on the website."""
     from mcp.server.mcpserver import MCPServer
 
     server = MCPServer(
         name="preflight",
         instructions=(
             "Preflight audits a fiction series for continuity errors and charges per audit via "
-            "PayPal. Flow: quote_series → order_audit → the PERSON approves the payment at the "
-            "approve_url (never approve on their behalf) → confirm_payment → poll audit_status "
-            "→ get_findings. Nothing is sent to a model before payment is captured."
+            "PayPal. Get the books in either way: request_upload_link → give the person the "
+            "upload_url → upload_status(token) for the job and price; or quote_series with the "
+            "texts for a short series. Then order_audit → the PERSON approves the payment at "
+            "the approve_url (never approve on their behalf) → confirm_payment → poll "
+            "audit_status → get_findings. Nothing is sent to a model before payment is captured."
         ),
     )
+
+    @server.tool(
+        description="Get a link where the person uploads their books (one file per book) and "
+        "sees the price. Use this for a whole series; then call upload_status(token)."
+    )
+    def request_upload_link(series_name: str | None = None) -> dict[str, Any]:
+        return service.request_upload_link(series_name)
+
+    @server.tool(
+        description="Whether the person has uploaded the books yet; the job id and price once they have."
+    )
+    def upload_status(token: str) -> dict[str, Any]:
+        return service.upload_status(token)
 
     @server.tool(
         description="Price an audit from the book texts. Returns a job id and the quote with its arithmetic."
@@ -296,9 +357,11 @@ def build_server(service: PreflightService):  # noqa: ANN201 - MCPServer type va
     def refund_failed_audit(job_id: str) -> dict[str, Any]:
         return service.refund_failed_audit(job_id)
 
-    @server.tool(description="List jobs with status and price.")
-    def list_jobs() -> list[dict[str, Any]]:
-        return service.list_jobs()
+    if not hosted:
+
+        @server.tool(description="List jobs with status and price.")
+        def list_jobs() -> list[dict[str, Any]]:
+            return service.list_jobs()
 
     return server
 

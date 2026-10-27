@@ -10,6 +10,7 @@
 {% endif %}
 
 {% if quota_error %}<div class="banner" role="alert" data-testid="quota-short">{{ quota_error }}</div>{% endif %}
+{% if via_agent %}<p class="note" data-testid="via-agent">Uploaded through your assistant's link: it can see this quote now. Pay here, or let it send you PayPal's approval link.</p>{% endif %}
 <div class="card">
   <div class="kv">
     <div>Price</div><div class="big">${{ quote.total_str }} <small style="font-size:14px;color:var(--muted)">{{ currency }}</small></div>
