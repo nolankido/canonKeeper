@@ -55,7 +55,9 @@ continuity checking for series authors (see *Preflight* below).
    `not_conflict` (the bible was wrong), with severity, an explanation, and a minimal fix to the
    *later* book. Earlier books are published; you never edit those.
 4. **Report.** Two HTML pages: the audit (every finding opens to the lines that caused it) and
-   the bible itself (one card per entity, every fact sourced, disputed slots flagged).
+   the bible itself (one card per entity, every fact sourced, disputed slots flagged), plus the
+   bible as a spreadsheet (`bible.csv`, one row per fact with its passage) and the findings as
+   JSON. Both pages print or save to PDF cleanly.
 
 The split is deliberate: the extractor reads cheaply and widely; the adjudicator thinks
 expensively and only where it matters. Batching means the cost of reading the series is paid once per eight
