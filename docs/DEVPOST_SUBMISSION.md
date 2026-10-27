@@ -32,6 +32,12 @@ draft disagrees with what is already published. The same service is an MCP serve
 author's AI assistant can price, order, check and read the findings — while the payment
 approval always goes to the person.
 
+What the author takes away: a report that reads like an editor's note ("John Watson's wound:
+shoulder in A Study in Scarlet vs leg in The Sign of the Four", both passages, the fix), the
+series bible as a browsable page and as a spreadsheet with the passage behind every row, and the
+findings as JSON. If a paid audit cannot finish, the author chooses a free retry or a full
+refund through PayPal.
+
 ## How we built it
 Python. Extraction with a cheap long-context model under a strict schema with mandatory
 verbatim quotes (claims whose quote isn't in the source are dropped). Local heuristics find
@@ -75,6 +81,8 @@ injects contradictions into public-domain novels and scores precision/recall.
 - A free tier is a budget, not a limit. Daily caps (and the discovery that 503s count against
   them) turned into a client-side budget guard, a model fallback ladder, a cache that makes
   every run resumable, and `build --dry-run` that says exactly what a run will spend.
+- Test where the users are. A line-ending change passed every Linux test and broke a draft
+  check on Windows, the maintainer's own platform; CI now runs on both.
 - The real PayPal sandbox differs from any fake: orders start `PAYER_ACTION_REQUIRED`, not
   `CREATED`; the create response omits the amount. Running `doctor --paypal` against the
   sandbox found two bugs the in-process fake had hidden.
