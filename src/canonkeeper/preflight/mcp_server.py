@@ -77,14 +77,17 @@ class PreflightService:
             cancel_url=f"{self.base}/cancel?job={job_id}",
             reference=job_id,
         )
-        job.order_id, job.approve_url, job.status = o.id, o.approve_url, "ordered"
+        approve = o.approve_url or ""
+        if approve.startswith("/"):  # the fake's page lives on our own web app
+            approve = f"{self.base}{approve}"
+        job.order_id, job.approve_url, job.status = o.id, approve, "ordered"
         self.store.save(job)
         return {
             "job_id": job.id,
             "status": job.status,
             "order_id": o.id,
             "amount": f"{job.quote_usd} {CURRENCY}",
-            "approve_url": o.approve_url,
+            "approve_url": approve,
             "next": "ask the person to open approve_url and approve the payment, then call confirm_payment(job_id)",
         }
 
@@ -93,7 +96,8 @@ class PreflightService:
         if job is None:
             raise ValueError("unknown job")
         if job.status in ("paid", "running", "done", "failed"):
-            return self.audit_status(job_id)
+            # Already captured — possibly by the web app when the person came back from PayPal.
+            return {**self.audit_status(job_id), "paid": True}
         if job.status != "ordered" or not job.order_id:
             raise ValueError(f"job is {job.status}; call order_audit first")
         o = self.paypal.get_order(job.order_id)
@@ -243,10 +247,11 @@ def make_service(
     from canonkeeper.preflight.app import make_paypal
 
     settings = settings or load_settings()
+    wd = workdir or settings.workdir / "preflight"
     return PreflightService(
         settings,
-        paypal or make_paypal(),
-        workdir or settings.workdir / "preflight",
+        paypal or make_paypal(state_dir=wd),
+        wd,
         public_base_url=__import__("os").environ.get(
             "PREFLIGHT_PUBLIC_URL", "http://127.0.0.1:8787"
         ),

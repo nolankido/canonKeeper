@@ -9,10 +9,12 @@ Docs: https://developer.paypal.com/docs/api/orders/v2/
 from __future__ import annotations
 
 import base64
+import json
 import secrets
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any, Protocol
 
 import httpx
@@ -171,13 +173,45 @@ class FakePayPal:
     PAYER_ACTION_REQUIRED → APPROVED → COMPLETED.
 
     The approve URL points back at the app's own `/fake-approve` route, which flips the order
-    to APPROVED and redirects to the return URL exactly as PayPal would."""
+    to APPROVED and redirects to the return URL exactly as PayPal would.
+
+    With `state_path`, orders are kept in a JSON file so two processes see the same ones: an
+    agent talking to `canonkeeper mcp` creates the order, the person approves it on the page
+    served by `canonkeeper serve`, and the agent's `confirm_payment` then finds it approved."""
 
     mode = "fake"
 
-    def __init__(self, approve_base: str = "/fake-approve") -> None:
+    def __init__(
+        self, approve_base: str = "/fake-approve", *, state_path: Path | None = None
+    ) -> None:
         self._orders: dict[str, Order] = {}
         self._approve_base = approve_base
+        self._state_path = state_path
+        self._load()
+
+    def _load(self) -> None:
+        if self._state_path and self._state_path.exists():
+            try:
+                data = json.loads(self._state_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return
+            for oid, rec in data.items():
+                self._orders[oid] = Order(**rec)
+
+    def _save(self) -> None:
+        if not self._state_path:
+            return
+        self._state_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self._state_path.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps({k: asdict(v) for k, v in self._orders.items()}, indent=1),
+            encoding="utf-8",
+        )
+        tmp.replace(self._state_path)
+
+    def _get(self, order_id: str) -> Order:
+        self._load()  # another process may have approved it
+        return self._orders[order_id]
 
     def create_order(
         self,
@@ -199,20 +233,23 @@ class FakePayPal:
             raw={"description": description, "reference": reference},
         )
         self._orders[oid] = o
+        self._save()
         return o
 
     def approve(self, order_id: str) -> Order:
-        o = self._orders[order_id]
+        o = self._get(order_id)
         if o.status in UNAPPROVED:
             o.status = "APPROVED"
+            self._save()
         return o
 
     def get_order(self, order_id: str) -> Order:
-        return self._orders[order_id]
+        return self._get(order_id)
 
     def capture_order(self, order_id: str) -> Order:
-        o = self._orders[order_id]
+        o = self._get(order_id)
         if o.status in UNAPPROVED:
             return o  # like the real client: not approved, status unchanged
         o.status = "COMPLETED"
+        self._save()
         return o

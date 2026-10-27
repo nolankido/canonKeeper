@@ -38,11 +38,14 @@ def paypal_env() -> dict[str, str]:
     return merged
 
 
-def make_paypal(settings_env: dict[str, str] | None = None) -> PayPal:
+def make_paypal(
+    settings_env: dict[str, str] | None = None, *, state_dir: Path | None = None
+) -> PayPal:
+    """`state_dir`: where the fake keeps its orders so `serve` and `mcp` share them."""
     env = settings_env if settings_env is not None else paypal_env()
     mode = env.get("PAYPAL_MODE", "fake" if not env.get("PAYPAL_CLIENT_ID") else "sandbox")
     if mode == "fake":
-        return FakePayPal()
+        return FakePayPal(state_path=state_dir / "fake-paypal.json" if state_dir else None)
     cid, secret = env.get("PAYPAL_CLIENT_ID"), env.get("PAYPAL_CLIENT_SECRET")
     if not cid or not secret:
         raise RuntimeError(
@@ -62,7 +65,7 @@ def create_app(
     workdir = workdir or settings.workdir / "preflight"
     store = JobStore(workdir / "jobs")
     runner = Runner(store, settings)
-    pp = paypal or make_paypal()
+    pp = paypal or make_paypal(state_dir=settings.workdir / "preflight")
     base = (
         public_base_url or os.environ.get("PREFLIGHT_PUBLIC_URL") or "http://127.0.0.1:8787"
     ).rstrip("/")

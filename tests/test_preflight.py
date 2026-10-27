@@ -208,7 +208,9 @@ def test_mcp_service_flow_agent_quotes_human_approves_agent_collects(tmp_path):
     assert q["price"]["amount"] == "5.05" and "per 100k tokens" in q["price"]["explanation"]
 
     o = svc.order_audit(job_id)
-    assert o["status"] == "ordered" and o["approve_url"].startswith("/fake-approve?token=")
+    assert o["status"] == "ordered" and o["approve_url"].startswith(
+        "http://host/fake-approve?token="
+    )
     # Agent must not pay: before approval, confirm reports not paid and nothing runs.
     c = svc.confirm_payment(job_id)
     assert c["paid"] is False and svc.audit_status(job_id)["status"] == "ordered"
@@ -280,3 +282,22 @@ def test_real_client_capture_before_approval_is_not_an_error():
     assert o.amount == "5.00" and o.currency == "USD"  # filled from the request
     o2 = pp.capture_order(o.id)
     assert o2.status == "PAYER_ACTION_REQUIRED"
+
+
+def test_fake_paypal_shares_orders_across_processes(tmp_path):
+    """The agent (mcp) creates the order; the web app (serve) approves it; the agent sees it."""
+    state = tmp_path / "pf" / "fake-paypal.json"
+    agent = FakePayPal(state_path=state)
+    o = agent.create_order(
+        amount="5.00",
+        currency="USD",
+        description="d",
+        return_url="r",
+        cancel_url="c",
+        reference="j",
+    )
+    web = FakePayPal(state_path=state)  # a second process
+    assert web.get_order(o.id).status == "PAYER_ACTION_REQUIRED"
+    web.approve(o.id)
+    assert agent.capture_order(o.id).status == "COMPLETED"
+    assert FakePayPal(state_path=state).get_order(o.id).status == "COMPLETED"

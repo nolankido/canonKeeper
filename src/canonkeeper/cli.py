@@ -591,7 +591,7 @@ def serve(
     from canonkeeper.preflight.app import create_app, make_paypal
 
     settings = _settings(provider, workdir)
-    pp = make_paypal()
+    pp = make_paypal(state_dir=settings.workdir / "preflight")
     console.print(f"provider {settings.provider} · paypal {pp.mode} · http://{host}:{port}")
     if settings.trains_on_prompts:
         console.print(
@@ -607,11 +607,10 @@ def serve(
 @app.command()
 def mcp(provider: str | None = None, workdir: Path | None = None) -> None:
     """Run Preflight as an MCP server over stdio (quote → order → confirm → status → findings)."""
-    from canonkeeper.preflight.app import make_paypal
     from canonkeeper.preflight.mcp_server import build_server, make_service
 
     settings = _settings(provider, workdir)
-    service = make_service(settings, make_paypal())
+    service = make_service(settings)
     build_server(service).run("stdio")
 
 
