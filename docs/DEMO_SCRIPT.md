@@ -1,74 +1,82 @@
 # Demo script — Preflight (PayPal AI Hackathon 2026)
 
-Target 2:40, hard limit 3:00, public on YouTube. Record by **Nov 9**; submit by **Nov 12, 12:00 PT**.
+Target 2:50, hard limit 3:00, public on YouTube. Record by **Nov 9**; submit by **Nov 12, 12:00 PT**.
 
 Judging criteria (unweighted): Technological Implementation · Design · Potential Impact ·
-Innovation · Presentation. Special awards we are aiming at: **Best Use of PayPal + AI**,
-**Best Use of Agentic Commerce**, **Best Demo Delivery**. Every beat below names what it is for.
+Innovation · Presentation. Special award we are aiming at: **Best Use of Agentic Commerce** (with the AG Grid sponsor
+prize for the bible explorer). Every beat below names what it is for.
 
 The video must show the project working end-to-end, on the machine it was built for, with no
 third-party music or copyrighted material. Everything shown is public-domain text or our own
 invented series. Warm every cache first: nothing on screen should wait on a model.
 
-## 0:00 — The problem (Impact)
-Voiceover, one sentence: "I publish series fiction. Book six has to agree with book one,
-written three years earlier, and the only tool for that is a spreadsheet and memory."
-Paraphrase (do not screenshot) a reader complaint about a continuity slip.
+Script v2 (T17, 2026-10-27). Narration is timed at 150 words a minute; each beat lists its
+word count, and the total is 363 words, 2:25 of speech inside a 2:50 cut (room for the screens to breathe). Numbers on screen are real:
+read them off the hosted pages on the day, and if a benchmark run has added a newer README row,
+read that row instead.
 
-## 0:15 — What it finds (Impact, Technological Implementation)
-Open the finished Holmes report (`docs/img/report.png` is the frame). Read the finding:
+## 0:00–0:15 — Problem, audience, value (Impact) · 36 words
+On screen: the Holmes report, first card (Watson's wound, both passages, the fix).
+> "Book six has to agree with book one. Preflight reads a whole series and shows every
+> contradiction: both passages, and a fix for the newer book. For series authors and editors,
+> paid per audit with PayPal."
 
-> **John Watson's wound: shoulder / left arm in A Study in Scarlet, leg in The Sign of the
-> Four** — "struck on the shoulder by a Jezail bullet" · "I had a Jezail bullet through it some
-> time before". Fix, to the later book: "wounded leg" → "wounded arm".
+## 0:15–0:45 — It works on a real series (Technological Implementation) · 68 words
+Scroll the Holmes sample report, then open *Explore the bible* (AG Grid) and tick *Disputed
+facts only*.
+> "Here it is on all six Sherlock Holmes books. It finds the two slips readers have argued about
+> for a century: Watson's wound moves from his shoulder to his leg, and the landlady is Mrs.
+> Hudson, then Mrs. Turner. When Holmes dies and comes back, it clears that, and quotes the
+> passage that explains it. Underneath is a bible of 3,963 facts, each one tied to its
+> sentence."
 
-Say: "Six novels, nearly four thousand sourced facts, and it reports the two errors readers have
-argued about for a century — Watson's wandering wound, and the landlady who is Mrs. Hudson in
-one story and Mrs. Turner in another — each with the passages on the page and the fix aimed at
-the later book, because the earlier one is already in print." Scroll to *Reviewed and cleared*:
-Holmes "dies" at the Reichenbach Falls and then walks through *The Hound*, and the report clears
-it by quoting Watson: *The Hound* is told from the diary he kept at the time. "Every cleared
-conflict quotes the passage that clears it. That judgement is the part a spreadsheet cannot
-do." (If a re-run rules Holmes's disguised "dark eyes" correctly, show that instead.)
+## 0:45–1:20 — Buying an audit (PayPal + AI, Design) · 72 words
+Hosted URL. *Try it with the demo series* → quote page → the gold PayPal button → sandbox
+checkout → approve → job page ticks to *done* → *Open the report*.
+> "Buying one: upload the books and the price is known before anything runs: five dollars, plus
+> four per hundred thousand tokens, with the arithmetic on the page. Pay with PayPal. Nothing
+> touches a model until PayPal confirms a completed capture of exactly the quoted amount, and a
+> failed audit refunds through PayPal with one button. A minute later: the report, five planted
+> contradictions in the demo series, each with its two passages."
 
-## 0:50 — Buying an audit (Design, PayPal + AI)
-Browser, `canonkeeper serve` against the PayPal **sandbox**. Upload the three Saltmarsh books.
-Quote page: price with the arithmetic shown — "$5 + $4 per 100k tokens; the token count is
-known the moment the files land, so the price is known before anything runs."
-Click **Pay with PayPal** → sandbox checkout → approve as the sandbox buyer → land on the job
-page. Say over it: "Orders v2: create with PAY_NOW, the buyer approves, we capture on return,
-and the capture has to be complete and for exactly the quoted amount before any model is
-called. If an audit ever fails, one button refunds it through PayPal." Job page ticks to *done*; open the report:
-five planted contradictions, each with its two quotes.
+## 1:20–2:05 — An assistant with a budget (Agentic Commerce) · 92 words
+Claude Desktop with the hosted connector (`<url>/mcp`). Type: *"Open a $20 Preflight budget."*
+Claude replies with an approval link; click it, approve on the sandbox PayPal page (Claude
+cannot). Then: *"Check my new draft of book four against the series."* Claude sends an upload
+link, the draft is uploaded, it quotes, pays from the budget and reads the findings back.
+Cut to the budget page: the spend, the balance.
+> "The same shop serves AI assistants over MCP. I give Claude a twenty-dollar budget. It can
+> open the order, but only I can approve it, on PayPal. From then on it works on its own:
+> it checks my next draft against everything already published, pays from the budget, and
+> brings back the contradictions. It can never spend past the balance, every spend is on a
+> receipt, and it never holds a PayPal credential. That is the shape agentic commerce should
+> have: the person sets the limit once, the assistant acts inside it."
 
-## 1:35 — The same thing through an assistant (Agentic Commerce)
-Terminal, `python scripts/mcp_flow_demo.py books/*.txt` (server already running). Show the
-tool calls scrolling: `quote_series` → `order_audit` → `confirm_payment` **refuses** ("not
-approved yet") → the approval link is printed for the person → approve in the browser →
-`confirm_payment` → `audit_status` → `get_findings` as data. Say: "The agent prices the job and
-creates the order. It never holds a credential and cannot approve the payment; the approval
-goes to the person. That is the shape agentic commerce should have." Mention it is a standard
-MCP server — any assistant that speaks MCP can drive it.
+## 2:05–2:25 — The author stays in charge (Innovation) · 37 words
+Job page: *This one is wrong* on a finding → receipt shows $0.50 back. *Needs your judgement*:
+*Not a problem*. Budget page: *Close the budget* → *Refunded to PayPal*.
+> "If a finding is wrong, I say so: fifty cents comes back through PayPal, up to half the
+> price, and the report shows my call beside the model's. When I'm done, closing the budget
+> refunds the rest."
 
-## 2:10 — The next book (Impact)
-`canonkeeper check … evals/demo/holmes-book-07-draft.md`: an original pastiche with three
-planted slips and one explained change (white hair = wig and powder). Two contradictions with
-fixes to the new draft; the disguise classified *deliberate*. "This is the author's loop:
-every new manuscript is checked against everything already published."
+## 2:25–2:40 — Is it honest? (Technological Implementation) · 38 words
+README benchmark table.
+> "We measure it: contradictions are planted in the Holmes novels and the pipeline is scored on
+> what it finds. Precision 0.80, recall 0.40 on the last run. The misses are listed, and so is
+> the work on them."
 
-## 2:30 — Is it honest? (Technological Implementation)
-README benchmark table for five seconds. "We seed contradictions into public-domain novels and
-score precision and recall; the numbers in the README come from that command, not from us."
-Read the current row, including what it misses.
-
-## 2:45 — Close
-"Open source, MIT. Runs on a free tier with no card, or on your own machine for private
-manuscripts. Preflight: pay for the audit, get the proof." Repo URL on screen.
+## 2:40–2:50 — Close · 20 words
+Repo URL and hosted URL on screen.
+> "Open source, MIT, free tier or your own machine for private books. Preflight: pay for the
+> audit, get the proof."
 
 ## Production notes
 - Caches warm: `audit`, `check` and the Saltmarsh job must complete in seconds on camera. Run
   each once the day before; a re-run replays from `.canonkeeper/cache`.
 - Sandbox buyer: log in once in the recording browser before starting so checkout is two clicks.
+- Claude Desktop: add the connector before recording (Settings → Connectors → Add custom
+  connector → `<hosted url>/mcp`), and run the budget beat once off camera so the draft check
+  is cached. Show the approval click on PayPal: it is the point of the beat.
 - Terminal font ≥ 18pt; report pages at 110% zoom; 1920×1080.
 - Never show `.env`, a real manuscript, a pen name, or anything under `drafts/`.
 - Keep the PayPal checkout on screen only as long as the approval takes; the product is the
