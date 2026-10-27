@@ -88,7 +88,9 @@ python, fastapi, paypal-orders-v2, mcp, gemini-api, ollama, pydantic, jinja2, ra
 
 ## PayPal tools used
 PayPal REST Orders v2 (sandbox): create order with `payment_source.paypal.experience_context`
-(`PAY_NOW`, return/cancel URLs), capture on return, idempotency via `PayPal-Request-Id`.
+(`PAY_NOW`, return/cancel URLs), capture on return, idempotency via `PayPal-Request-Id`;
+Payments v2 capture refunds (`/v2/payments/captures/{id}/refund`) when a paid audit fails
+and the buyer chooses their money back over a free retry (web button or MCP tool).
 Verified against the sandbox (`canonkeeper doctor --paypal`): orders come back
 `PAYER_ACTION_REQUIRED` with a `payer-action` link; early captures answer `ORDER_NOT_APPROVED`
 and are handled. Two surfaces: the web app (`canonkeeper serve`) and an MCP server

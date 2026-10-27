@@ -13,10 +13,10 @@ import threading
 from datetime import UTC, datetime
 
 from canonkeeper.preflight.jobs import Job, JobStore, Runner
-from canonkeeper.preflight.paypal import UNAPPROVED, PayPal, capture_problem
+from canonkeeper.preflight.paypal import UNAPPROVED, PayPal, capture_id_of, capture_problem
 from canonkeeper.preflight.pricing import CURRENCY
 
-PAID = frozenset({"paid", "running", "done", "failed", "deleted"})
+PAID = frozenset({"paid", "running", "done", "failed", "refunded", "deleted"})
 _lock = threading.Lock()
 
 
@@ -44,7 +44,41 @@ def settle(
         fresh = store.get(job.id) or job
         if fresh.status == "ordered":
             fresh.status, fresh.paid_at = "paid", datetime.now(UTC).isoformat()
+            fresh.capture_id = capture_id_of(o)
             store.save(fresh)
         job.status, job.paid_at = fresh.status, fresh.paid_at
     runner.submit(job.id)
+    return None
+
+
+def refund(job: Job, paypal: PayPal, store: JobStore) -> str | None:
+    """Give the whole payment back for an audit that failed. Returns None when the job is
+    refunded (now or before), else why not.
+
+    Only a failed job qualifies: a finished audit delivered what was paid for, and a running
+    one may still finish. Refunding is the buyer's choice instead of automatic, because most
+    failures (a provider's daily quota, an overloaded model) clear up on a free retry.
+    """
+    if job.status == "refunded":
+        return None
+    if job.status != "failed":
+        return f"only a failed audit can be refunded; this one is {job.status}"
+    cap = job.capture_id
+    if not cap and job.order_id:  # jobs paid before capture ids were recorded
+        cap = capture_id_of(paypal.get_order(job.order_id))
+    if not cap:
+        return "PayPal has no capture for this order"
+    r = paypal.refund_capture(cap)
+    if r.status not in ("COMPLETED", "PENDING"):
+        return f"PayPal refused the refund ({r.status or 'no status'})"
+    with _lock:
+        fresh = store.get(job.id) or job
+        fresh.status, fresh.capture_id = "refunded", cap
+        fresh.refund_id, fresh.refunded_at = r.id or None, datetime.now(UTC).isoformat()
+        store.save(fresh)
+        job.status, job.refund_id, job.refunded_at = (
+            fresh.status,
+            fresh.refund_id,
+            fresh.refunded_at,
+        )
     return None

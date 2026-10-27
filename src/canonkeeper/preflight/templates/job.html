@@ -39,6 +39,15 @@
   <p>The audit failed: <code>{{ job.error }}</code></p>
   <p class="note">You were charged; the run can be retried at no extra cost (responses are cached, so a retry resumes where it stopped).</p>
   <form action="/jobs/{{ job.id }}/retry" method="post"><button type="submit">Retry</button></form>
+  {% if job.order_id %}
+  <form action="/jobs/{{ job.id }}/refund" method="post">
+    <p class="note">Or take your money back: the full ${{ job.quote_usd }} is refunded to your PayPal account.</p>
+    <label><input type="checkbox" name="confirm" value="yes"> Refund instead of retrying</label>
+    <button type="submit" class="secondary">Refund my payment</button>
+  </form>
+  {% endif %}
+{% elif job.status == 'refunded' %}
+  <p>Refunded: ${{ job.quote_usd }} went back to your PayPal account{% if job.refunded_at %} on {{ job.refunded_at[:10] }}{% endif %}{% if job.refund_id %} (refund <code>{{ job.refund_id }}</code>){% endif %}.</p>
 {% endif %}
 </div>
 
@@ -52,7 +61,7 @@
 </form>
 {% endif %}
 
-{% if job.status in ('quoted', 'cancelled', 'done', 'failed') %}
+{% if job.status in ('quoted', 'cancelled', 'done', 'failed', 'refunded') %}
 <form class="card" action="/jobs/{{ job.id }}/delete" method="post">
   <p class="note">Delete your files: the manuscripts, the bible, the reports and the cached model responses. Download the report first if you want to keep it. This cannot be undone.</p>
   <label><input type="checkbox" name="confirm" value="yes" required> Delete everything for this job</label>

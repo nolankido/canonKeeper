@@ -642,3 +642,62 @@ def test_buyer_who_closed_the_tab_after_approving_can_still_get_the_audit(client
     # coming back to /return late changes nothing and does not run it twice
     r = client.get(f"/return?token={job.order_id}")
     assert r.status_code == 303 and store.get(job_id).status == "done"
+
+
+def test_a_failed_paid_audit_can_be_refunded_and_nothing_else_can(client):
+    from canonkeeper.preflight.payments import refund
+
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    store, pp = client.app.state.store, client.app.state.paypal
+    token = client.post(f"/jobs/{job_id}/order").headers["location"].split("token=")[1]
+    client.get(client.post("/fake-approve", data={"token": token}).headers["location"])
+    client.app.state.runner.wait(job_id, timeout=60)
+    job = store.get(job_id)
+    assert job.status == "done" and job.capture_id and job.capture_id.startswith("CAP")
+    assert "only a failed audit" in refund(job, pp, store)  # delivered: no refund
+    r = client.post(f"/jobs/{job_id}/refund", data={"confirm": "yes"})
+    assert r.status_code == 409
+
+    job.status, job.error = "failed", "quota exhausted"
+    store.save(job)
+    page = client.get(f"/jobs/{job_id}").text
+    assert "Refund my payment" in page and "Retry" in page
+    assert client.post(f"/jobs/{job_id}/refund").status_code == 400  # box not ticked
+    r = client.post(f"/jobs/{job_id}/refund", data={"confirm": "yes"})
+    assert r.status_code == 303
+    job = store.get(job_id)
+    assert job.status == "refunded" and job.refund_id.startswith("REF") and job.refunded_at
+    assert "went back to your PayPal account" in client.get(f"/jobs/{job_id}").text
+    # idempotent, and a refunded job cannot be retried into a free audit
+    assert refund(job, pp, store) is None
+    client.post(f"/jobs/{job_id}/retry")
+    assert store.get(job_id).status == "refunded"
+    assert client.post(f"/jobs/{job_id}/delete", data={"confirm": "yes"}).status_code == 303
+
+
+@respx.mock
+def test_real_client_refunds_the_whole_capture_once():
+    from canonkeeper.preflight.paypal import PayPalClient
+
+    respx.post(f"{SANDBOX}/v1/oauth2/token").mock(
+        return_value=httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+    )
+    route = respx.post(f"{SANDBOX}/v2/payments/captures/CAP1/refund").mock(
+        side_effect=[
+            httpx.Response(201, json={"id": "R1", "status": "COMPLETED"}),
+            httpx.Response(
+                422,
+                json={
+                    "name": "UNPROCESSABLE_ENTITY",
+                    "details": [{"issue": "CAPTURE_FULLY_REFUNDED"}],
+                },
+            ),
+        ]
+    )
+    pp = PayPalClient("cid", "sec", mode="sandbox")
+    r = pp.refund_capture("CAP1")
+    assert (r.id, r.status) == ("R1", "COMPLETED")
+    req = route.calls[0].request
+    assert req.headers["PayPal-Request-Id"] == "refund-CAP1" and req.read() == b"{}"
+    assert pp.refund_capture("CAP1").status == "COMPLETED"  # already refunded: done, not an error

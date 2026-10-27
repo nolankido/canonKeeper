@@ -26,8 +26,10 @@ from canonkeeper.corpus.loaders import Book, Series
 from canonkeeper.preflight.pricing import Quote, quote
 from canonkeeper.tokens import count_tokens
 
-Status = Literal["quoted", "ordered", "paid", "running", "done", "failed", "cancelled", "deleted"]
-DELETABLE: frozenset[str] = frozenset({"quoted", "cancelled", "done", "failed"})
+Status = Literal[
+    "quoted", "ordered", "paid", "running", "done", "failed", "cancelled", "refunded", "deleted"
+]
+DELETABLE: frozenset[str] = frozenset({"quoted", "cancelled", "done", "failed", "refunded"})
 
 
 @dataclass
@@ -42,6 +44,9 @@ class Job:
     order_id: str | None = None
     approve_url: str | None = None
     paid_at: str | None = None
+    capture_id: str | None = None  # PayPal's capture, needed to refund it
+    refund_id: str | None = None
+    refunded_at: str | None = None
     error: str | None = None
     claims: int | None = None
     contradictions: int | None = None

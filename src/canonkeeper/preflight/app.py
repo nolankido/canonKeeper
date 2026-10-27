@@ -29,7 +29,7 @@ from canonkeeper.preflight.jobs import (
     Runner,
     order_description,
 )
-from canonkeeper.preflight.payments import settle
+from canonkeeper.preflight.payments import refund, settle
 from canonkeeper.preflight.paypal import (
     FakePayPal,
     Order,
@@ -255,6 +255,18 @@ def create_app(
             raise HTTPException(404) from None
         except ValueError as e:
             raise HTTPException(409, str(e)) from None
+        return RedirectResponse(f"/jobs/{job_id}", status_code=303)
+
+    @app.post("/jobs/{job_id}/refund")
+    def refund_job(job_id: str, confirm: str = Form("")) -> RedirectResponse:
+        if confirm != "yes":
+            raise HTTPException(400, "tick the box to confirm")
+        job = store.get(job_id)
+        if job is None:
+            raise HTTPException(404)
+        problem = refund(job, pp, store)
+        if problem:
+            raise HTTPException(409, problem)
         return RedirectResponse(f"/jobs/{job_id}", status_code=303)
 
     @app.post("/jobs/{job_id}/retry")

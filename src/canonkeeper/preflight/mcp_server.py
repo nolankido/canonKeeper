@@ -13,6 +13,9 @@ Tools
   confirm_payment(job_id)                  → captures after approval, starts the audit
   audit_status(job_id)                     → quoted / ordered / paid / running / done / failed
   get_findings(job_id)                     → the contradictions and verdicts, as data
+  check_draft(job_id, draft)               → quote a check of one new draft against an audit
+  refund_failed_audit(job_id)              → full refund, only for a failed audit
+  delete_job(job_id)                       → delete the uploads and results, keep a receipt
   list_jobs()
 """
 
@@ -25,7 +28,7 @@ from typing import Any
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.preflight.jobs import JobStore, Runner, order_description
-from canonkeeper.preflight.payments import settle
+from canonkeeper.preflight.payments import refund, settle
 from canonkeeper.preflight.paypal import FakePayPal, PayPal
 from canonkeeper.preflight.pricing import CURRENCY
 
@@ -142,6 +145,19 @@ class PreflightService:
             "tokens": job.tokens,
             "price": {"amount": q.total_str, "currency": CURRENCY, "explanation": q.explanation},
             "next": "order_audit(job_id) to create a PayPal order; nothing runs until it is paid",
+        }
+
+    def refund_failed_audit(self, job_id: str) -> dict[str, Any]:
+        job = self.store.get(job_id)
+        if job is None:
+            raise ValueError("unknown job")
+        problem = refund(job, self.paypal, self.store)
+        if problem:
+            raise ValueError(problem)
+        return {
+            "job_id": job.id,
+            "status": job.status,
+            "refund": {"id": job.refund_id, "amount": f"{job.quote_usd} {CURRENCY}"},
         }
 
     def delete_job(self, job_id: str) -> dict[str, Any]:
@@ -267,6 +283,15 @@ def build_server(service: PreflightService):  # noqa: ANN201 - MCPServer type va
     )
     def delete_job(job_id: str) -> dict[str, Any]:
         return service.delete_job(job_id)
+
+    @server.tool(
+        description=(
+            "Refund the full payment for an audit that failed (status 'failed'), back to the "
+            "person's PayPal account. Only when the person asks for it instead of a retry."
+        )
+    )
+    def refund_failed_audit(job_id: str) -> dict[str, Any]:
+        return service.refund_failed_audit(job_id)
 
     @server.tool(description="List jobs with status and price.")
     def list_jobs() -> list[dict[str, Any]]:

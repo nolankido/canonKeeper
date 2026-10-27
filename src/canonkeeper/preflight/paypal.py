@@ -38,6 +38,19 @@ class Order:
     raw: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class Refund:
+    id: str
+    status: str  # COMPLETED | PENDING | FAILED | CANCELLED
+
+
+def capture_id_of(o: Order) -> str | None:
+    """The id of the order's (first) capture, which is what a refund is issued against."""
+    pu = (o.raw.get("purchase_units") or [{}])[0]
+    caps = (pu.get("payments") or {}).get("captures") or []
+    return str(caps[0]["id"]) if caps and caps[0].get("id") else None
+
+
 class PayPal(Protocol):
     mode: str
 
@@ -55,6 +68,8 @@ class PayPal(Protocol):
     def get_order(self, order_id: str) -> Order: ...
 
     def capture_order(self, order_id: str) -> Order: ...
+
+    def refund_capture(self, capture_id: str) -> Refund: ...
 
 
 def _parse(data: dict[str, Any]) -> Order:
@@ -193,6 +208,20 @@ class PayPalClient:
         r.raise_for_status()
         return _parse(r.json())
 
+    def refund_capture(self, capture_id: str) -> Refund:
+        """Refund the whole capture (an empty body means the full amount). Idempotent: the
+        request id is fixed per capture, and an already-refunded capture is reported as done."""
+        r = self._http.post(
+            f"/v2/payments/captures/{capture_id}/refund",
+            headers=self._headers(f"refund-{capture_id}"),
+            content=b"{}",
+        )
+        if r.status_code == 422 and "CAPTURE_FULLY_REFUNDED" in r.text:
+            return Refund(id="", status="COMPLETED")
+        r.raise_for_status()
+        data = r.json()
+        return Refund(id=str(data.get("id", "")), status=str(data.get("status", "")))
+
 
 class FakePayPal:
     """In-process stand-in with the same state machine the sandbox showed:
@@ -278,6 +307,29 @@ class FakePayPal:
         o = self._get(order_id)
         if o.status in UNAPPROVED:
             return o  # like the real client: not approved, status unchanged
-        o.status = "COMPLETED"
-        self._save()
+        if o.status != "COMPLETED":
+            o.status = "COMPLETED"
+            o.raw["purchase_units"] = [
+                {
+                    "payments": {
+                        "captures": [
+                            {
+                                "id": "CAP" + o.id[4:],
+                                "status": "COMPLETED",
+                                "amount": {"value": o.amount, "currency_code": o.currency},
+                            }
+                        ]
+                    }
+                }
+            ]
+            self._save()
         return o
+
+    def refund_capture(self, capture_id: str) -> Refund:
+        self._load()
+        for o in self._orders.values():
+            if capture_id_of(o) == capture_id:
+                o.raw["refund_id"] = o.raw.get("refund_id") or "REF" + secrets.token_hex(5).upper()
+                self._save()
+                return Refund(id=str(o.raw["refund_id"]), status="COMPLETED")
+        raise KeyError(capture_id)
