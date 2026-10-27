@@ -198,6 +198,9 @@ class Extractor:
             user += hints_block(text)
         return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
+    def _hints(self, system: str) -> bool:
+        return self.settings.hints_for(sweep_pass=system == prompts.SWEEP_SYSTEM)
+
     def plan(self, series: Series) -> tuple[int, int]:
         """(requests this extraction would make, how many of them are already cached)."""
         total = cached = 0
@@ -216,7 +219,7 @@ class Extractor:
                                 text,
                                 note,
                                 system,
-                                hints=self.settings.extract_hints,
+                                hints=self._hints(system),
                             ),
                             json_mode=True,
                             reasoning_effort=effort,
@@ -237,7 +240,7 @@ class Extractor:
         reasoning_effort: str | None = None,
     ) -> ExtractionResult:
         messages = self.messages_for(
-            series_name, book, chapter, text, note, system, hints=self.settings.extract_hints
+            series_name, book, chapter, text, note, system, hints=self._hints(system)
         )
         raw = self.llm.complete(
             self.settings.extract_model,

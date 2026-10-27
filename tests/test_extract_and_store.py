@@ -290,3 +290,8 @@ def test_salience_hints_find_fact_sentences_and_stay_off_by_default(series, sett
     assert "biographical fact" not in plain[1]["content"]  # cache keys unchanged when off
     assert hinted[1]["content"].startswith(plain[1]["content"]) and "- " in hinted[1]["content"]
     assert settings.extract_hints is False
+    assert not settings.hints_for(sweep_pass=True) and not settings.hints_for(sweep_pass=False)
+    sweep_only = settings.model_copy(update={"extract_hint_passes": "sweep"})
+    assert sweep_only.hints_for(sweep_pass=True) and not sweep_only.hints_for(sweep_pass=False)
+    both = settings.model_copy(update={"extract_hints": True})
+    assert both.hints_for(sweep_pass=True) and both.hints_for(sweep_pass=False)

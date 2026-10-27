@@ -135,6 +135,19 @@ class Settings(BaseSettings):
     Holmes chunks it cut facts from 305 to 274 and descriptive/biographical ones from 175 to
     160 (scripts/probe_hints_real.py). It helps text that looks like the benchmark, not books."""
 
+    extract_hint_passes: str = ""
+    """Which extraction passes get the salience hints: "none", "sweep" or "all" (empty: "all"
+    if `extract_hints` else "none"). Measured 2026-10-27 by pass (scripts/probe_hints_by_pass.py,
+    no new requests): the real-text loss above was all in the general pass (229 -> 200 facts);
+    the sweep pass held (69 -> 67 facts, descriptive 58 -> 63). Hints on the sweep only: planted
+    recall 14/20 (from 10/20), real text 274 facts / 153 descriptive (from 268 / 145), with
+    gained and lost facts of similar precision on reading. Opt-in until a full `eval` confirms
+    it: CANONKEEPER_EXTRACT_HINT_PASSES=sweep."""
+
+    def hints_for(self, sweep_pass: bool) -> bool:
+        mode = self.extract_hint_passes or ("all" if self.extract_hints else "none")
+        return mode == "all" or (mode == "sweep" and sweep_pass)
+
     extract_reasoning_effort: str = "medium"
     """`reasoning_effort` for the general extraction pass. On the Holmes benchmark, medium
     doubled recall of planted single-sentence facts over low (14/20 vs 7/20) at ~10 s a call
