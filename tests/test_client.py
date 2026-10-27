@@ -392,3 +392,20 @@ def test_daily_budget_guard_stops_before_the_provider_does(tmp_path):
     with pytest.raises(DailyQuotaExhausted):
         llm.complete("lite", [{"role": "user", "content": "c"}])  # both spent, no call made
     assert seen == ["lite", "flash"]
+
+
+def test_is_cached_sees_answers_from_any_model_on_the_ladder(tmp_path):
+    llm = OpenAICompatibleLLM(
+        "k",
+        "https://e.test/v1",
+        cache_dir=tmp_path / "c",
+        model_fallbacks={"lite": ["flash"]},
+    )
+    llm._client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **k: _completion("{}")))
+    )
+    msgs = [{"role": "user", "content": "a"}]
+    assert llm.is_cached("lite", msgs, json_mode=True) is False
+    llm.complete("flash", msgs, json_mode=True)  # answered by the fallback model
+    assert llm.is_cached("lite", msgs, json_mode=True) is True
+    assert llm.is_cached("lite", msgs, json_mode=False) is False

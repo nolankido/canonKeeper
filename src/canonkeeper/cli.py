@@ -382,20 +382,20 @@ def demo(
         typer.launch(str(html))
 
 
-def _budget_preflight(settings: Settings, series: Series) -> None:
-    """Say up front how many requests this build needs against today's remaining budget."""
-    from canonkeeper.tokens import split_by_tokens
+def _budget_preflight(settings: Settings, series: Series, llm: object) -> int:
+    """Say up front how many requests this build needs (exact: cached ones are counted) against
+    today's remaining budget. Returns the number of requests that would actually be sent."""
+    from canonkeeper.extract.extractor import Extractor
 
-    chunks = sum(
-        len(split_by_tokens(ch.text, settings.extract_chunk_tokens))
-        for b in series.books
-        for ch in b.chapters
-    )
+    total, cached = Extractor(llm, settings).plan(series)  # type: ignore[arg-type]
+    needed = total - cached
     passes = 2 if settings.extract_sweep else 1
-    needed = chunks * passes
     cap = settings.daily_budget.get(settings.extract_model)
     used = _today_usage(settings).get(settings.extract_model, 0)
-    line = f"[dim]extraction: {chunks} chunks × {passes} pass(es) = up to {needed} requests"
+    line = (
+        f"[dim]extraction: {total // passes} chunks × {passes} pass(es) = {total} requests, "
+        f"{cached} already cached → {needed} to send"
+    )
     if cap:
         left = max(0, cap - settings.budget_margin - used)
         line += f" · {settings.extract_model} today {used}/{cap}, {left} left"
@@ -405,6 +405,7 @@ def _budget_preflight(settings: Settings, series: Series) -> None:
                 f"(finished chunks are cached)[/yellow]"
             )
     console.print(line + "[/dim]")
+    return needed
 
 
 def _select_books(series: Series, books: str | None) -> Series:
@@ -429,6 +430,9 @@ def build(
     books: str | None = typer.Option(
         None, help="Only these books: comma-separated keys or 1-based numbers"
     ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Only report how many requests the build would send, then exit"
+    ),
 ) -> None:
     """Extract claims from every chapter into the series bible (incremental: re-runs hit the cache)."""
     from canonkeeper.pipeline import build_bible
@@ -436,9 +440,12 @@ def build(
     settings = _settings(provider, workdir)
     m, series = _load(manifest, settings)
     series = _select_books(series, books)
-    _budget_preflight(settings, series)
     bible_path, _ = _paths(settings, m)
-    llm = _llm(settings)
+    llm = _llm(settings, sends_text=not dry_run)
+    needed = _budget_preflight(settings, series, llm)
+    if dry_run:
+        console.print(f"dry run: {needed} request(s) would be sent")
+        return
     store = _run_or_explain(build_bible, series, llm, settings, bible_path)
     console.print(
         f"[green]bible:[/green] {bible_path}  ({len(store)} claims, {len(store.entities())} entities)"

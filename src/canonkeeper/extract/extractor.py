@@ -172,19 +172,11 @@ class Extractor:
         self.settings = settings
         self.stats = ExtractStats()
 
-    def extract_chunk(
-        self,
-        series_name: str,
-        book: Book,
-        chapter: Chapter,
-        text: str,
-        offset: int,
-        note: str,
-        *,
-        system: str = prompts.SYSTEM,
-        reasoning_effort: str | None = None,
-    ) -> ExtractionResult:
-        messages = [
+    @staticmethod
+    def messages_for(
+        series_name: str, book: Book, chapter: Chapter, text: str, note: str, system: str
+    ) -> list[dict[str, str]]:
+        return [
             {"role": "system", "content": system},
             {
                 "role": "user",
@@ -199,6 +191,38 @@ class Extractor:
                 ),
             },
         ]
+
+    def plan(self, series: Series) -> tuple[int, int]:
+        """(requests this extraction would make, how many of them are already cached)."""
+        total = cached = 0
+        checker = getattr(self.llm, "is_cached", None)
+        for book in series.books:
+            for chapter in book.chapters:
+                for text, _offset, note in _chunks(chapter, self.settings):
+                    for system, effort in extraction_passes(self.settings):
+                        total += 1
+                        if checker and checker(
+                            self.settings.extract_model,
+                            self.messages_for(series.name, book, chapter, text, note, system),
+                            json_mode=True,
+                            reasoning_effort=effort,
+                        ):
+                            cached += 1
+        return total, cached
+
+    def extract_chunk(
+        self,
+        series_name: str,
+        book: Book,
+        chapter: Chapter,
+        text: str,
+        offset: int,
+        note: str,
+        *,
+        system: str = prompts.SYSTEM,
+        reasoning_effort: str | None = None,
+    ) -> ExtractionResult:
+        messages = self.messages_for(series_name, book, chapter, text, note, system)
         raw = self.llm.complete(
             self.settings.extract_model,
             messages,

@@ -441,6 +441,35 @@ class OpenAICompatibleLLM:
                     delay = min(60.0, 2.0**attempt) + random.uniform(0, 1)
                 self._sleep(delay)
 
+    def _cache_hit(
+        self,
+        model: str,
+        messages: list[Message],
+        json_mode: bool,
+        reasoning_effort: str | None,
+    ) -> tuple[str, Path] | None:
+        """The cached answer for this request from the requested model or anything on its
+        ladder we may have used before; None when every model would need a call."""
+        if not self._cache_dir:
+            return None
+        effort_req = reasoning_effort or self._reasoning_effort.get(model)
+        for m in [model, *self._fallbacks.get(model, [])]:
+            e = reasoning_effort or self._reasoning_effort.get(m) or effort_req
+            hit = self._cache_dir / f"{_cache_key(m, messages, json_mode, e)}.json"
+            if hit.exists():
+                return m, hit
+        return None
+
+    def is_cached(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        json_mode: bool = False,
+        reasoning_effort: str | None = None,
+    ) -> bool:
+        return self._cache_hit(model, messages, json_mode, reasoning_effort) is not None
+
     def complete(
         self,
         model: str,
@@ -449,16 +478,12 @@ class OpenAICompatibleLLM:
         json_mode: bool = False,
         reasoning_effort: str | None = None,
     ) -> str:
-        # Cache: the requested model first, then anything on its ladder we may have used before.
-        effort_req = reasoning_effort or self._reasoning_effort.get(model)
-        if self._cache_dir:
-            for m in [model, *self._fallbacks.get(model, [])]:
-                e = reasoning_effort or self._reasoning_effort.get(m) or effort_req
-                hit = self._cache_dir / f"{_cache_key(m, messages, json_mode, e)}.json"
-                if hit.exists():
-                    data = json.loads(hit.read_text(encoding="utf-8"))
-                    self.usage.add(m, 0, 0, cached=True)
-                    return str(data["content"])
+        hit = self._cache_hit(model, messages, json_mode, reasoning_effort)
+        if hit is not None:
+            m, path = hit
+            data = json.loads(path.read_text(encoding="utf-8"))
+            self.usage.add(m, 0, 0, cached=True)
+            return str(data["content"])
 
         requested = model
         model = self.resolve_model(requested)
