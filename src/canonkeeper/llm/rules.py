@@ -49,6 +49,17 @@ _PATTERNS: list[tuple[re.Pattern[str], str, str, int, int | str]] = [
     (re.compile(rf"{_NAME} was the sister of {_NAME}\."), "relation", "sibling_of", 1, 2),
     (re.compile(rf"{_NAME} was born in (1[5-9]\d\d)\."), "event", "born", 1, 2),
     (re.compile(rf"{_NAME} was known to everyone as ([A-Z][a-z]+)\."), "name", "first_name", 1, 2),
+    # a first name spoken in dialogue, the person it belongs to named in the same sentence
+    (
+        re.compile(
+            rf'"([A-Z][a-z]+)," said {_NAME} to (?:her|his) '
+            rf"(?:husband|wife|brother|sister|son|daughter|father|mother), {_NAME}"
+        ),
+        "name",
+        "first_name",
+        3,
+        1,
+    ),
 ]
 
 

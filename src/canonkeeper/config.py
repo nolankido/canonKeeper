@@ -164,6 +164,15 @@ class Settings(BaseSettings):
         mode = self.extract_hint_passes or ("all" if self.extract_hints else "none")
         return mode == "all" or (mode == "sweep" and sweep_pass)
 
+    extract_speech_names: bool = False
+    """Point the extractor at names spoken in dialogue (a wife's "James", "Come in, Edward"):
+    the chunk's lines that use a name inside quoted speech are listed with the rule for whose
+    name it is. Added to the sweep pass (the only pass in `merged` or `general` mode). A first
+    name given only in speech was the one real Holmes slip the audit missed (Mary Watson's
+    "James", The Man with the Twisted Lip) and the shape of the benchmark's first_name misses.
+    Opt-in until a full `eval` measures it, so turning it on is the only thing that changes a
+    request: CANONKEEPER_EXTRACT_SPEECH_NAMES=true."""
+
     extract_reasoning_effort: str = "medium"
     """`reasoning_effort` for the general extraction pass. On the Holmes benchmark, medium
     doubled recall of planted single-sentence facts over low (14/20 vs 7/20) at ~10 s a call

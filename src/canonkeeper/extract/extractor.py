@@ -186,6 +186,7 @@ class Extractor:
         system: str,
         *,
         hints: bool = False,
+        speech_names: bool = False,
     ) -> list[dict[str, str]]:
         user = prompts.USER_TEMPLATE.format(
             series=series_name,
@@ -200,6 +201,10 @@ class Extractor:
             from canonkeeper.extract.salience import hints_block
 
             user += hints_block(text)
+        if speech_names:
+            from canonkeeper.extract.salience import speech_names_block
+
+            user += speech_names_block(text)
         return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
     def _count(self, stat: str) -> None:
@@ -208,6 +213,14 @@ class Extractor:
 
     def _hints(self, system: str) -> bool:
         return self.settings.hints_for(sweep_pass=system == prompts.SWEEP_SYSTEM)
+
+    def _addons(self, system: str) -> dict[str, bool]:
+        """What is appended to this pass's request (nothing, unless a setting turns it on)."""
+        last_pass = extraction_passes(self.settings)[-1][0] == system
+        return {
+            "hints": self._hints(system),
+            "speech_names": self.settings.extract_speech_names and last_pass,
+        }
 
     def plan(self, series: Series) -> tuple[int, int]:
         """(requests this extraction would make, how many of them are already cached)."""
@@ -227,7 +240,7 @@ class Extractor:
                                 text,
                                 note,
                                 system,
-                                hints=self._hints(system),
+                                **self._addons(system),
                             ),
                             json_mode=True,
                             reasoning_effort=effort,
@@ -248,7 +261,7 @@ class Extractor:
         reasoning_effort: str | None = None,
     ) -> ExtractionResult:
         messages = self.messages_for(
-            series_name, book, chapter, text, note, system, hints=self._hints(system)
+            series_name, book, chapter, text, note, system, **self._addons(system)
         )
         raw = self.llm.complete(
             self.settings.extract_model,

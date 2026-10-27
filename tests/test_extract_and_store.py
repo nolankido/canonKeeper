@@ -338,3 +338,45 @@ def test_a_quota_error_in_one_request_stops_parallel_extraction(series, settings
     s = settings.model_copy(update={"extract_concurrency": 3})
     with pytest.raises(DailyQuotaExhausted):
         Extractor(MockLLM(exhausted_after_two), s).extract_series(series, progress=False)
+
+
+def test_names_spoken_in_dialogue_are_pointed_out_only_when_asked(series, settings):
+    """T12: a first name given only in speech (a wife's "James") is listed for the extractor
+    with the rule for whose name it is; off by default, so no cached request changes."""
+    from canonkeeper.extract import prompts
+    from canonkeeper.extract.extractor import Extractor
+    from canonkeeper.extract.salience import speech_name_sentences, speech_names_block
+    from canonkeeper.llm.rules import extract
+
+    text = (
+        '"Or should you rather that I sent James off to bed?" "Come in, Edward!" she said. '
+        '"Well, I never," said he. "Yes," said Holmes. "We walked down Baker Street," said '
+        'Mr. Hopkins. "Mr. Holmes, sit down." He walked on.'
+    )
+    got = speech_name_sentences(text)
+    assert len(got) == 2 and "sent James off" in got[0] and "Edward" in got[1]
+    assert speech_names_block('"Well, then," said he. "Yes, sir."') == ""
+
+    book, ch = series.books[0], series.books[0].chapters[0]
+    plain = Extractor.messages_for("S", book, ch, text, "", "sys")
+    named = Extractor.messages_for("S", book, ch, text, "", "sys", speech_names=True)
+    assert "inside speech" not in plain[1]["content"]
+    assert named[1]["content"].startswith(plain[1]["content"]) and "James" in named[1]["content"]
+
+    assert settings.extract_speech_names is False
+    on = settings.model_copy(update={"extract_speech_names": True})
+    ex = Extractor(None, on)  # type: ignore[arg-type]
+    assert ex._addons(prompts.SWEEP_SYSTEM)["speech_names"] is True  # the last pass only
+    assert ex._addons(prompts.SYSTEM)["speech_names"] is False
+    merged = Extractor(None, on.model_copy(update={"extract_mode": "merged"}))  # type: ignore[arg-type]
+    assert merged._addons(prompts.MERGED_SYSTEM)["speech_names"] is True
+    assert Extractor(None, settings)._addons(prompts.SWEEP_SYSTEM) == {  # type: ignore[arg-type]
+        "hints": False,
+        "speech_names": False,
+    }
+
+    # The mock reads the same shape, so offline runs and the demo cover it.
+    claims = extract('"James," said Mary Watson to her husband, John Watson.')["claims"]
+    assert [(c["subject"], c["predicate"], c["object"]) for c in claims] == [
+        ("John Watson", "first_name", "James")
+    ]
