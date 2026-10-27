@@ -1218,3 +1218,26 @@ def test_a_capture_is_never_paid_on_an_amount_paypal_did_not_report():
     assert (o.amount, o.currency) == ("5.05", "USD")
     assert capture_problem(o, amount="5.05", currency="USD") is None
     assert capture_problem(o, amount="9.99", currency="USD") is not None
+
+
+def test_home_page_says_what_it_is_what_it_costs_and_where_text_goes(client, tmp_path):
+    """T3: one screen answers what it does, for whom, the price, and how a private book is kept
+    private, and the privacy line matches what this instance actually does with text."""
+    html = client.get("/").text
+    assert 'data-testid="cta-demo"' in html and 'href="/sample"' in html
+    assert "For authors of long-running series" in html and "$5 + $4 per 100,000 tokens" in html
+    assert "about 73,000 words" in html  # authors count words, not tokens
+    assert "Demo mode: no text is sent to any model." in html  # mock provider
+    assert "run Preflight on your own computer with a local model" in html
+    # the privacy line sits above the upload form, where the decision to upload is made
+    assert html.index('data-testid="privacy"') < html.index('action="/quote"')
+    assert html.count('class="banner"') == 1  # one demo banner, not two stacked
+
+    settings = Settings(
+        provider="gemini", gemini_api_key="k", workdir=tmp_path / "g", _env_file=None
+    )
+    gemini = TestClient(create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pg"))
+    page = gemini.get("/").text
+    assert (
+        "Public-domain books only on this site" in page and "do not upload an unpublished" in page
+    )

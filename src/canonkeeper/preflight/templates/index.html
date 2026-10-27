@@ -2,14 +2,28 @@
 {% block title %}Upload a series{% endblock %}
 {% block body %}
 <h1>Does book six agree with book one?</h1>
-<p class="lede">Upload your series in reading order. Preflight reads every chapter, builds a fact-by-fact bible with the exact passage behind each fact, and reports the contradictions — with the fix aimed at the latest book. You see the price before anything runs.</p>
+<p class="lede">Preflight reads your whole series, builds a series bible (every fact about every character, each with the exact sentence it came from), and shows you each contradiction with both passages and a fix aimed at the latest book. For authors of long-running series, their editors and small presses. You see the price before anything runs, and you pay with PayPal.</p>
+<div class="cta-row">
+  <form action="/quote-demo" method="post" class="inline"><button type="submit" data-testid="cta-demo">Try it with the demo series</button></form>
+  {% if sample %}<a class="btn secondary" href="/sample" data-testid="cta-sample">See a finished audit</a>{% endif %}
+</div>
+<p class="note">The demo series is <strong>The Saltmarsh Chronicles</strong>, three invented books with five planted continuity errors.{% if sample %} The finished audit is the six Sherlock Holmes volumes: 3,963 sourced facts and the canon's two famous slips, Watson's wound and Mrs. Hudson/Turner.{% endif %}</p>
 <ol class="flow">
   <li><b>Upload</b><span>your books, in reading order</span></li>
-  <li><b>Quote</b><span>priced on the token count, arithmetic shown</span></li>
-  <li><b>Pay with PayPal</b><span>nothing runs until the payment is captured</span></li>
+  <li><b>Quote</b><span>$5 + $4 per 100,000 tokens (about 73,000 words), arithmetic shown: a 100,000-word novel is about $10.50</span></li>
+  <li><b>Pay with PayPal</b><span>nothing runs until the payment is captured; a failed audit is refunded</span></li>
   <li><b>Report</b><span>every contradiction, both passages, a fix to the later book</span></li>
 </ol>
-{% if sample %}<p class="note">See what you get first: <a href="/sample">a finished audit of the six Sherlock Holmes volumes</a> — 3,963 sourced facts, the canon's two famous slips (Watson's wound, Mrs. Hudson/Turner), every passage quoted.</p>{% endif %}
+
+<div class="card privacy" data-testid="privacy">
+  {% if trains_on_prompts %}
+  <p><strong>Public-domain books only on this site.</strong> It runs on a free AI tier whose terms let Google use uploaded text to improve its products, so do not upload an unpublished manuscript here. To keep a manuscript private, run Preflight on your own computer with a local model: the text never leaves it (<a href="https://github.com/nolankido/canonKeeper#readme">how</a>).</p>
+  {% elif provider == 'mock' %}
+  <p><strong>Demo mode: no text is sent to any model.</strong> Findings here come from a simple rule-based stand-in, not AI. For a private manuscript with real findings, run Preflight on your own computer with a local model: the text never leaves it (<a href="https://github.com/nolankido/canonKeeper#readme">how</a>).</p>
+  {% else %}
+  <p><strong>Where your text goes:</strong> to this site's model provider ({{ provider }}) for the audit, and nowhere else. To keep a manuscript entirely on your own computer, run Preflight there with a local model (<a href="https://github.com/nolankido/canonKeeper#readme">how</a>).</p>
+  {% endif %}
+</div>
 
 <form class="card" action="/quote" method="post" enctype="multipart/form-data">
   <label for="series_name">Series name</label>
@@ -20,10 +34,6 @@
   <p class="note">Nothing is sent to a model until you pay. Files are kept on this server only for the audit, and the job page has a button that deletes them along with everything derived from them.</p>
 </form>
 
-<form class="card" action="/quote-demo" method="post">
-  <p>No series to hand? Try the flow with <strong>The Saltmarsh Chronicles</strong>, an invented three-book series with five planted continuity errors.</p>
-  <button type="submit" class="secondary">Try it with the demo series</button>
-</form>
 
 {% if jobs %}
 <div class="card">

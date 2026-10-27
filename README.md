@@ -1,19 +1,47 @@
-# canonkeeper
+# Preflight · continuity audits for book series, paid per audit with PayPal
 
-**Give it the whole series. It finds the contradictions.**
+**Book six has to agree with book one. Preflight reads the whole series and shows you, with the
+passages, every place it doesn't.**
 
-canonkeeper is a continuity engine for long-running fiction. It reads an entire book series,
-builds a provenance-linked *series bible* (every fact cited to the exact passage that asserted
-it), and then audits the series — or a new manuscript — for things that cannot all be true:
-eye colours that drift, characters who die and keep talking, a birthplace that moves between
-book two and book five.
+Series authors publish books years apart, and readers track every detail: an eye colour that
+drifts, a character who dies and keeps talking, a birthplace that moves between book two and book
+five. Today the only tool for this is a spreadsheet and a good memory. Preflight is built on
+**canonkeeper**, the open-source engine in this repository, by a working indie publisher with 80+
+titles across four series imprints.
 
-It exists because series authors ship books years apart, readers track every detail, and the
-only tool for this today is a spreadsheet and a good memory.
+| | |
+|---|---|
+| **What it does** | Reads every chapter, builds a *series bible* (every fact about every character and place, each carrying the exact sentence it came from), and reports what cannot all be true: each contradiction with both passages and a fix aimed at the *later* book (the earlier ones are published). Writing the next book? Check the draft against everything already published. |
+| **Who it's for** | Authors of long-running series, their editors, small presses |
+| **What it costs** | $5 + $4 per 100,000 tokens (about 73,000 words of fiction), shown with its arithmetic before you pay: a 100,000-word novel is about $10.50, the six Sherlock Holmes volumes $30.20. A draft check is $2 + the same rate on the draft alone. |
+| **How you pay** | PayPal Checkout (Orders v2; this hackathon build runs on PayPal's sandbox, so it is test money). Nothing reaches a model until PayPal confirms the capture of exactly the quoted amount; an audit that cannot finish is refunded in full through PayPal. |
+| **Agents welcome** | The same service is an MCP server: an author's AI assistant can quote, order, check progress and read the findings, but the PayPal approval link always goes to the person. |
+| **What you get** | The report (HTML, prints to PDF), the series bible as a page and as a spreadsheet with the passage behind every row, and the findings as JSON |
 
-Built by a working indie publisher with 80+ titles across four imprints. Entered in the
-[PayPal AI Hackathon 2026](https://paypalaihackathon.devpost.com/) as **Preflight**: pay-per-audit
-continuity checking for series authors (see *Preflight* below).
+**See a finished audit first:** [the six Sherlock Holmes volumes](#what-it-found-in-sherlock-holmes),
+3,963 sourced facts and the canon's two famous slips found with no hints (Watson's war wound in the
+shoulder and then the leg; a landlady who is Mrs. Hudson and then Mrs. Turner). The full page is
+`/sample` on any running Preflight, or open
+[`sherlock-holmes-report.html`](src/canonkeeper/preflight/samples/sherlock-holmes-report.html) in a
+browser.
+
+**Where your text goes.**
+- *The hosted demo* runs on Gemini's free tier, whose [terms](https://ai.google.dev/gemini-api/terms)
+  let Google use submitted text to improve its products and have it read by human reviewers. So it
+  takes public-domain books and the built-in demo series only, and every page says so.
+- *Your own manuscripts:* run Preflight yourself with a local model (`--provider openweights`,
+  [measured below](#local-mode-measured)), and the text never leaves your machine.
+- *A commercial Preflight* would run the same code on a billed API tier, where Google's terms say
+  prompts are not used to improve its products; every quote already carries the list price of the
+  models it would use.
+
+**Try it** (Python 3.11+, no keys, no card): `pip install -e .` then `canonkeeper serve`, open
+http://127.0.0.1:8787 and press *Try it with the demo series*. With no keys the whole flow runs
+(upload, quote, pay, report) and each page says payments are simulated and answers come from a
+rule-based stand-in. Add `GEMINI_API_KEY` for real audits and `PAYPAL_CLIENT_ID` /
+`PAYPAL_CLIENT_SECRET` for the PayPal sandbox ([details](#preflight-in-detail-paypal)).
+
+Entered in the [PayPal AI Hackathon 2026](https://paypalaihackathon.devpost.com/).
 
 [![CI](https://github.com/nolankido/canonKeeper/actions/workflows/ci.yml/badge.svg)](https://github.com/nolankido/canonKeeper/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.11%2B-blue)
@@ -21,7 +49,7 @@ continuity checking for series authors (see *Preflight* below).
 
 ---
 
-## How it works
+## The engine: how canonkeeper works
 
 ```
  series.json ──▶ fetch/chapterize ──▶ extract claims ──▶ bible.jsonl
@@ -259,7 +287,7 @@ free tier the answer is $0; at list price for a ~900k-token, six-novel series:
 Iterate on prompts at the small context cap, run the full-context audit once for the demo,
 and let the disk cache do the rest.
 
-## Preflight (the PayPal AI Hackathon entry)
+## Preflight in detail (PayPal)
 
 A series audit has a knowable price before it runs — the token count is known the moment the
 files land — which makes it a natural pay-per-job service. `canonkeeper serve` runs it:

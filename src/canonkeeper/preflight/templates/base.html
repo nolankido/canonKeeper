@@ -31,7 +31,11 @@
   header a { color: inherit; text-decoration: none; font-weight: 700; font-size: 22px; }
   header span { color: var(--muted); font-size: 14px; }
   h1 { font-size: 30px; margin: 0 0 6px; }
-  .lede { color: var(--muted); margin: 0 0 24px; }
+  .lede { color: var(--muted); margin: 0 0 16px; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .cta-row button, .cta-row .btn { margin-top: 0; }
+  .card.privacy { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+  .card.privacy p { margin: 0; } .cta-row form.inline { margin-left: 0; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin: 16px 0; }
   label { display: block; font-size: 14px; color: var(--muted); margin: 14px 0 6px; }
   input[type=text], input[type=file] { width: 100%; padding: 10px 12px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
@@ -60,9 +64,10 @@
 <body>
 <main>
   <header><a href="/">Preflight</a><span>pay-per-audit continuity checking · by canonkeeper</span></header>
-  {% if paypal_mode == 'fake' %}<div class="banner">Demo mode: payments are simulated in-process. Set PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET for the PayPal sandbox.</div>
-  {% elif paypal_mode == 'sandbox' %}<div class="banner">PayPal sandbox: no real money moves. Use a sandbox buyer account at checkout.</div>{% endif %}
-  {% if provider == 'mock' %}<div class="banner">Demo mode: findings come from a rule-based stand-in, not a language model, so the flow is real but the wording is canned. Set GEMINI_API_KEY for real audits.</div>{% endif %}
+  {% if paypal_mode == 'fake' and provider == 'mock' %}<div class="banner">Demo: payments are simulated (no money moves) and findings come from a simple rule-based stand-in, not AI. The steps are the real ones.</div>
+  {% elif paypal_mode == 'fake' %}<div class="banner">Demo: payments are simulated, no money moves.</div>
+  {% elif paypal_mode == 'sandbox' %}<div class="banner">PayPal sandbox: test money only, nothing real is charged. Pay with a PayPal sandbox buyer account.</div>{% endif %}
+  {% if provider == 'mock' and paypal_mode != 'fake' %}<div class="banner">Demo: findings come from a simple rule-based stand-in, not AI.</div>{% endif %}
   {% if no_model %}<div class="banner">{{ no_model }}</div>{% endif %}
   {% if trains_on_prompts %}<div class="banner">This instance runs on Gemini's free tier, which may use submitted text to improve Google's products. Upload public-domain books or the demo series only — never an unpublished manuscript. For private work, run canonkeeper on your own machine with a local model.</div>{% endif %}
   {% block body %}{% endblock %}
