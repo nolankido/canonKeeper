@@ -38,6 +38,8 @@ tokens of context) → HTML report. Default provider is the Gemini free tier (no
   extraction or adjudication contract must keep `tests/` green with no API key.
 - **Measure, don't eyeball.** Prompt changes are evaluated with `canonkeeper eval`, and the
   README benchmark table is updated from `result.md`, not typed by hand.
+  Measure with one model: `CANONKEEPER_MODEL_FALLBACKS_ENABLED=false`, so an overloaded or
+  spent model stops the run (it resumes from cache) instead of quietly switching judges.
 
 ## Commands
 

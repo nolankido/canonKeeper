@@ -569,3 +569,12 @@ def test_daily_counts_follow_the_pacific_day_and_cli_matches_the_guard(tmp_path)
     s = Settings(provider="gemini", workdir=tmp_path, _env_file=None)
     assert count_requests_today(log, s.day_reset_utc_offset) == {"lite": 2}  # ok + 503
     assert _today_usage(s) == {"lite": 2}  # the CLI's line and the guard agree
+
+
+def test_fallbacks_can_be_switched_off_for_a_measurement():
+    from canonkeeper.config import Settings
+
+    on = Settings(provider="gemini", _env_file=None)
+    off = Settings(provider="gemini", model_fallbacks_enabled=False, _env_file=None)
+    assert on.model_fallbacks["gemini-3.6-flash"] and off.model_fallbacks == {}
+    assert on.model_fallbacks["gemini-3.5-flash-lite"] == ["gemini-3.1-flash-lite"]

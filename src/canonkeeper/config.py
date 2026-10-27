@@ -139,6 +139,12 @@ class Settings(BaseSettings):
     Holmes chunks it cut facts from 305 to 274 and descriptive/biographical ones from 175 to
     160 (scripts/probe_hints_real.py). It helps text that looks like the benchmark, not books."""
 
+    model_fallbacks_enabled: bool = True
+    """Move down a model ladder when a model is overloaded or out of quota. Turn off for a
+    measurement (CANONKEEPER_MODEL_FALLBACKS_ENABLED=false): an A/B or a benchmark must be
+    judged by one model, and a run that cannot get it should stop (it resumes from the cache)
+    rather than quietly mix models."""
+
     extract_concurrency: int = 3
     """Extraction requests in flight at once. The rate limiter still enforces the provider's
     requests-per-minute, so this only stops one slow reply from idling the budget: on the free
@@ -244,6 +250,8 @@ class Settings(BaseSettings):
 
     @property
     def model_fallbacks(self) -> dict[str, list[str]]:
+        if not self.model_fallbacks_enabled:
+            return {}
         return ProviderDefaults.fallbacks.get(self.provider, {})
 
     @property
