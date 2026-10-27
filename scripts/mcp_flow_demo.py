@@ -125,8 +125,7 @@ async def main() -> None:
         f = _val(await s.call_tool("get_findings", {"job_id": job}))
         _say("get_findings", {k: v for k, v in f.items() if k != "findings"})
         for row in f.get("findings", []):
-            vals = " vs ".join(f"'{v['value']}' ({v['book']})" for v in row["values"][:3])
-            print(f"  - [{row['severity']}] {row['subject']}.{row['predicate']}: {vals}")
+            print(f"  - [{row['severity']}] {row['summary']}")
             if row.get("suggested_fix"):
                 print(f"      fix (later book): {row['suggested_fix'][:160]}")
 

@@ -71,6 +71,18 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+_SMALL = {"a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to"}
+
+
+def _title_from_filename(stem: str) -> str:
+    """ "the-harbour" → "The Harbour"; a title the author already cased is left alone."""
+    title = stem.replace("-", " ").replace("_", " ").strip()
+    if not title.islower():
+        return title
+    words = title.split()
+    return " ".join(w if i and w in _SMALL else w[:1].upper() + w[1:] for i, w in enumerate(words))
+
+
 def _strip_numbering(name: str) -> str:
     """Drop the author's own numbering ("03 - The Return.txt" → "The Return.txt"), but not
     when the number is the whole name ("01.txt" stays "01.txt", not "txt")."""
@@ -289,7 +301,7 @@ class JobStore:
         books: list[Book] = []
         for i, name in enumerate(job.books):
             text = (self.dir(job.id) / "books" / name).read_text(encoding="utf-8")
-            title = name.split("-", 1)[1].rsplit(".", 1)[0].replace("-", " ").replace("_", " ")
+            title = _title_from_filename(name.split("-", 1)[1].rsplit(".", 1)[0])
             books.append(
                 Book(
                     key=name.rsplit(".", 1)[0],

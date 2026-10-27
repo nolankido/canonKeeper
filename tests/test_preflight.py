@@ -238,6 +238,9 @@ def test_mcp_service_flow_agent_quotes_human_approves_agent_collects(tmp_path):
     assert all(
         row["verdict"] == "contradiction" and row["values"][0]["quote"] for row in f["findings"]
     )
+    summaries = {row["summary"] for row in f["findings"]}
+    assert "Ivy Marlowe’s eye colour: green in The Harbour vs blue in The Return" in summaries
+    assert not any(".died" in x or "_" in x for x in summaries)  # readable, not slot labels
     assert len(svc.get_findings(job_id, include_cleared=True)["findings"]) >= len(PLANTED)
     assert svc.list_jobs()[0]["job_id"] == job_id
 

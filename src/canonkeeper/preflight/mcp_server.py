@@ -27,10 +27,12 @@ from pathlib import Path
 from typing import Any
 
 from canonkeeper.config import Settings, load_settings
+from canonkeeper.models import Candidate
 from canonkeeper.preflight.jobs import JobStore, Runner, order_description
 from canonkeeper.preflight.payments import refund, settle
 from canonkeeper.preflight.paypal import FakePayPal, PayPal
 from canonkeeper.preflight.pricing import CURRENCY
+from canonkeeper.report.display import headline
 
 
 class PreflightService:
@@ -185,12 +187,15 @@ class PreflightService:
                 continue
             rows.append(
                 {
+                    "summary": headline(Candidate.model_validate(f["candidate"])),
+                    "check": f["candidate"]["heuristic"],
                     "verdict": f["verdict"],
                     "severity": f["severity"],
                     "subject": f["candidate"]["claims"][0]["subject"],
                     "predicate": f["candidate"]["claims"][0]["predicate"],
                     "values": [
                         {
+                            "predicate": c["predicate"],
                             "value": c["object"],
                             "book": c["provenance"].get("book_title") or c["provenance"]["book"],
                             "chapter": c["provenance"]["chapter"],
