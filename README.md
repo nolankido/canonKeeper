@@ -115,9 +115,17 @@ free tier, with no hints:
 | list-price cost | $0.74 to read, $0.21 to judge |
 
 That is the continuity error readers have argued about since 1890, found unassisted, with both
-passages on the page. The two famous name slips are also captured as facts (Mrs. Hudson and
-Mrs. Turner are both recorded as the landlady; Mary Watson calls her husband James) but need
-heuristics the screen does not have yet.
+passages on the page:
+
+![The Holmes audit report: Watson's wound, four passages, the adjudicator's verdict and a fix to the later book](docs/img/report.png)
+
+Every fact behind it is browsable in the bible page, with its source passage one click away:
+
+![The series bible: Sherlock Holmes, 242 facts, aliases, every slot with its sources](docs/img/bible.png)
+
+The famous landlady slip (Mrs. Hudson in *The Sign of the Four*, Mrs. Turner in *A Scandal in
+Bohemia*) is now raised by the `role_collision` screen and goes to the adjudicator on the next
+run; Mary Watson calling her husband James is captured as a fact but still needs a heuristic.
 
 ## Does it actually work? The seeded-defect benchmark
 
@@ -212,8 +220,14 @@ upload series ──▶ quote ($5 + $4 per 100k tokens, shown with the arithmeti
 
 ```bash
 canonkeeper serve                      # demo mode: payments simulated in-process, mock provider works too
-PAYPAL_CLIENT_ID=… PAYPAL_CLIENT_SECRET=… canonkeeper serve   # real PayPal sandbox
+PAYPAL_CLIENT_ID=… PAYPAL_CLIENT_SECRET=… canonkeeper serve   # real PayPal sandbox (or put them in .env)
+canonkeeper doctor --paypal            # proves the credentials: OAuth + a sandbox order, never captured
 ```
+
+<p align="center">
+<img src="docs/img/preflight-quote.png" width="49%" alt="Quote page: price with the arithmetic shown, Pay with PayPal">
+<img src="docs/img/preflight-job.png" width="49%" alt="Job page after payment: facts in bible, contradictions, open the report">
+</p>
 
 Nothing is sent to a model until the order is captured. Jobs persist as JSON on disk, run one
 at a time (free-tier pacing is per project, so parallelism would only contend), and a failed
