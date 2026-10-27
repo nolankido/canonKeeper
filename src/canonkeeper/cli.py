@@ -3,9 +3,9 @@
 canonkeeper demo                             # no key needed: invented series, full pipeline
 canonkeeper fetch    series.json             # download / cache the books, show chapter stats
 canonkeeper estimate series.json             # token + dollar pre-flight
-canonkeeper build    series.json             # extract the bible (Muse Spark)
+canonkeeper build    series.json             # extract the bible (extraction model)
 canonkeeper bible    series.json             # browsable HTML of the bible
-canonkeeper audit    series.json             # find + adjudicate contradictions (Muse Wonder)
+canonkeeper audit    series.json             # find + adjudicate contradictions (adjudication model)
 canonkeeper check    series.json new.md      # audit one new manuscript against the bible
 canonkeeper eval     series.json --n 20      # seeded-defect benchmark → precision / recall
 canonkeeper serve                            # Preflight web app: quote → PayPal → audit → report

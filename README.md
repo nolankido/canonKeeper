@@ -159,9 +159,9 @@ full audit). The second row is the full pipeline with those changes.
 ```
 src/canonkeeper/
   corpus/      manifest, Gutenberg fetcher, chapterizer (offset-preserving)
-  extract/     per-chunk claim extraction + quote grounding        (Muse Spark)
+  extract/     per-chunk claim extraction + quote grounding        (extraction model)
   canon/       JSONL bible with alias resolution and slot index
-  audit/       candidate heuristics + batched adjudicator with 1M-ctx assembly (Muse Wonder)
+  audit/       candidate heuristics + batched adjudicator with 1M-ctx assembly (adjudication model)
   report/      audit report + bible viewer (HTML), JSON
   demo.py      the invented Saltmarsh series with planted errors
   preflight/   the paid service: pricing, PayPal Orders v2 client (+fake), job store/runner, FastAPI app

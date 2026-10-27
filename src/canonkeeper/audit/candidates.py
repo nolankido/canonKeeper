@@ -1,6 +1,6 @@
 """Local, zero-cost candidate detection.
 
-The adjudicator (Muse Wonder) is expensive and we want it to spend its attention on things
+The adjudicator is the expensive model and we want it to spend its attention on things
 that might actually be wrong. These heuristics over-generate on purpose; precision is the
 adjudicator's job, recall is ours.
 

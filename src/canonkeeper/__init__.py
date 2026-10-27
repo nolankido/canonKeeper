@@ -1,7 +1,7 @@
 """canonkeeper — series-continuity engine for long-running fiction.
 
-Pipeline:  corpus → chapterize → extract claims (Muse Spark) → canon store
-           → candidate conflicts (local heuristics) → adjudicate (Muse Wonder)
+Pipeline:  corpus → chapterize → extract claims (cheap model) → canon store
+           → candidate conflicts (local heuristics) → adjudicate (stronger model)
            → report.
 """
 

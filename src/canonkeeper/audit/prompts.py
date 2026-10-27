@@ -1,4 +1,4 @@
-"""Adjudication prompts (Muse Wonder).
+"""Adjudication prompts.
 
 Message layout is chosen for prompt caching and batching:
 
@@ -7,7 +7,7 @@ Message layout is chosen for prompt caching and batching:
     user #2  — a batch of candidate conflicts, each with quotes and the bible's other facts
 
 The large, unchanging prefix comes first so an OpenAI-compatible host can serve it from cache
-(Meta lists cached input at a fraction of the full price); the part that varies comes last.
+(providers bill cached input at a fraction of the full price); the part that varies comes last.
 One call rules on many candidates, so the cost of reading the series is paid once per batch,
 not once per candidate.
 """

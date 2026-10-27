@@ -1,6 +1,6 @@
 """Token counting and token-bounded splitting.
 
-Meta does not publish a tokenizer for the Muse models; cl100k_base is close enough for
+Providers do not all publish tokenizers; cl100k_base is close enough for
 budgeting (within ~10% on English prose). All budgets in this project leave headroom for that.
 """
 

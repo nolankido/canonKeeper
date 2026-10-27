@@ -56,7 +56,7 @@ canonkeeper serve           # Preflight; PAYPAL_MODE=fake unless PAYPAL_CLIENT_I
   before guessing why a run is slow.
 - `src/canonkeeper/extract/` — prompts + extractor. Predicate vocabulary is in `prompts.py`;
   keep it in sync with `audit/candidates.py::SINGLE_VALUED`.
-- `src/canonkeeper/audit/candidates.py` — cheap heuristics; over-generate, let Wonder decide.
+- `src/canonkeeper/audit/candidates.py` — cheap heuristics; over-generate, let the adjudicator decide.
 - `src/canonkeeper/audit/adjudicate.py` — batched adjudication; series text is user message #1
   (stable, cacheable), candidates are message #2. Keep that order.
 - `src/canonkeeper/canon/normalize.py` — predicate/value synonym tables applied at ingest.
