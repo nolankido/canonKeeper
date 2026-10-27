@@ -241,7 +241,10 @@ is ~100 lines of Orders v2 (OAuth → create with `PAY_NOW` → capture, idempot
 `quote_series → order_audit → (the person approves on PayPal) → confirm_payment → audit_status
 → get_findings`. The agent prices the job and creates the order; it never holds the buyer's
 credentials and cannot approve the payment itself — the approval link goes to the person.
-Add it to Claude Desktop or Cursor with `{"command": "canonkeeper", "args": ["mcp"]}`.
+Add it to Claude Desktop or Cursor with `{"command": "canonkeeper", "args": ["mcp"]}`, or watch
+the whole flow from a client: `python scripts/mcp_flow_demo.py books/*.txt` (with
+`canonkeeper serve` running) spawns the server over stdio, quotes, orders, shows that
+`confirm_payment` refuses to run anything before the person approves, then collects the findings.
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) (submissions due
 **Nov 12, 2026**).
