@@ -12,6 +12,7 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 from canonkeeper.audit.candidates import _NAME_PREDS, SINGLE_VALUED
 from canonkeeper.canon import CanonStore
 from canonkeeper.models import Claim
+from canonkeeper.report.display import label, value, where
 
 _DISPUTABLE = SINGLE_VALUED | _NAME_PREDS
 
@@ -19,6 +20,7 @@ _env = Environment(
     loader=PackageLoader("canonkeeper.report", "templates"),
     autoescape=select_autoescape(["html"]),
 )
+_env.filters.update(label=label, shown=value, where=where)
 
 
 @dataclass
@@ -65,7 +67,7 @@ def build_views(store: CanonStore, *, min_claims: int = 1) -> list[EntityView]:
                 name=name,
                 aliases=store.aliases.get(name, []),
                 n_claims=len(claims),
-                first_seen=first.provenance.locator,
+                first_seen=where(first.provenance),
                 slots=slots,
             )
         )
