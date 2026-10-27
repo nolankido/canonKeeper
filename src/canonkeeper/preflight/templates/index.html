@@ -3,6 +3,12 @@
 {% block body %}
 <h1>Does book six agree with book one?</h1>
 <p class="lede">Upload your series in reading order. Preflight reads every chapter, builds a fact-by-fact bible with the exact passage behind each fact, and reports the contradictions — with the fix aimed at the latest book. You see the price before anything runs.</p>
+<ol class="flow">
+  <li><b>Upload</b><span>your books, in reading order</span></li>
+  <li><b>Quote</b><span>priced on the token count, arithmetic shown</span></li>
+  <li><b>Pay with PayPal</b><span>nothing runs until the payment is captured</span></li>
+  <li><b>Report</b><span>every contradiction, both passages, a fix to the later book</span></li>
+</ol>
 {% if sample %}<p class="note">See what you get first: <a href="/sample">a finished audit of the six Sherlock Holmes volumes</a> — 3,963 sourced facts, the canon's two famous slips (Watson's wound, Mrs. Hudson/Turner), every passage quoted.</p>{% endif %}
 
 <form class="card" action="/quote" method="post" enctype="multipart/form-data">

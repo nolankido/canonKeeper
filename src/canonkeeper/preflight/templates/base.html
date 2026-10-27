@@ -22,6 +22,12 @@
   main { max-width: 720px; margin: 0 auto; padding: 36px 16px 64px; }
   header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 28px; }
   header a { margin-right: 4px; }
+  body > div a:not(.btn), .card a:not(.btn), p a { color: var(--accent); }
+  ol.flow { list-style: none; counter-reset: step; padding: 0; margin: 18px 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  ol.flow li { counter-increment: step; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+  ol.flow li::before { content: counter(step); font: 600 12px var(--mono); color: var(--accent); display: block; }
+  ol.flow b { display: block; } ol.flow span { color: var(--muted); }
+  @media (max-width: 700px) { ol.flow { grid-template-columns: 1fr 1fr; } }
   header a { color: inherit; text-decoration: none; font-weight: 700; font-size: 22px; }
   header span { color: var(--muted); font-size: 14px; }
   h1 { font-size: 30px; margin: 0 0 6px; }
