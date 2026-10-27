@@ -160,6 +160,8 @@ six-volume Sherlock Holmes audit without paying.
 **As an AI assistant's customer:** in Claude Desktop, Settings → Connectors → Add custom
 connector → `<RENDER URL>/mcp`. Ask: "Open a $20 Preflight budget." Approve the link it gives
 you with the sandbox buyer, then: "Audit the Saltmarsh demo series and pay from the budget."
+When it is done: "Check the demo series' next draft against it." Finally: "Close the budget": the
+unused balance goes back to PayPal.
 
 The hosted instance runs on Gemini's free tier, which may use submitted text for training:
 please upload only public-domain text or the demo series.
