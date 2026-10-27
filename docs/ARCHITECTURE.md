@@ -175,8 +175,10 @@ drive. `PreflightService` is transport-agnostic; both front ends and the tests c
   PayPal's return redirect, from the MCP `confirm_payment` tool, and from a "check payment"
   button for a buyer who approved and closed the tab. It never captures an unapproved order and
   marks a job paid only on a completed capture (not PENDING) of exactly the quoted amount and
-  currency; only then does the runner start. The agent never holds anything that can approve a
-  payment: the approval link goes to the person.
+  currency; only then does the runner start. A capture PayPal is still clearing makes the job
+  "held" (never pruned, run once it clears), not unpaid. An instance with no model key refuses
+  to quote at all, so nobody can pay for a run that cannot happen. The agent never holds
+  anything that can approve a payment: the approval link goes to the person.
 - **Refunds.** A paid audit that fails can be retried free (responses are cached, so it resumes)
   or refunded in full through the Payments v2 capture refund, idempotent per capture. Only
   failed jobs qualify, and a refunded job can never be run.
