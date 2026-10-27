@@ -385,3 +385,24 @@ def test_job_progress_is_recorded_while_running(client):
     store.save(job)
     page = client.get(f"/jobs/{job_id}").text
     assert "Judging candidate conflicts" in page and "5 of 5 candidates" in page
+
+
+def test_unpaid_quotes_are_pruned_after_a_day(tmp_path):
+    import json as _json
+
+    from canonkeeper.preflight.jobs import JobStore
+
+    store = JobStore(tmp_path / "pf")
+    old, _ = store.create_from_upload("Old", [("a.txt", b"Once.")])
+    fresh, _ = store.create_from_upload("Fresh", [("a.txt", b"Twice.")])
+    paid, _ = store.create_from_upload("Paid", [("a.txt", b"Thrice.")])
+    paid.status = "done"
+    store.save(paid)
+    for j in (old, paid):  # age two of them by two days
+        p = store._path(j.id)
+        d = _json.loads(p.read_text())
+        d["updated_at"] = "2020-01-01T00:00:00+00:00"
+        p.write_text(_json.dumps(d))
+    assert store.prune_unpaid() == 1
+    assert store.get(old.id) is None and not store.dir(old.id).exists()
+    assert store.get(fresh.id) is not None and store.get(paid.id) is not None

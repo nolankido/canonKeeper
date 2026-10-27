@@ -115,6 +115,8 @@ def create_app(
             raise HTTPException(404)
         return FileResponse(p, media_type="text/html")
 
+    store.prune_unpaid()
+
     @app.post("/quote")
     async def make_quote(
         request: Request, series_name: str = Form(...), files: list[UploadFile] | None = None
@@ -127,6 +129,7 @@ def create_app(
             if not f.filename:
                 continue
             payload.append((f.filename, await f.read()))
+        store.prune_unpaid()
         try:
             job, q = store.create_from_upload(series_name, payload)
         except ValueError as e:

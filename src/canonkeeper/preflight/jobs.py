@@ -111,6 +111,25 @@ class JobStore:
         self.save(job)
         return job
 
+    def prune_unpaid(self, max_age_hours: float = 24.0) -> int:
+        """Delete quotes nobody paid for (status quoted or cancelled, older than the limit),
+        uploads included. A public host gives quotes away free; without this every abandoned
+        upload stays on disk. Paid jobs are never touched here."""
+        cutoff = datetime.now(UTC).timestamp() - max_age_hours * 3600
+        removed = 0
+        for job in self.all():
+            if job.status not in ("quoted", "cancelled"):
+                continue
+            try:
+                updated = datetime.fromisoformat(job.updated_at).timestamp()
+            except ValueError:
+                continue
+            if updated < cutoff:
+                with self._lock:
+                    shutil.rmtree(self.dir(job.id), ignore_errors=True)
+                removed += 1
+        return removed
+
     def by_order(self, order_id: str) -> Job | None:
         for p in self.root.glob("*/job.json"):
             data = json.loads(p.read_text(encoding="utf-8"))
