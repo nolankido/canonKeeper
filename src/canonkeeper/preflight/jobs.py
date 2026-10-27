@@ -8,7 +8,6 @@ daemon thread because the free-tier pacing makes a real series take tens of minu
 from __future__ import annotations
 
 import contextlib
-import json
 import re
 import secrets
 import shutil
@@ -25,7 +24,7 @@ from canonkeeper.config import Settings
 from canonkeeper.corpus.chapterize import chapterize
 from canonkeeper.corpus.loaders import Book, Series
 from canonkeeper.corpus.loaders import decode_text as decode_upload
-from canonkeeper.preflight.filelock import file_lock
+from canonkeeper.preflight.filelock import file_lock, read_json, write_json
 from canonkeeper.preflight.pricing import Quote, quote
 from canonkeeper.tokens import count_tokens
 
@@ -104,20 +103,7 @@ def _is_demo_draft(text: str) -> bool:
     return text.replace("\r\n", "\n") == DRAFT4
 
 
-def _read_json(path: Path) -> dict[str, Any] | None:
-    """A job file, or None if it is not there; retries through Windows' brief sharing error
-    while another process renames a new version into place."""
-    for attempt in range(50):
-        try:
-            data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
-            return data
-        except FileNotFoundError:
-            return None
-        except PermissionError:
-            if attempt == 49:
-                raise
-            time.sleep(0.01)
-    return None
+_read_json = read_json  # the job store's name for it
 
 
 def _unchanged_since(seen: str) -> Callable[[Job], bool]:
@@ -187,18 +173,7 @@ class JobStore:
         job.updated_at = _now()
         with self._lock:
             self.dir(job.id).mkdir(parents=True, exist_ok=True)
-            # write-then-rename: a reader in another thread or process never sees half a file
-            path = self._path(job.id)
-            tmp = path.with_name(f"job.{secrets.token_hex(4)}.tmp")
-            tmp.write_text(json.dumps(asdict(job), indent=2), encoding="utf-8")
-            for attempt in range(50):
-                try:
-                    tmp.replace(path)
-                    break
-                except PermissionError:  # Windows: a reader has it open for a moment
-                    if attempt == 49:
-                        raise
-                    time.sleep(0.01)
+            write_json(self._path(job.id), asdict(job), indent=2)
 
     def lock(self, job_id: str) -> contextlib.AbstractContextManager[None]:
         """Exclusive across threads and processes (serve and mcp share this folder)."""

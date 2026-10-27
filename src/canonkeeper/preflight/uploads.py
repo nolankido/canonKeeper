@@ -9,12 +9,13 @@ assistant collects the job with `upload_status`. One link makes one job; it last
 
 from __future__ import annotations
 
-import json
 import re
 import secrets
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+from canonkeeper.preflight.filelock import file_lock, read_json, write_json
 
 TOKEN = re.compile(r"[A-Za-z0-9_-]{16,64}")
 LIFETIME = timedelta(hours=24)
@@ -37,26 +38,27 @@ class UploadLinks:
             "series_name": series_name or "",
             "job_id": None,
         }
-        self._path(token).write_text(json.dumps(record), encoding="utf-8")
+        write_json(self._path(token), record, indent=None)
         return token
 
     def get(self, token: str) -> dict[str, Any]:
         """The link's record; KeyError when it does not exist or has expired."""
         path = self._path(token)
         try:
-            record: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+            record = read_json(path)
         except (OSError, ValueError):
-            raise KeyError(token) from None
+            record = None
+        if record is None:
+            raise KeyError(token)
         if datetime.now(UTC) - datetime.fromisoformat(record["created"]) > LIFETIME:
             raise KeyError(token)
         return record
 
     def attach(self, token: str, job_id: str) -> None:
         """Record the job a link made. A link is used once: a second upload is refused."""
-        record = self.get(token)
-        if record.get("job_id"):
-            raise ValueError("this upload link has already been used")
-        record["job_id"] = job_id
-        tmp = self._path(token).with_suffix(".tmp")
-        tmp.write_text(json.dumps(record), encoding="utf-8")
-        tmp.replace(self._path(token))
+        with file_lock(self._path(token).with_suffix(".lock")):
+            record = self.get(token)
+            if record.get("job_id"):
+                raise ValueError("this upload link has already been used")
+            record["job_id"] = job_id
+            write_json(self._path(token), record, indent=None)

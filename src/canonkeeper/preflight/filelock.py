@@ -9,11 +9,14 @@ over from a crashed process and is taken over.
 from __future__ import annotations
 
 import contextlib
+import json
 import os
+import secrets
 import threading
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 _local: dict[str, threading.RLock] = {}
 _guard = threading.Lock()
@@ -82,3 +85,39 @@ def file_lock(path: Path, *, timeout_s: float = 45.0, stale_s: float = 30.0) -> 
             _depth[key] = 0
             with contextlib.suppress(OSError):
                 path.unlink()
+
+
+# Windows refuses to rename a file over one another thread or process has open for a moment, and
+# a reader can catch a rename in progress; both show up as a brief PermissionError. Retry it.
+_TRIES, _PAUSE_S = 50, 0.01
+
+
+def read_json(path: Path) -> dict[str, Any] | None:
+    """A JSON file's object, or None if it is not there."""
+    for attempt in range(_TRIES):
+        try:
+            data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+            return data
+        except FileNotFoundError:
+            return None
+        except PermissionError:
+            if attempt == _TRIES - 1:
+                raise
+            time.sleep(_PAUSE_S)
+    return None
+
+
+def write_json(path: Path, data: Any, *, indent: int | None = 1) -> None:
+    """Write-then-rename, so a reader in another thread or process never sees half a file."""
+    tmp = path.with_name(f"{path.stem}.{secrets.token_hex(4)}.tmp")
+    tmp.write_text(json.dumps(data, indent=indent), encoding="utf-8")
+    for attempt in range(_TRIES):
+        try:
+            tmp.replace(path)
+            return
+        except PermissionError:
+            if attempt == _TRIES - 1:
+                with contextlib.suppress(OSError):
+                    tmp.unlink()
+                raise
+            time.sleep(_PAUSE_S)

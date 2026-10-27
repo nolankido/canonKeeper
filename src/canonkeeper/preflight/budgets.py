@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
-import json
 import re
 import secrets
 from collections.abc import Callable, Iterator
@@ -32,7 +31,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from canonkeeper.preflight.filelock import file_lock
+from canonkeeper.preflight.filelock import file_lock, read_json, write_json
 
 MIN_USD, MAX_USD = Decimal("5"), Decimal("200")
 _ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
@@ -116,16 +115,16 @@ class BudgetStore:
 
     def get(self, budget_id: str) -> Budget | None:
         try:
-            data = json.loads(self._path(budget_id).read_text(encoding="utf-8"))
+            data = read_json(self._path(budget_id))
         except (KeyError, OSError, ValueError):
             return None
-        return Budget(**data)
+        return Budget(**data) if data is not None else None
 
     def by_key(self, key: str) -> Budget | None:
         wanted = key_hash(key)
         for p in self.root.glob("*.json"):
             with contextlib.suppress(OSError, ValueError):
-                data = json.loads(p.read_text(encoding="utf-8"))
+                data = read_json(p) or {}
                 if secrets.compare_digest(str(data.get("key_hash", "")), wanted):
                     return Budget(**data)
         return None
@@ -133,7 +132,7 @@ class BudgetStore:
     def by_order(self, order_id: str) -> Budget | None:
         for p in self.root.glob("*.json"):
             with contextlib.suppress(OSError, ValueError):
-                data = json.loads(p.read_text(encoding="utf-8"))
+                data = read_json(p) or {}
                 if data.get("order_id") == order_id:
                     return Budget(**data)
         return None
@@ -158,7 +157,4 @@ class BudgetStore:
         return fresh
 
     def _write(self, budget: Budget) -> None:
-        path = self._path(budget.id)
-        tmp = path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(asdict(budget), indent=1), encoding="utf-8")
-        tmp.replace(path)
+        write_json(self._path(budget.id), asdict(budget))
