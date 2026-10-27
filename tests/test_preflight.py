@@ -550,3 +550,46 @@ def test_fake_checkout_only_returns_to_the_url_the_order_was_created_with(client
     assert r.status_code == 303
     assert r.headers["location"] == f"http://testserver/return?token={token}"
     assert client.get("/fake-approve", params={"token": "FAKENOPE"}).status_code == 404
+
+
+def test_nothing_runs_on_a_pending_or_wrong_amount_capture(tmp_path):
+    from canonkeeper.preflight.paypal import Order, capture_problem
+
+    def done(**raw):
+        return Order("O1", "COMPLETED", None, raw.pop("value", "41.00"), "USD", raw)
+
+    assert capture_problem(done(), amount="41.00", currency="USD") is None
+    assert capture_problem(done(value="41"), amount="41.00", currency="USD") is None
+    assert "quote was 41.00" in capture_problem(done(value="5.00"), amount="41.00", currency="USD")
+    held = done(
+        purchase_units=[
+            {
+                "payments": {
+                    "captures": [{"status": "PENDING", "status_details": {"reason": "ECHECK"}}]
+                }
+            }
+        ]
+    )
+    assert "PENDING, ECHECK" in capture_problem(held, amount="41.00", currency="USD")
+    approved = Order("O1", "APPROVED", None, "41.00", "USD")
+    assert "not completed" in capture_problem(approved, amount="41.00", currency="USD")
+
+    class Underpaid(FakePayPal):
+        def capture_order(self, order_id: str) -> Order:
+            o = super().capture_order(order_id)
+            o.amount = "0.01"
+            return o
+
+    settings = Settings(provider="mock", workdir=tmp_path / "wd", _env_file=None)
+    c = TestClient(
+        create_app(settings=settings, paypal=Underpaid(), workdir=tmp_path / "pf"),
+        follow_redirects=False,
+    )
+    r = _upload(c)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    token = c.post(f"/jobs/{job_id}/order").headers["location"].split("token=")[1]
+    back = c.post("/fake-approve", data={"token": token}).headers["location"]
+    r = c.get(back)
+    assert r.status_code == 402 and "quote was" in r.text
+    job = c.app.state.store.get(job_id)  # type: ignore[attr-defined]
+    assert job.status == "ordered" and not job.paid_at

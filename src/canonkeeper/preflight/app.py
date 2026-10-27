@@ -23,7 +23,13 @@ from fastapi.templating import Jinja2Templates
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.preflight.jobs import JobStore, Runner, order_description
-from canonkeeper.preflight.paypal import FakePayPal, Order, PayPal, PayPalClient
+from canonkeeper.preflight.paypal import (
+    FakePayPal,
+    Order,
+    PayPal,
+    PayPalClient,
+    capture_problem,
+)
 from canonkeeper.preflight.pricing import CURRENCY, quote
 
 _TEMPLATES = Path(__file__).parent / "templates"
@@ -166,8 +172,9 @@ def create_app(
             raise HTTPException(404, "unknown order")
         if job.status == "ordered":
             o = pp.capture_order(token)
-            if o.status != "COMPLETED":
-                raise HTTPException(402, f"payment not completed: {o.status}")
+            problem = capture_problem(o, amount=job.quote_usd, currency=CURRENCY)
+            if problem:
+                raise HTTPException(402, problem)
             from datetime import UTC, datetime
 
             job.status, job.paid_at = "paid", datetime.now(UTC).isoformat()

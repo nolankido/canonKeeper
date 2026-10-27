@@ -14,6 +14,7 @@ import secrets
 import threading
 import time
 from dataclasses import asdict, dataclass, field
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -74,6 +75,31 @@ def _parse(data: dict[str, Any]) -> Order:
         currency=str(amt.get("currency_code", "")),
         raw=data,
     )
+
+
+def capture_problem(o: Order, *, amount: str, currency: str) -> str | None:
+    """Why a captured order does not pay for the job, or None if it does.
+
+    COMPLETED on the order is not enough: the capture itself can be PENDING (an eCheck, a
+    review), and nothing runs on money that has not arrived. The amount and currency are
+    checked against the quote too, so an order can only ever pay for the job it was made for.
+    """
+    if o.status != "COMPLETED":
+        return f"payment not completed: {o.status or 'unknown'}"
+    pu = (o.raw.get("purchase_units") or [{}])[0]
+    caps = (pu.get("payments") or {}).get("captures") or []
+    if caps and str(caps[0].get("status", "COMPLETED")) != "COMPLETED":
+        reason = (caps[0].get("status_details") or {}).get("reason", "")
+        return (
+            f"PayPal is holding the payment ({caps[0]['status']}{', ' + reason if reason else ''})"
+        )
+    try:
+        same_amount = not o.amount or Decimal(o.amount) == Decimal(amount)
+    except InvalidOperation:
+        same_amount = False
+    if not same_amount or (o.currency and o.currency != currency):
+        return f"captured {o.amount} {o.currency}, but the quote was {amount} {currency}"
+    return None
 
 
 class PayPalClient:

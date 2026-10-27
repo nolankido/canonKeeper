@@ -26,7 +26,7 @@ from typing import Any
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.preflight.jobs import JobStore, Runner, order_description
-from canonkeeper.preflight.paypal import UNAPPROVED, FakePayPal, PayPal
+from canonkeeper.preflight.paypal import UNAPPROVED, FakePayPal, PayPal, capture_problem
 from canonkeeper.preflight.pricing import CURRENCY
 
 
@@ -110,13 +110,9 @@ class PreflightService:
                 "approve_url": job.approve_url,
             }
         o = self.paypal.capture_order(job.order_id)
-        if o.status != "COMPLETED":
-            return {
-                "job_id": job.id,
-                "status": "ordered",
-                "paid": False,
-                "detail": f"capture returned {o.status}",
-            }
+        problem = capture_problem(o, amount=job.quote_usd, currency=CURRENCY)
+        if problem:
+            return {"job_id": job.id, "status": "ordered", "paid": False, "detail": problem}
         job.status, job.paid_at = "paid", datetime.now(UTC).isoformat()
         self.store.save(job)
         self.runner.submit(job.id)
