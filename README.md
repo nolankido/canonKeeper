@@ -339,6 +339,11 @@ Working offline pipeline; real-model runs on the Gemini free tier. See
 - [x] second benchmark run with the descriptive sweep: P 0.80 / R 0.40 rescored, artifacts committed
 - [x] Preflight: upload → quote → PayPal checkout → capture → audit → report (`canonkeeper serve`)
 - [x] PayPal sandbox credentials and Orders v2 create verified (`canonkeeper doctor --paypal`)
+- [x] payment hardening: one `settle()` for every way a payment is noticed, capture must be
+      COMPLETED for the quoted amount, "check payment" for a closed tab, refunds for failed
+      audits (Payments v2), path-safe job ids, no open redirect; tests on Linux and Windows
+- [ ] capture + refund exercised against the live sandbox (`canonkeeper doctor --round-trip`,
+      needs a person to approve as the sandbox buyer)
 - [ ] full sandbox checkout recorded with a sandbox buyer account (for the video)
 - [x] Preflight as an MCP server (`canonkeeper mcp`): an author's assistant quotes, orders,
       hands the person the PayPal approval link, confirms, and reads the findings as data
