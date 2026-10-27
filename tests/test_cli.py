@@ -108,3 +108,30 @@ def test_demo_check_separates_slips_from_deliberate_reveal(tmp_path):
         any(c["provenance"]["book"].startswith("04-") for c in f["candidate"]["claims"])
         for f in check["findings"]
     )
+
+
+def test_provider_outage_exits_cleanly_with_resume_hint(tmp_path, monkeypatch):
+    """A 503 that survives every retry must not end in a traceback: the run is cached and
+    resumable, and the message should say so."""
+    import httpx
+    import openai
+
+    from canonkeeper import cli
+
+    class Dying:
+        usage = type("U", (), {"cost_usd": 0.0, "retries": 0})()
+
+        def complete(self, *a, **k):
+            raise openai.InternalServerError(
+                "503", response=httpx.Response(503, request=httpx.Request("POST", "x")), body=None
+            )
+
+    monkeypatch.setattr(cli, "make_llm", lambda settings: Dying())
+    m = _write_series(tmp_path)
+    r = runner.invoke(
+        app, ["build", str(m), "--provider", "mock", "--workdir", str(tmp_path / "wd")]
+    )
+    assert r.exit_code == 2, r.output
+    flat = " ".join(r.output.split())
+    assert "HTTP 503" in flat and "rerun the same command" in flat
+    assert "Traceback" not in flat

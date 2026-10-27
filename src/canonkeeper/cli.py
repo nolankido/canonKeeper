@@ -72,6 +72,8 @@ ManifestArg = Annotated[Path, typer.Argument(help="Path to series.json manifest"
 
 def _run_or_explain(fn, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
     """Run a pipeline step; on a spent daily quota print what to do instead of a traceback."""
+    import openai
+
     from canonkeeper.llm.client import DailyQuotaExhausted
 
     try:
@@ -79,6 +81,15 @@ def _run_or_explain(fn, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN20
     except DailyQuotaExhausted as e:
         console.print(f"[yellow]stopped:[/yellow] {e}")
         raise typer.Exit(3) from None
+    except (openai.APIStatusError, openai.APIConnectionError) as e:
+        status = getattr(e, "status_code", None)
+        what = f"HTTP {status}" if status else type(e).__name__
+        console.print(
+            f"[yellow]stopped:[/yellow] the provider kept failing ({what}) after every retry and "
+            "fallback model. Nothing is lost — every answer so far is cached — so rerun the same "
+            "command in a few minutes to resume. Details in <workdir>/requests.jsonl."
+        )
+        raise typer.Exit(2) from None
 
 
 def _llm(settings: Settings, *, sends_text: bool = True):  # noqa: ANN202
