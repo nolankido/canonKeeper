@@ -318,6 +318,16 @@ you want to keep. After a deploy, `python scripts/smoke_hosted.py <url> --order`
 key, the PayPal mode, the sample, a demo quote and the redirect to PayPal's approval page,
 without approving anything or running a model.
 
+**Built to survive the judging period on free tiers.** A free Render instance that sleeps loses its
+disk, and a free model tier has a daily request cap. So: `PREFLIGHT_KEEP_AWAKE_UNTIL` (set to the day
+after judging in `render.yaml`) keeps the instance awake, which one instance can do all month within
+Render's free hours; an order the day's model quota cannot finish is refused *before* a PayPal order
+exists ("nothing was charged", with the reset time), on the web page and over MCP; and real Gemini
+answers for the demo series ship in the package (`preflight/demo_recording/`, made by
+`scripts/record_demo.py`), so a cold instance runs the demo with zero requests, and a keyless local
+run answers the demo series with those recorded answers, labelled as such on every page and on the
+report, instead of the rule-based stand-in. A test fails if a prompt change makes the recording stale.
+
 After payment the money path is one function (`preflight/payments.py`): a job is paid only on a
 completed capture of the quoted amount, a buyer who approved and closed the tab can press
 "check payment", and an audit that fails can be refunded in full through PayPal instead of

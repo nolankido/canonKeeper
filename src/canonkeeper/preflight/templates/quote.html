@@ -9,6 +9,7 @@
 <p class="lede">{{ job.books | length }} books · {{ "{:,}".format(job.words) }} words · {{ "{:,}".format(job.tokens) }} tokens</p>
 {% endif %}
 
+{% if quota_error %}<div class="banner" role="alert" data-testid="quota-short">{{ quota_error }}</div>{% endif %}
 <div class="card">
   <div class="kv">
     <div>Price</div><div class="big">${{ quote.total_str }} <small style="font-size:14px;color:var(--muted)">{{ currency }}</small></div>
@@ -22,7 +23,7 @@
     <div>If it fails</div><div>Retry at no charge, or take a full refund to your PayPal account. Nothing runs until PayPal confirms the payment.</div>
   </div>
   <form action="/jobs/{{ job.id }}/order" method="post">
-    <button type="submit">Pay ${{ quote.total_str }} with PayPal</button>
+    <button type="submit"{% if quota_error %} disabled{% endif %}>Pay ${{ quote.total_str }} with PayPal</button>
     <a class="btn secondary" href="/">Start over</a>
   </form>
   <p class="note">{% if job.kind == 'check' %}Checked against: {% else %}Books in order: {% endif %}{% for b in job.books %}<code>{{ b }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>

@@ -88,6 +88,13 @@ def _is_demo(texts: list[str]) -> bool:
     return [t.replace("\r\n", "\n") for t in texts] == [BOOK1, BOOK2, BOOK3]
 
 
+def _is_demo_draft(text: str) -> bool:
+    """True when the draft is exactly the demo series' own unpublished fourth book."""
+    from canonkeeper.demo import DRAFT4
+
+    return text.replace("\r\n", "\n") == DRAFT4
+
+
 def _read_json(path: Path) -> dict[str, Any] | None:
     """A job file, or None if it is not there; retries through Windows' brief sharing error
     while another process renames a new version into place."""
@@ -254,6 +261,7 @@ class JobStore:
             kind="check",
             parent_id=parent_id,
             draft=safe,
+            demo=parent.demo and _is_demo_draft(draft_text),
         )
         self.save(job)
         return job, q
@@ -418,20 +426,57 @@ class Runner:
         self._submit_lock = threading.Lock()
         self.keepalive_url: str | None = None  # pinged while jobs run (see create_app)
         self.keepalive_every = 240.0
+        # Also pinged, busy or not, until this moment (PREFLIGHT_KEEP_AWAKE_UNTIL): a free host
+        # that sleeps wipes its disk, and judges must find the demo and their jobs where they
+        # left them. One instance awake all month is within Render's 750 free hours.
+        self.keep_awake_until: datetime | None = None
         self._keepalive: threading.Thread | None = None
 
     def busy(self) -> bool:
         return any(t.is_alive() for t in list(self._threads.values()))
+
+    def _awake_wanted(self) -> bool:
+        until = self.keep_awake_until
+        return self.busy() or (until is not None and datetime.now(UTC) < until)
 
     def _keep_alive(self) -> None:
         import httpx
 
         while True:
             time.sleep(self.keepalive_every)
-            if not self.busy():
+            if not self._awake_wanted():
                 return
             with contextlib.suppress(httpx.HTTPError):  # a missed ping fails nothing
                 httpx.get(self.keepalive_url or "", timeout=10)
+
+    def _replays(self, job: Job) -> str | None:
+        """With no model key, the demo series is answered from the packaged Gemini recording
+        (a label saying so), not by the rule-based stand-in: a judge without a key still sees
+        real model output. Only the exact demo books, and the exact demo draft for a check."""
+        if self.settings.provider != "mock" or not job.demo:
+            return None
+        from canonkeeper.preflight import demo_recording
+
+        return demo_recording.label()
+
+    @property
+    def demo_cache_dir(self) -> Path:
+        """The demo series is our own invented text, identical for every visitor, so its
+        responses are shared: one run warms them, later ones cost no quota."""
+        return self.store.root.parent / "demo-cache"
+
+    def cache_dir_for(self, job: Job) -> Path:
+        return self.demo_cache_dir if job.demo else self.store.dir(job.id) / "cache"
+
+    def ensure_keepalive(self) -> None:
+        """Start the pinger if there is a URL and a reason to stay awake, and it is not running."""
+        if not self.keepalive_url or not self._awake_wanted():
+            return
+        if not (self._keepalive and self._keepalive.is_alive()):
+            self._keepalive = threading.Thread(
+                target=self._keep_alive, name="preflight-keepalive", daemon=True
+            )
+            self._keepalive.start()
 
     def resume_interrupted(self, *, stale_after_s: float = 600.0) -> list[str]:
         """Re-queue paid jobs that a restart left behind: paid but never started, or 'running'
@@ -471,11 +516,7 @@ class Runner:
             )
             self._threads[job_id] = t
             t.start()
-            if self.keepalive_url and not (self._keepalive and self._keepalive.is_alive()):
-                self._keepalive = threading.Thread(
-                    target=self._keep_alive, name="preflight-keepalive", daemon=True
-                )
-                self._keepalive.start()
+            self.ensure_keepalive()
 
     def wait(self, job_id: str, timeout: float | None = None) -> None:
         t = self._threads.get(job_id)
@@ -556,11 +597,15 @@ class Runner:
             try:
                 series = self.store.load_series(job)
                 d = self.store.dir(job.id)
-                # The demo series is our own invented text, identical for every visitor, so
-                # its responses are shared: one run warms them, later ones cost no quota.
-                cache = self.store.root.parent / "demo-cache" if job.demo else d / "cache"
+                cache = self.cache_dir_for(job)
                 settings = self.settings.model_copy(update={"cache_dir": cache})
-                llm = make_llm(settings)
+                replayed = self._replays(job)
+                if replayed:
+                    from canonkeeper.preflight import demo_recording
+
+                    settings, llm = demo_recording.replay(settings)
+                else:
+                    llm = make_llm(settings)
                 tick = self._progress_writer(job)
                 if job.kind == "check" and job.draft:
                     from canonkeeper.canon import CanonStore
@@ -583,6 +628,8 @@ class Runner:
                     )
                     write_bible(store, series.name, d / "reports" / "bible.html")
                     report = audit(series, store, llm, settings, progress=False, on_progress=tick)
+                if replayed:
+                    report.models["replayed"] = replayed
                 write_report(report, d / "reports")
                 self.store.update(
                     job.id,

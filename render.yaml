@@ -17,6 +17,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
+      - key: PREFLIGHT_KEEP_AWAKE_UNTIL
+        value: "2026-12-16"    # judging ends Dec 15: stay awake (and keep the disk) until then
       - key: GEMINI_API_KEY
         sync: false
       - key: PAYPAL_CLIENT_ID

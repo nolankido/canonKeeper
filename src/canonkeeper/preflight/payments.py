@@ -23,6 +23,7 @@ from canonkeeper.preflight.paypal import (
     capture_problem,
 )
 from canonkeeper.preflight.pricing import CURRENCY
+from canonkeeper.preflight.quota import check_quota
 
 PAID = frozenset({"paid", "running", "done", "failed", "refunding", "refunded", "deleted"})
 OPEN = ("ordered", "cancelled", "held")  # an order exists; payment not (yet) complete
@@ -202,6 +203,10 @@ def refund(job: Job, paypal: PayPal, store: JobStore) -> str | None:
     return None
 
 
+class QuotaShort(Exception):
+    """The day's model quota cannot finish this audit: no order was created, nothing charged."""
+
+
 def place_order(
     job: Job,
     paypal: PayPal,
@@ -229,6 +234,11 @@ def place_order(
         if earlier is not None and earlier.status not in UNAPPROVED | {"VOIDED"}:
             settle(fresh, paypal, store, runner)
             return store.get(job.id) or fresh
+    check = check_quota(
+        runner.settings, store.load_series(fresh), runner.cache_dir_for(fresh), demo=fresh.demo
+    )
+    if not check.ok:
+        raise QuotaShort(check.reason or "today's model quota cannot finish this audit")
     o = paypal.create_order(
         amount=fresh.quote_usd,
         currency=CURRENCY,

@@ -194,6 +194,18 @@ class _Overloaded(Exception):
     """Raised inside the retry loop when a model has hit the 503 threshold and a fallback exists."""
 
 
+class NotRecorded(RuntimeError):
+    """An offline client (one that replays recorded answers) was asked something it has no
+    recording for. It never falls through to the network."""
+
+    def __init__(self, model: str) -> None:
+        super().__init__(
+            f"no recorded answer from {model} for this request (offline replay); the recording "
+            "does not cover it, so it was not sent anywhere"
+        )
+        self.model = model
+
+
 class DailyQuotaExhausted(RuntimeError):
     """The free tier's requests-per-day cap is spent for every model on the ladder.
     `resets_in_s` is the provider's own estimate; the cache means a later run resumes."""
@@ -302,9 +314,12 @@ class OpenAICompatibleLLM:
         day_reset_utc_offset: int = 0,
         budget_margin: int = 0,
         sleep: Callable[[float], None] = time.sleep,
+        offline: bool = False,
     ) -> None:
         from openai import OpenAI  # local import keeps the mock path dependency-free
 
+        self.offline = offline
+        """Answer from the cache only (recorded answers); a miss raises NotRecorded."""
         # Our own retry loop handles backoff; the SDK's built-in retries would double up.
         self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout_s, max_retries=0)
         self._cache_dir = cache_dir
@@ -520,6 +535,8 @@ class OpenAICompatibleLLM:
             data = json.loads(path.read_text(encoding="utf-8"))
             self.usage.add(m, 0, 0, cached=True)
             return str(data["content"])
+        if self.offline:
+            raise NotRecorded(model)
 
         requested = model
         self._local.requested = requested

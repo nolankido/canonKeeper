@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -31,7 +32,7 @@ from canonkeeper.preflight.jobs import (
     JobStore,
     Runner,
 )
-from canonkeeper.preflight.payments import place_order, refund, settle
+from canonkeeper.preflight.payments import QuotaShort, place_order, refund, settle
 from canonkeeper.preflight.paypal import (
     FakePayPal,
     Order,
@@ -54,6 +55,23 @@ def paypal_env() -> dict[str, str]:
     merged: dict[str, str] = {k: v for k, v in dotenv_values(".env").items() if v is not None}
     merged.update(os.environ)
     return merged
+
+
+def keep_awake_until(value: str | None) -> datetime | None:
+    """PREFLIGHT_KEEP_AWAKE_UNTIL: a date (the whole day, UTC) or an ISO timestamp. Unreadable is
+    refused loudly at start-up rather than silently ignored: a judge's job is what it protects."""
+    if not value or not value.strip():
+        return None
+    text = value.strip()
+    try:
+        if len(text) == 10:  # YYYY-MM-DD: through the end of that day
+            return datetime.fromisoformat(text).replace(tzinfo=UTC) + timedelta(days=1)
+        moment = datetime.fromisoformat(text)
+    except ValueError:
+        raise RuntimeError(
+            f"PREFLIGHT_KEEP_AWAKE_UNTIL={value!r} is not a date (YYYY-MM-DD) or ISO timestamp"
+        ) from None
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 def make_paypal(
@@ -98,10 +116,20 @@ def create_app(
         public_base_url or os.environ.get("PREFLIGHT_PUBLIC_URL") or "http://127.0.0.1:8787"
     ).rstrip("/")
     runner = Runner(store, settings)
+    from canonkeeper.preflight import demo_recording
+
+    # With no key, the demo series is answered from the packaged recording (see Runner._replays).
+    demo_recorded = demo_recording.label() if settings.provider == "mock" else None
+    if settings.provider != "mock":
+        # A host that restarts loses its disk; the demo's recorded answers come back with the
+        # package, so a cold instance runs the demo series without spending any quota.
+        demo_recording.seed(runner.demo_cache_dir)
     if os.environ.get("RENDER") or os.environ.get("PREFLIGHT_KEEPALIVE"):
         # Render's free plan spins an instance down after ~15 min without inbound requests,
         # running audit or not; a paid job must not die because nobody is watching its page.
         runner.keepalive_url = f"{base}/healthz"
+    runner.keep_awake_until = keep_awake_until(os.environ.get("PREFLIGHT_KEEP_AWAKE_UNTIL"))
+    runner.ensure_keepalive()
     runner.resume_interrupted()
     runner.watch(on_held=lambda job: settle(job, pp, store, runner))  # see Runner.watch
     pp = paypal or make_paypal(state_dir=settings.workdir / "preflight")
@@ -117,6 +145,7 @@ def create_app(
             {
                 "paypal_mode": pp.mode,
                 "provider": settings.provider,
+                "demo_recorded": demo_recorded,
                 "trains_on_prompts": settings.trains_on_prompts,
                 "no_model": None if settings.can_run_models else no_model,
                 **ctx,
@@ -209,13 +238,27 @@ def create_app(
         page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
         return remember(request, page, job.id)
 
-    @app.post("/jobs/{job_id}/order")
-    def order(job_id: str) -> RedirectResponse:
+    @app.post("/jobs/{job_id}/order", response_model=None)
+    def order(request: Request, job_id: str) -> RedirectResponse | HTMLResponse:
         require_model()
         job = store.get(job_id)
         if job is None:
             raise HTTPException(404)
-        job = place_order(job, pp, store, runner, base)
+        try:
+            job = place_order(job, pp, store, runner, base)
+        except QuotaShort as short:
+            # Refused before PayPal: no order exists and nothing was charged.
+            kind = "check" if job.kind == "check" else "audit"
+            q = quote(job.tokens, words=job.words, books=len(job.books), kind=kind)
+            return render(
+                request,
+                "quote.html",
+                status_code=503,
+                job=job,
+                quote=q,
+                currency=CURRENCY,
+                quota_error=str(short),
+            )
         if job.status == "ordered":
             if not job.approve_url:
                 raise HTTPException(502, "PayPal returned no approval link")

@@ -1241,3 +1241,74 @@ def test_home_page_says_what_it_is_what_it_costs_and_where_text_goes(client, tmp
     assert (
         "Public-domain books only on this site" in page and "do not upload an unpublished" in page
     )
+
+
+def test_keep_awake_until_a_date_pings_while_idle(tmp_path, monkeypatch):
+    """T4: through the judging period the service pings itself busy or not, because a free host
+    that sleeps wipes its disk (jobs, reports, the demo cache); after the date it stops."""
+    from datetime import UTC, datetime, timedelta
+
+    import httpx
+
+    from canonkeeper.preflight.app import keep_awake_until
+    from canonkeeper.preflight.jobs import JobStore, Runner
+
+    assert keep_awake_until("2026-12-16") == datetime(2026, 12, 17, tzinfo=UTC)
+    assert keep_awake_until("") is None and keep_awake_until(None) is None
+    with pytest.raises(RuntimeError, match="not a date"):
+        keep_awake_until("mid-December")
+
+    pings: list[str] = []
+    monkeypatch.setattr(httpx, "get", lambda url, timeout: pings.append(url))
+    runner = Runner(JobStore(tmp_path / "jobs"), Settings(provider="mock", _env_file=None))
+    runner.keepalive_url, runner.keepalive_every = "http://x/healthz", 0.01
+    runner.ensure_keepalive()
+    assert runner._keepalive is None  # idle and no date: no reason to stay awake
+    runner.keep_awake_until = datetime.now(UTC) + timedelta(seconds=0.3)
+    runner.ensure_keepalive()
+    time.sleep(0.15)
+    assert pings and not runner.busy()
+    time.sleep(0.4)
+    assert runner._keepalive is not None and not runner._keepalive.is_alive()  # date passed
+
+
+def test_an_order_the_days_quota_cannot_finish_is_refused_before_paypal(tmp_path):
+    """T4: on a capped free tier, a buyer must not be charged for an audit the day's requests
+    cannot finish. The refusal happens before any PayPal order exists, on the web and over MCP."""
+    from datetime import UTC, datetime
+
+    from canonkeeper.preflight.mcp_server import PreflightService
+
+    settings = Settings(
+        provider="gemini", gemini_api_key="k", workdir=tmp_path / "w", _env_file=None
+    )
+    pp = FakePayPal()
+    web = TestClient(create_app(settings=settings, paypal=pp, workdir=tmp_path / "pf"))
+    r = web.post("/quote-demo")
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+
+    # A spent day on the extraction model and its fallback (the counter's own log format).
+    now = datetime.now(UTC).isoformat()
+    spent = {"ts": now, "ok": True, "latency_s": 1.0}
+    lines = [
+        json.dumps({**spent, "model": m})
+        for m in ("gemini-3.5-flash-lite", "gemini-3.1-flash-lite")
+        for _ in range(500)
+    ]
+    settings.request_log.parent.mkdir(parents=True, exist_ok=True)
+    settings.request_log.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    r = web.post(f"/jobs/{job_id}/order", follow_redirects=False)
+    assert r.status_code == 503 and 'data-testid="quota-short"' in r.text
+    assert "nothing was charged" in r.text and "midnight US Pacific" in r.text
+    assert web.app.state.store.get(job_id).order_id is None  # no PayPal order was made
+
+    service = PreflightService(settings, pp, tmp_path / "pf", public_base_url="http://x")
+    answer = service.order_audit(job_id)
+    assert answer["ordered"] is False and "quota" in answer["reason"]
+
+    settings.request_log.write_text(
+        "", encoding="utf-8"
+    )  # a fresh day: the same order goes through
+    r = web.post(f"/jobs/{job_id}/order", follow_redirects=False)
+    assert r.status_code == 303 and web.app.state.store.get(job_id).order_id

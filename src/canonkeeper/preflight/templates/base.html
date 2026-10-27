@@ -64,10 +64,10 @@
 <body>
 <main>
   <header><a href="/">Preflight</a><span>pay-per-audit continuity checking · by canonkeeper</span></header>
-  {% if paypal_mode == 'fake' and provider == 'mock' %}<div class="banner">Demo: payments are simulated (no money moves) and findings come from a simple rule-based stand-in, not AI. The steps are the real ones.</div>
+  {% if paypal_mode == 'fake' and provider == 'mock' %}<div class="banner">Demo: payments are simulated (no money moves). {% if demo_recorded %}The demo series is answered with real Gemini answers recorded earlier; anything else you upload gets a simple rule-based stand-in, not AI.{% else %}Findings come from a simple rule-based stand-in, not AI.{% endif %} The steps are the real ones.</div>
   {% elif paypal_mode == 'fake' %}<div class="banner">Demo: payments are simulated, no money moves.</div>
   {% elif paypal_mode == 'sandbox' %}<div class="banner">PayPal sandbox: test money only, nothing real is charged. Pay with a PayPal sandbox buyer account.</div>{% endif %}
-  {% if provider == 'mock' and paypal_mode != 'fake' %}<div class="banner">Demo: findings come from a simple rule-based stand-in, not AI.</div>{% endif %}
+  {% if provider == 'mock' and paypal_mode != 'fake' %}<div class="banner">Demo: {% if demo_recorded %}the demo series is answered with real Gemini answers recorded earlier; anything else gets{% else %}findings come from{% endif %} a simple rule-based stand-in, not AI.</div>{% endif %}
   {% if no_model %}<div class="banner">{{ no_model }}</div>{% endif %}
   {% if trains_on_prompts %}<div class="banner">This instance runs on Gemini's free tier, which may use submitted text to improve Google's products. Upload public-domain books or the demo series only — never an unpublished manuscript. For private work, run canonkeeper on your own machine with a local model.</div>{% endif %}
   {% block body %}{% endblock %}
