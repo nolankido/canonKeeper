@@ -137,3 +137,20 @@ def test_every_audit_explorer_offers_both_views(tmp_path):
         'data-testid="view-matrix"' in page
         and '"books": ["The Harbour", "The Wreck", "The Return"]' in page
     )
+
+
+def test_a_browser_gets_a_page_for_an_error_and_a_script_still_gets_json(tmp_path):
+    web, _svc = _shop(tmp_path)
+    html = {"accept": "text/html,application/xhtml+xml"}
+    page = web.get("/jobs/not-a-job", headers=html)
+    assert (
+        page.status_code == 404
+        and 'data-testid="error"' in page.text
+        and "Preflight home" in page.text
+    )
+    refused = web.post("/jobs/not-a-job/refund", headers=html)
+    assert refused.status_code in (400, 404) and 'data-testid="error"' in refused.text
+    missing = web.post("/quote", headers=html, data={})
+    assert missing.status_code == 422 and "series name" in missing.text
+    assert web.get("/jobs/not-a-job").json() == {"detail": "Not Found"}  # no Accept: JSON
+    assert web.get("/jobs/not-a-job", headers={"accept": "application/json"}).json()["detail"]

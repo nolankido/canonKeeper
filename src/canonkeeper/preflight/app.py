@@ -285,6 +285,57 @@ def create_app(
         if not settings.can_run_models:
             raise HTTPException(503, no_model)
 
+    from fastapi.exceptions import RequestValidationError
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+
+    def _for_a_person(request: Request) -> bool:
+        """A browser page load, not a script, PayPal's buttons (fetch), MCP or a webhook."""
+        path = request.url.path
+        if path.startswith(("/mcp", "/paypal/", "/healthz")) or wants_json(request):
+            return False
+        return "text/html" in request.headers.get("accept", "")
+
+    _HEADINGS = {400: "Something is missing", 404: "Not found", 409: "Already done",
+                 413: "Too large", 422: "Something is missing", 503: "Not available right now"}  # fmt: skip
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error(
+        request: Request, exc: StarletteHTTPException
+    ) -> HTMLResponse | JSONResponse:
+        if not _for_a_person(request):
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        detail = (
+            str(exc.detail)
+            if exc.detail and exc.detail != "Not Found"
+            else ("There is nothing at this address.")
+        )
+        return render(
+            request,
+            "error.html",
+            status_code=exc.status_code,
+            status=exc.status_code,
+            heading=_HEADINGS.get(exc.status_code, "Something went wrong"),
+            message=detail[:1].upper() + detail[1:] + ("" if detail.endswith(".") else "."),
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def form_error(
+        request: Request, exc: RequestValidationError
+    ) -> HTMLResponse | JSONResponse:
+        if not _for_a_person(request):
+            return JSONResponse({"detail": exc.errors()}, status_code=422)
+        missing = sorted({str(e["loc"][-1]) for e in exc.errors() if e.get("loc")})
+        return render(
+            request,
+            "error.html",
+            status_code=422,
+            status=422,
+            heading="Something is missing",
+            message="The form was sent without "
+            + (", ".join(missing).replace("_", " ") if missing else "a required field")
+            + ". Go back and fill it in.",
+        )
+
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
         return {

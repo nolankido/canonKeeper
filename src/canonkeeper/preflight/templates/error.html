@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }}{% endblock %}
+{% block body %}
+<h1>{{ heading }}</h1>
+<div class="card" data-testid="error">
+  <p>{{ message }}</p>
+  <p class="note">{% if status == 404 %}The link may be mistyped, or the job, budget or upload link it pointed to has expired or been deleted.{% else %}Nothing was charged by this error.{% endif %}</p>
+  <a class="btn secondary" href="javascript:history.back()">Go back</a>
+  <a class="btn" href="/">Preflight home</a>
+</div>
+{% endblock %}
