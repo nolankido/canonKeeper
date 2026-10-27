@@ -189,6 +189,14 @@ class Settings(BaseSettings):
     # --- paths -----------------------------------------------------------------------------
     workdir: Path = Path(".canonkeeper")
     cache_dir: Path = Path(".canonkeeper/cache")
+    request_log_path: Path | None = None
+    """Where every API attempt is logged, and what the daily-quota guard counts. Default:
+    <workdir>/requests.jsonl. Point a side experiment's run (its own --workdir) at the main
+    log so the guard sees the whole day's usage."""
+
+    @property
+    def request_log(self) -> Path:
+        return self.request_log_path or self.workdir / "requests.jsonl"
 
     @model_validator(mode="after")
     def _apply_provider_defaults(self) -> Settings:

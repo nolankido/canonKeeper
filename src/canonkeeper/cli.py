@@ -15,6 +15,7 @@ canonkeeper mcp                              # Preflight as an MCP server for an
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Annotated
 
@@ -37,7 +38,7 @@ def _today_usage(settings: Settings) -> dict[str, int]:
     import json
     from datetime import UTC, datetime, timedelta
 
-    log = settings.workdir / "requests.jsonl"
+    log = settings.request_log
     if not log.exists():
         return {}
     # Gemini's day boundary is midnight Pacific (UTC-7/-8); use UTC-8 as the conservative one.
@@ -111,7 +112,8 @@ def _settings(provider: str | None, workdir: Path | None) -> Settings:
         overrides["provider"] = provider
     if workdir:
         overrides["workdir"] = workdir
-        overrides["cache_dir"] = workdir / "cache"
+        if not os.environ.get("CANONKEEPER_CACHE_DIR"):  # an explicit cache wins: reuse it
+            overrides["cache_dir"] = workdir / "cache"
     return load_settings(**overrides)
 
 

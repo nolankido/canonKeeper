@@ -589,7 +589,7 @@ def make_llm(settings: Settings, *, mock_handler: Callable[..., str] | None = No
             settings.extract_model: settings.extract_reasoning_effort,
             settings.adjudicate_model: settings.adjudicate_reasoning_effort,
         },
-        request_log=settings.workdir / "requests.jsonl",
+        request_log=settings.request_log,
         model_fallbacks=settings.model_fallbacks,
         daily_budget=settings.daily_budget,
         day_reset_utc_offset=settings.day_reset_utc_offset,
