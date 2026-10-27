@@ -191,3 +191,28 @@ def test_real_gutenberg_files_split_into_the_right_number_of_chapters(pg, expect
     for a, b in zip(chs, chs[1:], strict=False):
         assert a.char_end == b.char_start
     assert max(len(c.text) for c in chs) < 120_000
+
+
+def test_markdown_and_bare_number_headings_are_chapters():
+    body = "\n\n".join(["Ivy walked to the quay and watched the boats come in. " * 30] * 3)
+
+    def book(head):
+        return "# My Novel\n\nby Someone\n\n" + "\n\n".join(
+            head(i) + "\n\n" + body for i in range(1, 5)
+        )
+
+    titles = lambda text: [c.title for c in chapterize(text)]  # noqa: E731
+    assert titles(book(lambda i: f"# Chapter {i}")) == [f"Chapter {i}" for i in range(1, 5)]
+    assert titles(book(lambda i: f"## **The Tide, part {i}**")) == [
+        f"The Tide, part {i}" for i in range(1, 5)
+    ]
+    assert titles(book(lambda i: str(i))) == [f"Chapter {i}" for i in range(1, 5)]
+    assert titles(book(lambda i: ["I", "II", "III", "IV"][i - 1] + ".")) == [
+        "Chapter I",
+        "Chapter II",
+        "Chapter III",
+        "Chapter IV",
+    ]
+    # a number standing alone in the text is not a chapter run
+    stray = "Chapter text goes on. " * 300 + "\n\n42\n\n" + "More text. " * 300
+    assert [c.title for c in chapterize(stray)][0].startswith("Section")

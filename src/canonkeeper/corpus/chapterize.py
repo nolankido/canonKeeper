@@ -17,9 +17,11 @@ most have stray all-caps lines in the body (`RACHE.`, signatures, telegrams).
 Strategy, in order:
 1. **Contents-driven.** If a Contents block is present, its entries are the ground truth for
    chapter titles. Scan the body for lines (or line + next line) that match an entry.
-2. **Pattern-driven.** Otherwise pick the strongest heading *family* present (`CHAPTER n` /
-   `Chapter n` / `n. TITLE`) and use only that family, so bare sub-part numerals and shouted
-   body lines do not split chapters. A `PART` heading sets a prefix and is not itself a chapter.
+2. **Pattern-driven.** Otherwise pick the strongest heading *family* present (Markdown `#`
+   headings / `CHAPTER n` / `Chapter n` / `n. TITLE` / a bare `1`, `II.` run counting up from
+   one) and use only that family, so bare sub-part numerals and shouted body lines do not split
+   chapters. A `PART` heading sets a prefix and is not itself a chapter. The Markdown and bare
+   number families are for authors' own manuscripts; none of them fires on the Holmes texts.
 3. **Windows.** No headings at all → fixed-size windows on paragraph boundaries.
 """
 
@@ -39,6 +41,7 @@ _NUMBERED_TITLE = re.compile(rf"^({_ROMAN}|\d{{1,3}})\.\s+(\S.*)$")  # "I. A SCA
 _BARE_NUMERAL = re.compile(rf"^({_ROMAN}|\d{{1,3}})\.?$")
 _CONTENTS = re.compile(r"^\s*(?:CONTENTS|Contents|TABLE OF CONTENTS|Table of Contents)\.?\s*$")
 _ALLCAPS = re.compile(r"^[A-Z][A-Z0-9 ,'’\-—:;!?.()]{3,70}$")
+_MARKDOWN = re.compile(r"^(#{1,3})\s+(\S.*?)\s*#*\s*$")  # "## Chapter 1", "# The Tide"
 
 
 @dataclass(frozen=True)
@@ -165,7 +168,67 @@ def _match_contents(
 # --- 2. pattern-driven ---------------------------------------------------------------------
 
 
+def _markdown_marks(lines: list[_Line], skip_before: int) -> list[tuple[int, str]]:
+    """Markdown headings, which an author uploading .md has marked on purpose. The shallowest
+    level used at least twice is the chapter level ("# My Novel" once, "## Chapter 1" many
+    times → chapters are the "##" lines)."""
+    by_level: dict[int, list[tuple[int, str]]] = {}
+    in_fence = False
+    for i in range(skip_before, len(lines)):
+        s = lines[i].s
+        if s.startswith("```"):
+            in_fence = not in_fence
+        if in_fence or not s.startswith("#"):
+            continue
+        if m := _MARKDOWN.match(s):
+            title = m.group(2).strip("*_ ").strip()
+            if title:
+                by_level.setdefault(len(m.group(1)), []).append((lines[i].start, title))
+    for level in sorted(by_level):
+        marks = by_level[level]
+        if len(marks) >= 2:
+            # "# My Novel" above a by-line and then "# Chapter 1": a title page, not a chapter
+            if len(marks) >= 3 and marks[1][0] - marks[0][0] < 1500:
+                marks = marks[1:]
+            return marks
+    return []
+
+
+def _bare_numeral_marks(lines: list[_Line], skip_before: int) -> list[tuple[int, str]]:
+    """Chapters headed by a number alone ("1", "II."), standing between blank lines. Only a
+    run counting up from one or I qualifies, so a stray number in the text does not split."""
+    marks: list[tuple[int, str]] = []
+    for i in range(skip_before, len(lines)):
+        s = lines[i].s
+        if (
+            s
+            and _BARE_NUMERAL.match(s)
+            and (i == 0 or not lines[i - 1].s)
+            and (i + 1 >= len(lines) or not lines[i + 1].s)
+        ):
+            marks.append((lines[i].start, s.rstrip(".")))
+    if len(marks) < 3:
+        return []
+    numbers = [_numeral_value(t) for _, t in marks]
+    if numbers != list(range(1, len(numbers) + 1)):
+        return []
+    return [(pos, f"Chapter {t}") for pos, t in marks]
+
+
+def _numeral_value(s: str) -> int:
+    if s.isdigit():
+        return int(s)
+    vals = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+    total = 0
+    for a, b in zip(s, [*s[1:], ""], strict=True):
+        v = vals.get(a, 0)
+        total += -v if b and vals.get(b, 0) > v else v
+    return total
+
+
 def _family_marks(lines: list[_Line], skip_before: int) -> list[tuple[int, str]]:
+    if md := _markdown_marks(lines, skip_before):
+        return md
     chapter: list[tuple[int, str]] = []
     numbered: list[tuple[int, str]] = []
     part_prefix = ""
@@ -194,6 +257,8 @@ def _family_marks(lines: list[_Line], skip_before: int) -> list[tuple[int, str]]
         return chapter
     if len(numbered) >= 2:
         return numbered
+    if bare := _bare_numeral_marks(lines, skip_before):
+        return bare
     # Last resort: standalone ALL-CAPS lines followed by a blank line, excluding obvious noise.
     caps: list[tuple[int, str]] = []
     for i in range(skip_before, len(lines)):
