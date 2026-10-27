@@ -1111,3 +1111,33 @@ def test_a_refund_answered_with_a_server_error_stays_refunding(client):
     pp.refund_capture = unavailable
     client.post(f"/jobs/{job_id}/refund", data={"confirm": "yes"})
     assert store.get(job_id).status == "refunding"  # unknown outcome: no Retry
+
+
+def test_demo_series_runs_share_one_cache_and_uploads_do_not(client, monkeypatch):
+    """Visitors trying the demo series all send the same invented text; sharing its responses
+    means one run warms them and the rest cost no quota. Real uploads never share."""
+    import canonkeeper.llm as llm_mod
+
+    seen: list = []
+    real = llm_mod.make_llm
+
+    def recording(settings, **kw):
+        seen.append(settings.cache_dir)
+        return real(settings, **kw)
+
+    monkeypatch.setattr(llm_mod, "make_llm", recording)
+    store = client.app.state.store
+    ids = []
+    for _ in range(2):
+        r = client.post("/quote-demo")
+        ids.append(r.text.split('action="/jobs/')[1].split("/order")[0])
+    files = [("files", ("01-mine.txt", BOOK1.replace("Ivy", "Iris").encode(), "text/plain"))]
+    r = client.post("/quote", data={"series_name": "Mine"}, files=files)
+    ids.append(r.text.split('action="/jobs/')[1].split("/order")[0])
+    assert [store.get(i).demo for i in ids] == [True, True, False]
+    for job_id in ids:
+        token = client.post(f"/jobs/{job_id}/order").headers["location"].split("token=")[1]
+        client.get(client.post("/fake-approve", data={"token": token}).headers["location"])
+        client.app.state.runner.wait(job_id, timeout=60)
+    shared = store.root.parent / "demo-cache"
+    assert seen[0] == seen[1] == shared and seen[2] == store.dir(ids[2]) / "cache"

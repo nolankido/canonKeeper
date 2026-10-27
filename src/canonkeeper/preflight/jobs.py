@@ -69,6 +69,7 @@ class Job:
     kind: str = "audit"  # "audit": a whole series; "check": one new draft against its bible
     parent_id: str | None = None  # for a check: the audit whose bible it is checked against
     draft: str | None = None  # for a check: the draft's file name under draft/
+    demo: bool = False  # the invented demo series: its model responses are shared
     stage: str | None = None  # "extracting" | "judging" while running
     progress_done: int = 0
     progress_total: int = 0
@@ -78,6 +79,13 @@ class Job:
 
 class _Stopped(Exception):
     """Raised inside a run when its job stopped being "running" (refunded, deleted)."""
+
+
+def _is_demo(texts: list[str]) -> bool:
+    """True when the upload is exactly the invented Saltmarsh series, in order."""
+    from canonkeeper.demo import BOOK1, BOOK2, BOOK3
+
+    return [t.replace("\r\n", "\n") for t in texts] == [BOOK1, BOOK2, BOOK3]
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -372,6 +380,7 @@ class JobStore:
         job = Job(
             id=job_id,
             series_name=series_name,
+            demo=_is_demo(texts),
             books=names,
             tokens=tokens,
             words=words,
@@ -547,7 +556,10 @@ class Runner:
             try:
                 series = self.store.load_series(job)
                 d = self.store.dir(job.id)
-                settings = self.settings.model_copy(update={"cache_dir": d / "cache"})
+                # The demo series is our own invented text, identical for every visitor, so
+                # its responses are shared: one run warms them, later ones cost no quota.
+                cache = self.store.root.parent / "demo-cache" if job.demo else d / "cache"
+                settings = self.settings.model_copy(update={"cache_dir": cache})
                 llm = make_llm(settings)
                 tick = self._progress_writer(job)
                 if job.kind == "check" and job.draft:
