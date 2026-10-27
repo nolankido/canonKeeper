@@ -462,3 +462,18 @@ def test_dead_character_living_somewhere_later_is_raised_whatever_the_kind(tmp_p
     )
     hits = dead_speaks(st)
     assert len(hits) == 1 and hits[0].claims[1].predicate == "residence"
+
+
+def test_benchmark_only_plants_clear_contradictions():
+    from canonkeeper.eval.inject import _looks_like_a_person, clearly_different
+
+    assert not clearly_different("thumb", "hand", "wound_location")
+    assert not clearly_different("dark", "brown", "eye_color")
+    assert not clearly_different("fiery red", "red", "hair_color")
+    assert not clearly_different("Adelaide", "South Australia", "birthplace")
+    assert clearly_different("shoulder", "leg", "wound_location")
+    assert clearly_different("grey", "brown", "eye_color")
+    assert clearly_different("Edinburgh", "Glasgow", "birthplace")
+    assert clearly_different("english", "German", "nationality")
+    assert not _looks_like_a_person("Andaman Islanders")
+    assert _looks_like_a_person("Jefferson Hope") and _looks_like_a_person("Toby")

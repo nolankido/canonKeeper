@@ -70,6 +70,42 @@ class InjectionSet:
     injections: list[Injection] = field(default_factory=list)
 
 
+# Values that can describe the same thing, so planting one against the other is not a clear
+# contradiction: a thumb is on the hand, dark eyes are often brown. The benchmark should only
+# plant errors a careful editor would call errors.
+_OVERLAPS: list[set[str]] = [
+    {"hand", "thumb", "finger", "fingers", "palm", "wrist", "arm", "left arm", "right arm"},
+    {"leg", "knee", "thigh", "ankle", "foot", "shin", "calf", "left leg", "right leg"},
+    {"shoulder", "arm", "collarbone", "left shoulder", "right shoulder"},
+    {"side", "ribs", "chest", "right side", "left side", "body"},
+    {"dark", "black", "brown", "hazel", "raven"},
+    {"fair", "blond", "blonde", "golden", "flaxen", "light", "yellow"},
+    {"grey", "gray", "white", "silver", "grizzled", "light"},
+    {"red", "auburn", "ginger", "chestnut", "sandy", "fiery red"},
+]
+
+
+def clearly_different(original: str, alt: str, predicate: str) -> bool:
+    """True when planting `alt` against `original` is an unambiguous contradiction."""
+    from canonkeeper.audit.candidates import _same_value
+
+    o, a = original.strip().lower(), alt.strip().lower()
+    if _same_value(o, a, predicate):
+        return False
+    o_words = set(o.replace("-", " ").split()) | {o}
+    a_words = set(a.replace("-", " ").split()) | {a}
+    return not any(o_words & group and a_words & group for group in _OVERLAPS)
+
+
+def _looks_like_a_person(name: str) -> bool:
+    """Skip groups and things the extractor sometimes makes subjects of ('Andaman Islanders')."""
+    from canonkeeper.canon.normalize import is_generic_name
+
+    words = name.split()
+    plural_group = len(words) > 1 and words[-1].endswith(("ers", "ians", "ans", "ese", "men"))
+    return not is_generic_name(name) and not plural_group
+
+
 def _eligible(store: CanonStore, min_book_gap: int = 1) -> list[Claim]:
     """Facts asserted in a book that has at least one later book to inject into."""
     n_books = max((c.provenance.book_index for c in store.claims), default=-1) + 1
@@ -78,6 +114,8 @@ def _eligible(store: CanonStore, min_book_gap: int = 1) -> list[Claim]:
         if c.predicate in TEMPLATES and c.provenance.book_index + min_book_gap < n_books:
             if c.predicate == "dead":
                 continue  # death is injected as a new fact, handled separately
+            if not _looks_like_a_person(c.subject):
+                continue
             out.append(c)
     return out
 
@@ -113,7 +151,7 @@ def inject(
         if key in used:
             continue
         values, tmpl = TEMPLATES[claim.predicate]
-        alts = [v for v in values if v.lower() != claim.object.lower()]
+        alts = [v for v in values if clearly_different(claim.object, v, claim.predicate)]
         if not alts:
             continue
         value = rng.choice(alts)
