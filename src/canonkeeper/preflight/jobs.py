@@ -24,6 +24,7 @@ from typing import Literal
 from canonkeeper.config import Settings
 from canonkeeper.corpus.chapterize import chapterize
 from canonkeeper.corpus.loaders import Book, Series
+from canonkeeper.corpus.loaders import decode_text as decode_upload
 from canonkeeper.preflight.pricing import Quote, quote
 from canonkeeper.tokens import count_tokens
 
@@ -88,39 +89,6 @@ def draft_title(filename: str) -> str:
     """ "draft-04-the-ledger.txt" → "The Ledger (draft)": how the report names the new book."""
     stem = re.sub(r"^(?:draft[-_ ]*)?\d{0,3}[-_. ]*", "", Path(filename).stem, flags=re.I)
     return f"{_title_from_filename(stem)} (draft)" if stem else "New draft"
-
-
-def decode_upload(data: bytes, name: str = "file") -> str:
-    """Text from an uploaded manuscript, whatever a word processor saved it as.
-
-    UTF-8 (with or without a BOM) is the norm; Word's "Unicode text" is UTF-16 with a BOM;
-    older Windows tools write Windows-1252, whose curly quotes are invalid UTF-8. Anything
-    else with NUL bytes (a .docx, a PDF) is refused with a message that says what to do.
-    """
-    for bom, codec in (
-        (b"\xef\xbb\xbf", "utf-8-sig"),
-        (b"\xff\xfe\x00\x00", "utf-32"),
-        (b"\x00\x00\xfe\xff", "utf-32"),
-        (b"\xff\xfe", "utf-16"),
-        (b"\xfe\xff", "utf-16"),
-    ):
-        if data.startswith(bom):
-            return data.decode(codec, errors="replace")
-    head = data[:4096]
-    if head and b"\x00" in head:
-        # UTF-16 without a BOM: every other byte of ASCII prose is NUL
-        if head[1::2].count(0) > len(head) // 4 and not head[0::2].count(0):
-            return data.decode("utf-16-le", errors="replace")
-        if head[0::2].count(0) > len(head) // 4 and not head[1::2].count(0):
-            return data.decode("utf-16-be", errors="replace")
-        raise ValueError(
-            f"{Path(name).name} is not a text file; save it as plain text (.txt) or Markdown"
-            " (.md) and upload that"
-        )
-    try:
-        return data.decode("utf-8")
-    except UnicodeDecodeError:
-        return data.decode("cp1252", errors="replace")
 
 
 def _strip_numbering(name: str) -> str:

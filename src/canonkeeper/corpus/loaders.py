@@ -37,8 +37,41 @@ class Series:
         raise KeyError(key)
 
 
+def decode_text(data: bytes, name: str = "file") -> str:
+    """Text from a manuscript file, whatever a word processor saved it as.
+
+    UTF-8 (with or without a BOM) is the norm; Word's "Unicode text" is UTF-16 with a BOM;
+    older Windows tools write Windows-1252, whose curly quotes are invalid UTF-8. Anything
+    else with NUL bytes (a .docx, a PDF) is refused with a message that says what to do.
+    """
+    for bom, codec in (
+        (b"\xef\xbb\xbf", "utf-8-sig"),
+        (b"\xff\xfe\x00\x00", "utf-32"),
+        (b"\x00\x00\xfe\xff", "utf-32"),
+        (b"\xff\xfe", "utf-16"),
+        (b"\xfe\xff", "utf-16"),
+    ):
+        if data.startswith(bom):
+            return data.decode(codec, errors="replace")
+    head = data[:4096]
+    if head and b"\x00" in head:
+        # UTF-16 without a BOM: every other byte of ASCII prose is NUL
+        if head[1::2].count(0) > len(head) // 4 and not head[0::2].count(0):
+            return data.decode("utf-16-le", errors="replace")
+        if head[0::2].count(0) > len(head) // 4 and not head[1::2].count(0):
+            return data.decode("utf-16-be", errors="replace")
+        raise ValueError(
+            f"{Path(name).name} is not a text file; save it as plain text (.txt) or Markdown"
+            " (.md) and upload that"
+        )
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("cp1252", errors="replace")
+
+
 def load_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
+    return decode_text(path.read_bytes(), path.name)
 
 
 def load_series(manifest: SeriesManifest, cache_dir: Path) -> Series:
