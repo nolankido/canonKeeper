@@ -41,9 +41,9 @@ so bare sub-part numerals inside a story do not split it, and `PART` lines set a
 than a boundary; (3) otherwise fixed windows. Front matter before the first heading is not a
 chapter, so a title page never becomes canon.
 
-## Stage 1 — extraction (cheap long-context model; `gemini-3.8-flash` by default)
+## Stage 1 — extraction (cheap model; `gemini-3.5-flash-lite` by default)
 
-Per chapter (split at ~6k tokens on paragraph boundaries). The prompt pins a predicate
+Per chapter (split at ~3.5k tokens on paragraph boundaries; two passes, a general one and a narrow sweep for descriptive facts). The prompt pins a predicate
 vocabulary so the same fact lands in the same slot across books, and asks for normalised values.
 A Flash-class model is used because extraction is wide and shallow: hundreds of calls, each
 needing care but not deep reasoning. On the Gemini free tier that is $0 and about half an hour
@@ -51,8 +51,21 @@ at the paced rate; at list price a six-novel series is under a dollar.
 
 Alias resolution happens at ingest: the extractor returns `{"Sherlock Holmes": ["Holmes", ...]}`
 per chunk, the store merges them, and subjects are canonicalised (exact alias table, then fuzzy
-WRatio ≥ 92 as a last resort). Mis-merges are a known failure mode and show up as
-`not_conflict` verdicts, which the eval harness surfaces.
+WRatio ≥ 92 as a last resort). The rules that keep that honest, each found on the real Holmes
+bible:
+
+- pronouns and descriptions ("he", "my companion", "the landlady") are never aliases or subjects;
+- fuzzy matching never crosses gendered honorifics or different given names (it once folded
+  Mrs. Turner into Mr. Turner and erased the canon's best-known landlady slip);
+- names that differ only by middle names/initials merge ("Enoch Drebber" → "Enoch J. Drebber");
+- an alias two people claim ("Drebber": father and son) resolves to nobody;
+- registration never overwrites an existing alias and resolution follows alias chains, and every
+  build re-resolves all subjects against the final table, so the bible reloads into exactly the
+  entities it was built with;
+- `X died Y` where Y is a person or creature is stored as `killed` (models write it for shootings).
+
+A build replaces the claims for the books it extracts rather than appending (claim ids hash the
+normalised fact, so appending duplicated anything whose normalisation had changed).
 
 ## Stage 2 — candidate screening (no model)
 
@@ -64,12 +77,18 @@ WRatio ≥ 92 as a last resort). Mis-merges are a known failure mode and show up
 | `dead_speaks` | `dead`/`died` claim at position p, then a state/event claim at a later position |
 | `timeline` | different four-digit years for `born` / `birth_year` / `died` |
 | `name_drift` | first_name / surname / full_name differ for one entity (initials agree with full forms) |
+| `origin_mismatch` | nationality and birthplace map to different countries |
+| `role_collision` | two people hold a one-per-household role (landlady, butler) for the same household; lodging roles may tie to a protagonist when an anchor holds the role in 2+ chapters |
+
+Values compare as places where they are places (a city agrees with its own region or country;
+two different cities never agree), with number words folded ("six feet" = "6 feet"), and a hair
+or eye "colour" with no colour word in it ("curly") is not compared at all.
 
 Before screening, `canon/normalize.py` folds predicate synonyms (`eyes`, `eye_colour` →
 `eye_color`) and value spellings (`gray` → `grey`, `30 years old` → `30`) at ingest, so the slot
 index is the only join the screen needs. `max_candidates_per_run` caps spend.
 
-## Stage 3 — adjudication (stronger model; `gemini-3.8-flash` free, `gemini-4-argon` paid)
+## Stage 3 — adjudication (stronger model; `gemini-3.6-flash` free, `gemini-4-argon` paid)
 
 Candidates are judged in batches (`adjudicate_batch_size`, default 8). Each call is three
 messages, in this order for a reason:
@@ -84,8 +103,15 @@ messages, in this order for a reason:
 3. **user** — the batch: for each candidate, its id, the claims with quotes, and every other
    fact the bible holds about that entity (so "she dyed her hair in chapter 4" is visible).
 
-Verdicts are matched back by id; a missing or malformed entry degrades to `ambiguous` rather
-than crashing. Fixes are always to the later passage.
+Verdicts are matched back by id; a missing entry is re-asked alone, and a malformed one
+degrades to `ambiguous` rather than crashing. Fixes are always to the later passage.
+
+**Clearing a conflict needs provenance too.** A `deliberate` or `not_conflict` verdict must quote
+a passage that occurs in the series text the model was shown (never our own candidate list), and
+a `deliberate` needs more than the conflicting quotes themselves — the passage where the story
+explains the change. Otherwise the finding becomes `ambiguous` and the report lists it under
+*Needs your judgement*. A 4B local model ruled planted slips "deliberate, likely character
+development"; this rule is why that cannot quietly hide a real error.
 
 Cost is input-dominated and the batch is the lever: reading a 900k-token series once per eight
 candidates instead of once per candidate is an 8× cut before any cache discount. For iteration,

@@ -73,7 +73,7 @@ Vocative names in dialogue as `first_name` claims (Mary Watson calling her husba
 still missed); subscriptions for ongoing series via PayPal Subscriptions; a hosted instance.
 
 ## Built with
-python, fastapi, paypal-orders-v2, gemini-api, pydantic, jinja2, rapidfuzz, tiktoken
+python, fastapi, paypal-orders-v2, mcp, gemini-api, ollama, pydantic, jinja2, rapidfuzz, tiktoken, render
 
 ## PayPal tools used
 PayPal REST Orders v2 (sandbox): create order with `payment_source.paypal.experience_context`
@@ -88,8 +88,9 @@ the person approves the payment on PayPal — agent-initiated, human-approved co
 ## AI tools used
 Gemini API through its OpenAI-compatible endpoint: `gemini-3.5-flash-lite` for extraction
 (two passes per chunk, medium reasoning effort) and `gemini-3.6-flash` for adjudication, both
-on the free tier with a fallback ladder for overloaded models; provider-agnostic, also runs on
-Ollama / LM Studio for private manuscripts.
+on the free tier with a fallback ladder for overloaded models. Provider-agnostic: measured
+locally on a laptop CPU with Ollama and `qwen3:4b` for private manuscripts (a sourced bible and
+candidate list; its verdicts are not trusted, and the evidence rule sends them to the author).
 
 ## Video beats (< 3:00)
 See docs/DEMO_SCRIPT.md: problem → the Holmes finding → buy an audit (sandbox checkout) →
