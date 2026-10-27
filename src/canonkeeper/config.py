@@ -130,7 +130,10 @@ class Settings(BaseSettings):
 
     extract_hints: bool = False
     """Append salience hints to each extraction request: the chunk's sentences that look like
-    physical or biographical facts (extract/salience.py). Off until measured on the benchmark."""
+    physical or biographical facts (extract/salience.py). Measured 2026-10-27 and left OFF: on
+    20 planted facts it raised extraction recall from 10/20 to 16/20, but on 15 random real
+    Holmes chunks it cut facts from 305 to 274 and descriptive/biographical ones from 175 to
+    160 (scripts/probe_hints_real.py). It helps text that looks like the benchmark, not books."""
 
     extract_reasoning_effort: str = "medium"
     """`reasoning_effort` for the general extraction pass. On the Holmes benchmark, medium

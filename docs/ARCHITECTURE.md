@@ -67,6 +67,13 @@ bible:
 A build replaces the claims for the books it extracts rather than appending (claim ids hash the
 normalised fact, so appending duplicated anything whose normalisation had changed).
 
+**Tried and rejected: salience hints.** Listing the chunk's fact-like sentences in the request
+("make sure each yields a claim") raised extraction recall on planted facts from 10/20 to
+16/20 — and *lowered* it on real text (15 random Holmes chunks: 305 → 274 facts, descriptive
+ones 175 → 160). Planted sentences match the hint patterns far better than prose does, so the
+benchmark rewarded it and the books did not. `extract_hints` stays off; both probes are in
+`scripts/` so the next idea gets the same two-sided test.
+
 ## Stage 2 — candidate screening (no model)
 
 `audit/candidates.py`. Deliberately high recall, low precision:
