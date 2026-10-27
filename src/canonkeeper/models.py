@@ -92,6 +92,14 @@ class Candidate(BaseModel):
         return self.claims[0].slot
 
 
+class AuthorReview(BaseModel):
+    """The author's own ruling on a finding, shown beside the model's. A report never hides a
+    finding the author marked wrong: it says so, so a reader sees both calls."""
+
+    verdict: Literal["wrong", "right"]
+    note: str = ""
+
+
 class Finding(BaseModel):
     candidate: Candidate
     verdict: Verdict
@@ -102,6 +110,7 @@ class Finding(BaseModel):
     """For deliberate / not_conflict: the passage from the series text that justifies clearing
     the conflict, verified to occur in what the adjudicator was shown."""
     adjudicator_model: str
+    author_review: AuthorReview | None = None
 
     @property
     def is_error(self) -> bool:
@@ -116,6 +125,10 @@ class AuditReport(BaseModel):
     findings: list[Finding]
     models: dict[str, str]
     cost_usd: float | None = None
+    """List price of every model call this run made (reading included when the run read the
+    books; see read_cost_usd / judge_cost_usd for the split)."""
+    read_cost_usd: float | None = None
+    judge_cost_usd: float | None = None
 
     @property
     def errors(self) -> list[Finding]:

@@ -64,3 +64,46 @@ def test_claim_lines_and_check_names():
     a = _c("Hester Vale", "birthplace", "saltmarsh", 0, "The Harbour", ch="ONE")
     assert where(a.provenance) == "The Harbour · One" and fact(a) == "birthplace: Saltmarsh"
     assert check("slot_mismatch") == "differing detail" and check("new_thing") == "new thing"
+
+
+def _report(**kw):
+    from canonkeeper.models import AuditReport, AuthorReview, Finding
+
+    a = _c("Mrs. Barclay", "surname", "Barclay", 0, "Memoirs")
+    b = _c("Mrs. Barclay", "surname", "Devoy", 0, "Memoirs", ch_index=1)
+    f = Finding(
+        candidate=Candidate(claims=[a, b], reason="r", heuristic="name_drift"),
+        verdict="contradiction",
+        severity="high",
+        explanation="two surnames",
+        suggested_fix="Change Devoy to Barclay",
+        adjudicator_model="m",
+        author_review=AuthorReview(verdict="wrong", note="Devoy is her maiden name."),
+    )
+    base = dict(series="S", books=["01"], claims_total=2, candidates_total=1, findings=[f],
+                models={"adjudicated_by": "m"})  # fmt: skip
+    return AuditReport(**{**base, **kw})
+
+
+def _html(report, tmp_path):
+    from canonkeeper.report.render import write_report
+
+    html, _ = write_report(report, tmp_path)
+    return html.read_text(encoding="utf-8")
+
+
+def test_a_finding_the_author_overruled_says_so_and_drops_its_fix(tmp_path):
+    """Regression: the showcase report listed two calls the README admits are wrong, unlabelled,
+    one of them advising the author to rename a character back."""
+    html = _html(_report(), tmp_path)
+    assert "The author marked this call wrong." in html and "maiden name" in html
+    assert "Change Devoy to Barclay" not in html
+    assert "1 marked wrong by the author" in html
+
+
+def test_cost_tile_says_what_it_covers(tmp_path):
+    """Regression: "$0.15 list-price API cost" when reading the books had cost $1.40 more."""
+    judged_only = _html(_report(cost_usd=0.15, judge_cost_usd=0.15), tmp_path / "a")
+    assert "$0.15" in judged_only and "reading the books not included" in judged_only
+    full = _html(_report(cost_usd=1.55, read_cost_usd=1.40, judge_cost_usd=0.15), tmp_path / "b")
+    assert "$1.55" in full and "read $1.40 · judge $0.15" in full

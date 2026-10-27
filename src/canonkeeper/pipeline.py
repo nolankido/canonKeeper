@@ -69,6 +69,7 @@ def audit(
         ]
     usage = getattr(llm, "usage", None)
     before = dict(usage.answered_by) if usage is not None else {}
+    cost_before = float(getattr(usage, "cost_usd", 0.0) or 0.0)
     adj = Adjudicator(llm, settings, series)
     findings = adj.judge_all(
         candidates, store, series.name, progress=progress, on_progress=on_progress
@@ -88,6 +89,14 @@ def audit(
             "adjudicated_by": _answered_since(usage, before),
         },
         cost_usd=None if settings.provider == "mock" else round(llm.usage.cost_usd, 4),
+        # Reading cost is known only when this run read the books (a Preflight job does both);
+        # an audit of a bible built earlier leaves it None and the report says so.
+        read_cost_usd=(
+            round(cost_before, 4) if settings.provider != "mock" and cost_before > 0 else None
+        ),
+        judge_cost_usd=(
+            None if settings.provider == "mock" else round(llm.usage.cost_usd - cost_before, 4)
+        ),
     )
 
 

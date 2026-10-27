@@ -1,0 +1,14 @@
+[
+  {
+    "subject": "Mrs. Barclay",
+    "predicate": "surname",
+    "verdict": "wrong",
+    "note": "Nancy Devoy is her maiden name (she married Colonel Barclay), not a second surname. A judging-prompt change aimed at maiden and married names is being measured on the benchmark."
+  },
+  {
+    "subject": "Sherlock Holmes",
+    "predicate": "eye_color",
+    "verdict": "wrong",
+    "note": "The \"keen dark eyes\" belong to Holmes disguised as an old sailor in The Sign of the Four; an earlier run ruled this deliberate. A judging-prompt change that looks for a disguise in the scene is being measured on the benchmark."
+  }
+]

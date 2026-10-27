@@ -36,6 +36,10 @@
   .claim { margin: 10px 0; padding: 10px 12px; background: var(--bg); border-radius: 8px; }
   .claim .loc { font: 12px var(--mono); color: var(--muted); }
   .claim q { display: block; margin-top: 4px; font-style: italic; }
+  .review { margin: 10px 0 4px; padding: 8px 12px; border-radius: 8px; font-size: 15px; border: 1px solid var(--line); }
+  .review.wrong { border-color: var(--muted); background: var(--bg); }
+  .review.right { border-color: var(--ok); }
+  .f.overruled { border-left-color: var(--line); } .f.overruled q { opacity: .8; }
   .fix { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--accent); border-radius: 8px; }
   .fix b { color: var(--accent); }
   details summary { cursor: pointer; color: var(--muted); }
@@ -63,9 +67,11 @@
   <div class="stats">
     <div class="stat"><b>{{ r.claims_total }}</b><span>facts in bible</span></div>
     <div class="stat"><b>{{ r.candidates_total }}</b><span>candidates screened</span></div>
-    <div class="stat"><b>{{ errors | length }}</b><span>contradictions</span></div>
+    {% set wrong = r.findings | selectattr('author_review') | selectattr('author_review.verdict', 'equalto', 'wrong') | list %}
+    <div class="stat"><b>{{ errors | length }}</b><span>contradictions{% if wrong %} · {{ wrong | length }} marked wrong by the author{% endif %}</span></div>
     <div class="stat"><b>{{ r.findings | selectattr('verdict', 'equalto', 'deliberate') | list | length }}</b><span>deliberate reveals</span></div>
-    {% if r.cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % r.cost_usd }}</b><span>list-price API cost</span></div>{% endif %}
+    {% if r.read_cost_usd is not none and r.judge_cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % (r.read_cost_usd + r.judge_cost_usd) }}</b><span>list-price API cost (read ${{ '%.2f' % r.read_cost_usd }} · judge ${{ '%.2f' % r.judge_cost_usd }})</span></div>
+    {% elif r.cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % (r.judge_cost_usd if r.judge_cost_usd is not none else r.cost_usd) }}</b><span>list-price cost to judge (reading the books not included)</span></div>{% endif %}
   </div>
 
   {% set review = others | selectattr("verdict", "equalto", "ambiguous") | list %}
@@ -75,9 +81,10 @@
   <h2 id="contradictions">Contradictions</h2>
   {% if not errors %}<p>None found. Either the series is clean or the bible needs more extraction coverage.</p>{% endif %}
   {% for f in errors %}
-  <div class="f {{ f.severity }}">
+  <div class="f {{ f.severity }}{% if f.author_review and f.author_review.verdict == 'wrong' %} overruled{% endif %}">
     <span class="tag {{ f.severity }}">{{ f.severity }}</span><span class="tag" title="{{ f.candidate.heuristic }}">{{ f.candidate.heuristic | check }}</span>
     <strong title="{{ f.candidate.reason }}">{{ f.candidate | headline }}</strong>
+    {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ 'The author marked this call wrong' if f.author_review.verdict == 'wrong' else 'The author confirmed this' }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
     {% for c in f.candidate.claims %}
     <div class="claim">
       <div class="loc">{{ c.provenance | where }} — <span title="{{ c.subject }}.{{ c.predicate }} = {{ c.object }}">{{ c.subject }}, {{ c | fact }}</span></div>
@@ -85,7 +92,7 @@
     </div>
     {% endfor %}
     <p>{{ f.explanation }}</p>
-    {% if f.suggested_fix %}<div class="fix"><b>Suggested fix (later book):</b> {{ f.suggested_fix }}</div>{% endif %}
+    {% if f.suggested_fix and not (f.author_review and f.author_review.verdict == 'wrong') %}<div class="fix"><b>Suggested fix (later book):</b> {{ f.suggested_fix }}</div>{% endif %}
   </div>
   {% endfor %}
 
@@ -95,6 +102,7 @@
   <div class="f medium">
     <span class="tag medium">ambiguous</span><span class="tag" title="{{ f.candidate.heuristic }}">{{ f.candidate.heuristic | check }}</span>
     <strong title="{{ f.candidate.reason }}">{{ f.candidate | headline }}</strong>
+    {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ 'The author marked this call wrong' if f.author_review.verdict == 'wrong' else 'The author confirmed this' }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
     {% for c in f.candidate.claims %}
     <div class="claim">
       <div class="loc">{{ c.provenance | where }} — <span title="{{ c.subject }}.{{ c.predicate }} = {{ c.object }}">{{ c.subject }}, {{ c | fact }}</span></div>
@@ -113,6 +121,7 @@
   <div class="f other">
     <span class="tag ok">{{ f.verdict }}</span><span class="tag" title="{{ f.candidate.heuristic }}">{{ f.candidate.heuristic | check }}</span>
     <strong title="{{ f.candidate.reason }}">{{ f.candidate | headline }}</strong>
+    {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ 'The author marked this call wrong' if f.author_review.verdict == 'wrong' else 'The author confirmed this' }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
     <p>{{ f.explanation }}</p>
     {% if f.evidence %}<div class="claim"><div class="loc">Why it is cleared</div><q>{{ f.evidence }}</q></div>{% endif %}
   </div>

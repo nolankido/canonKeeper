@@ -542,3 +542,17 @@ def test_scorer_matches_surnames_and_sets_aside_side_effects():
     # And a different person with the same surname is not a match.
     other = finding([_claim("Mr. Cushing", "hair_color", "black", book=4, q="x")])
     assert score([inj], [other]).tp == 0
+
+
+def test_audit_splits_reading_from_judging_cost(series, settings, mock_llm, tmp_path):
+    """A run that read the books and then judged (a Preflight job) reports both halves; an audit
+    of a bible built in an earlier run reports judging only, so no tile can understate the bill."""
+    store = build_bible(series, mock_llm, settings, tmp_path / "bible.jsonl")
+    priced = settings.model_copy(update={"provider": "gemini"})
+    mock_llm.usage.cost_usd = 1.40  # as if this run's extraction had cost that
+    both = audit(series, store, mock_llm, priced)
+    assert both.read_cost_usd == 1.40 and both.judge_cost_usd is not None
+    mock_llm.usage.cost_usd = 0.0
+    judged = audit(series, store, mock_llm, priced)
+    assert judged.read_cost_usd is None and judged.judge_cost_usd == 0.0
+    assert audit(series, store, mock_llm, settings).judge_cost_usd is None  # mock: no prices
