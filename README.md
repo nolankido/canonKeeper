@@ -18,6 +18,10 @@ titles across four series imprints.
 | **Agents welcome** | The same service is an MCP server at `<url>/mcp` (streamable HTTP; or `canonkeeper mcp` on stdio): an author's AI assistant connects as a customer, holding no keys. It asks for an upload link, the person uploads the books and sees the price, the assistant orders, and the PayPal approval link always goes to the person. Or the person funds an **assistant budget** once through PayPal ($5-$200): the assistant pays for audits and draft checks from it without asking each time, never past the balance; every spend is on the budget's page, a failed audit is credited back, and closing it refunds the unused rest to PayPal. |
 | **What you get** | The report (HTML, prints to PDF); the series bible as an explorer (an [AG Grid](https://www.ag-grid.com/) of every fact: sort, filter, search, disputed facts flagged, the passage one click away, CSV of whatever is shown), as cards, and as a spreadsheet; and the findings as JSON |
 
+**Try it live: [preflight-kq1o.onrender.com](https://preflight-kq1o.onrender.com)** (PayPal sandbox: test money only). Press *Try it with the
+demo series*, or *See a finished audit*. Assistants connect to the same shop over MCP at
+`https://preflight-kq1o.onrender.com/mcp`.
+
 **See a finished audit first:** [the six Sherlock Holmes volumes](#what-it-found-in-sherlock-holmes),
 3,963 sourced facts and the canon's two famous slips found with no hints (Watson's war wound in the
 shoulder and then the leg; a landlady who is Mrs. Hudson and then Mrs. Turner). The full page is
@@ -345,7 +349,7 @@ completed capture of the quoted amount, a buyer who approved and closed the tab 
 retried.
 
 <p align="center">
-<img src="docs/img/preflight-quote.png" width="49%" alt="Quote page: price with the arithmetic shown, Pay with PayPal">
+<img src="docs/img/preflight-quote.png" width="49%" alt="The live quote page on the PayPal sandbox: the price with its arithmetic, and PayPal's own buttons (PayPal, Venmo, Pay Later, card)">
 <img src="docs/img/preflight-job.png" width="49%" alt="Job page after payment: facts in bible, contradictions, open the report">
 </p>
 

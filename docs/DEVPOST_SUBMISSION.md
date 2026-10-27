@@ -151,7 +151,7 @@ budget, checks the next draft on its own → the guarantee and the budget refund
 close.
 
 ## Testing instructions (paste into Devpost; fill the two blanks)
-**Hosted (fastest):** open `<RENDER URL>`. Press *Try it with the demo series* (an invented
+**Hosted (fastest):** open `https://preflight-kq1o.onrender.com`. Press *Try it with the demo series* (an invented
 three-book series with five planted errors and one change only the author can judge), then *Pay with PayPal*. PayPal sandbox buyer:
 `<sandbox buyer email>` / `<password>` — no real money moves. You return to the job page, which
 updates itself; the audit takes about a minute (instant if someone ran it before you: demo-series
@@ -159,7 +159,7 @@ responses are shared). Open the report. *See a finished audit* on the home page 
 six-volume Sherlock Holmes audit without paying.
 
 **As an AI assistant's customer:** in Claude Desktop, Settings → Connectors → Add custom
-connector → `<RENDER URL>/mcp`. Ask: "Open a $20 Preflight budget." Approve the link it gives
+connector → `https://preflight-kq1o.onrender.com/mcp`. Ask: "Open a $20 Preflight budget." Approve the link it gives
 you with the sandbox buyer, then: "Audit the Saltmarsh demo series and pay from the budget."
 When it is done: "Check the demo series' next draft against it." Finally: "Close the budget": the
 unused balance goes back to PayPal.
