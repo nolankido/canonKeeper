@@ -704,3 +704,11 @@ def test_real_client_refunds_the_whole_capture_once():
     req = route.calls[0].request
     assert req.headers["PayPal-Request-Id"] == "refund-CAP1" and req.read() == b"{}"
     assert pp.refund_capture("CAP1").status == "COMPLETED"  # already refunded: done, not an error
+
+
+def test_draft_titles_read_like_book_titles():
+    from canonkeeper.preflight.jobs import draft_title
+
+    assert draft_title("draft-04-the-ledger.txt") == "The Ledger (draft)"
+    assert draft_title("04 - The Ledger.md") == "The Ledger (draft)"
+    assert draft_title("draft.txt") == "New draft"

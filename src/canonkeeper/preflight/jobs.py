@@ -83,6 +83,12 @@ def _title_from_filename(stem: str) -> str:
     return " ".join(w if i and w in _SMALL else w[:1].upper() + w[1:] for i, w in enumerate(words))
 
 
+def draft_title(filename: str) -> str:
+    """ "draft-04-the-ledger.txt" → "The Ledger (draft)": how the report names the new book."""
+    stem = re.sub(r"^(?:draft[-_ ]*)?\d{0,3}[-_. ]*", "", Path(filename).stem, flags=re.I)
+    return f"{_title_from_filename(stem)} (draft)" if stem else "New draft"
+
+
 def _strip_numbering(name: str) -> str:
     """Drop the author's own numbering ("03 - The Return.txt" → "The Return.txt"), but not
     when the number is the whole name ("01.txt" stays "01.txt", not "txt")."""
@@ -410,6 +416,7 @@ class Runner:
                         settings,
                         progress=False,
                         on_progress=tick,
+                        title=draft_title(job.draft),
                     )
                 else:
                     store = build_bible(

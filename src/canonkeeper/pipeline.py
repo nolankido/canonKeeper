@@ -100,6 +100,7 @@ def check_manuscript(
     *,
     progress: bool = True,
     on_progress: Callable[[str, int, int], None] | None = None,
+    title: str | None = None,
 ) -> AuditReport:
     """Audit a new, unpublished manuscript against the existing bible.
 
@@ -113,7 +114,7 @@ def check_manuscript(
     text = load_text(manuscript)
     new_book = Book(
         key=f"{len(series.books) + 1:02d}-{manuscript.stem}",
-        title=manuscript.stem,
+        title=title or manuscript.stem,
         index=len(series.books),
         text=text,
         chapters=chapterize(text),
