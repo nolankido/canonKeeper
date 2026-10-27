@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from canonkeeper.config import Settings, load_settings
-from canonkeeper.preflight.jobs import JobStore, Runner
+from canonkeeper.preflight.jobs import JobStore, Runner, order_description
 from canonkeeper.preflight.paypal import FakePayPal, PayPal, PayPalClient
 from canonkeeper.preflight.pricing import CURRENCY, quote
 
@@ -146,7 +146,7 @@ def create_app(
         o = pp.create_order(
             amount=job.quote_usd,
             currency=CURRENCY,
-            description=f"Preflight continuity audit: {job.series_name} ({len(job.books)} books)",
+            description=order_description(job),
             return_url=f"{base}/return",
             cancel_url=f"{base}/cancel?job={job_id}",
             reference=job_id,
@@ -192,6 +192,18 @@ def create_app(
             job=job,
             quote=quote(job.tokens, words=job.words, books=len(job.books)),
         )
+
+    @app.post("/jobs/{job_id}/check")
+    async def make_check(request: Request, job_id: str, draft: UploadFile) -> HTMLResponse:
+        """Quote a check of one new draft against this finished audit's bible."""
+        data = await draft.read()
+        try:
+            job, q = store.create_check(job_id, draft.filename or "draft.txt", data)
+        except KeyError:
+            raise HTTPException(404) from None
+        except ValueError as e:
+            raise HTTPException(409 if "finished" in str(e) else 400, str(e)) from None
+        return render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
 
     @app.post("/jobs/{job_id}/delete")
     def delete(job_id: str, confirm: str = Form("")) -> RedirectResponse:

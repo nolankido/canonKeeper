@@ -243,6 +243,22 @@ def test_mcp_service_flow_agent_quotes_human_approves_agent_collects(tmp_path):
     assert len(svc.get_findings(job_id, include_cleared=True)["findings"]) >= len(PLANTED)
     assert svc.list_jobs()[0]["job_id"] == job_id
 
+    # The author's next draft, through the same agent: quote, person approves, collect.
+    from canonkeeper.demo import DRAFT4
+
+    chk = svc.check_draft(job_id, "04-the-ledger.txt", DRAFT4)
+    assert chk["checks_against"] == job_id and chk["price"]["amount"].startswith("2.")
+    o2 = svc.order_audit(chk["job_id"])
+    assert svc.confirm_payment(chk["job_id"])["paid"] is False
+    pp.approve(o2["order_id"])
+    assert svc.confirm_payment(chk["job_id"])["paid"] is True
+    svc.runner.wait(chk["job_id"], timeout=60)
+    found = svc.get_findings(chk["job_id"])["findings"]
+    assert {(r["subject"], r["predicate"]) for r in found} == {
+        ("Ivy Marlowe", "eye_color"),
+        ("Tobias Crane", "birthplace"),
+    }
+
     server = build_server(svc)
     assert server.name == "preflight"
 
@@ -406,3 +422,54 @@ def test_unpaid_quotes_are_pruned_after_a_day(tmp_path):
     assert store.prune_unpaid() == 1
     assert store.get(old.id) is None and not store.dir(old.id).exists()
     assert store.get(fresh.id) is not None and store.get(paid.id) is not None
+
+
+def test_check_next_draft_against_a_finished_audit(client):
+    """Audit a series, then check the next book's draft against it: a smaller quote, the
+    same PayPal flow, and findings that only touch the draft (slips flagged, the reveal the
+    draft explains marked deliberate)."""
+    from canonkeeper.demo import BOOK1, BOOK2, BOOK3, DRAFT4
+
+    files = [
+        ("files", ("01-the-harbour.txt", BOOK1.encode(), "text/plain")),
+        ("files", ("02-the-wreck.txt", BOOK2.encode(), "text/plain")),
+        ("files", ("03-the-return.txt", BOOK3.encode(), "text/plain")),
+    ]
+    r = client.post("/quote", data={"series_name": "The Saltmarsh Chronicles"}, files=files)
+    audit_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    store, runner, pp = client.app.state.store, client.app.state.runner, client.app.state.paypal
+
+    def pay(job_id: str) -> None:
+        client.post(f"/jobs/{job_id}/order")
+        order_id = store.get(job_id).order_id
+        pp.approve(order_id)
+        client.get(f"/return?token={order_id}")
+        runner.wait(job_id, timeout=60)
+
+    # Not before the audit is finished.
+    early = client.post(
+        f"/jobs/{audit_id}/check", files={"draft": ("04-the-ledger.txt", DRAFT4.encode())}
+    )
+    assert early.status_code == 409
+    pay(audit_id)
+    page = client.get(f"/jobs/{audit_id}").text
+    assert "Writing the next book?" in page
+
+    r = client.post(
+        f"/jobs/{audit_id}/check", files={"draft": ("04-the-ledger.txt", DRAFT4.encode())}
+    )
+    assert r.status_code == 200 and "Check <code>the-ledger.txt</code>" in r.text
+    check_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    check = store.get(check_id)
+    assert check.kind == "check" and check.parent_id == audit_id
+    assert check.quote_usd == "2.01"  # $2 base + the draft's tokens
+    pay(check_id)
+    check = store.get(check_id)
+    assert pp.get_order(check.order_id).raw["description"].startswith("Preflight draft check")
+    assert check.status == "done", check.error
+    assert check.contradictions == 2  # Ivy's eyes, Tobias's birthplace
+    report = (store.dir(check_id) / "reports" / "report.json").read_text()
+    assert "Hester Vale" in report and '"deliberate"' in report
+    # The check is self-contained: deleting the series audit does not break it.
+    client.post(f"/jobs/{audit_id}/delete", data={"confirm": "yes"})
+    assert client.get(f"/jobs/{check_id}/report").status_code == 200

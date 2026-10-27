@@ -12,6 +12,9 @@ from decimal import ROUND_HALF_UP, Decimal
 BASE_USD = Decimal("5.00")
 PER_100K_TOKENS_USD = Decimal("4.00")
 MIN_USD = Decimal("5.00")
+# A check reads one new book against a bible that already exists, so it starts lower.
+CHECK_BASE_USD = Decimal("2.00")
+CHECK_MIN_USD = Decimal("2.00")
 CURRENCY = "USD"
 
 
@@ -36,9 +39,11 @@ class Quote:
         )
 
 
-def quote(tokens: int, *, words: int = 0, books: int = 0) -> Quote:
+def quote(tokens: int, *, words: int = 0, books: int = 0, kind: str = "audit") -> Quote:
+    """`kind="check"`: a new draft checked against an existing bible; `tokens` is the draft's."""
+    base, floor = (CHECK_BASE_USD, CHECK_MIN_USD) if kind == "check" else (BASE_USD, MIN_USD)
     usage = (PER_100K_TOKENS_USD * Decimal(tokens) / Decimal(100_000)).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
-    total = max(MIN_USD, BASE_USD + usage).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    return Quote(tokens, words, books, BASE_USD, usage, total)
+    total = max(floor, base + usage).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return Quote(tokens, words, books, base, usage, total)

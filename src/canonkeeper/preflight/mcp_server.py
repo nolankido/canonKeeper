@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from canonkeeper.config import Settings, load_settings
-from canonkeeper.preflight.jobs import JobStore, Runner
+from canonkeeper.preflight.jobs import JobStore, Runner, order_description
 from canonkeeper.preflight.paypal import UNAPPROVED, FakePayPal, PayPal
 from canonkeeper.preflight.pricing import CURRENCY
 
@@ -72,7 +72,7 @@ class PreflightService:
         o = self.paypal.create_order(
             amount=job.quote_usd,
             currency=CURRENCY,
-            description=f"Preflight continuity audit: {job.series_name} ({len(job.books)} books)",
+            description=order_description(job),
             return_url=f"{self.base}/return",
             cancel_url=f"{self.base}/cancel?job={job_id}",
             reference=job_id,
@@ -138,6 +138,21 @@ class PreflightService:
             out["report_url"] = f"{self.base}/jobs/{job.id}/report"
             out["bible_url"] = f"{self.base}/jobs/{job.id}/bible"
         return out
+
+    def check_draft(self, job_id: str, name: str, text: str) -> dict[str, Any]:
+        """Quote a check of one new draft against a finished audit (`job_id`)."""
+        try:
+            job, q = self.store.create_check(job_id, name, text.encode("utf-8"))
+        except KeyError:
+            raise ValueError("unknown job") from None
+        return {
+            "job_id": job.id,
+            "checks_against": job_id,
+            "draft": job.draft,
+            "tokens": job.tokens,
+            "price": {"amount": q.total_str, "currency": CURRENCY, "explanation": q.explanation},
+            "next": "order_audit(job_id) to create a PayPal order; nothing runs until it is paid",
+        }
 
     def delete_job(self, job_id: str) -> dict[str, Any]:
         try:
@@ -244,6 +259,15 @@ def build_server(service: PreflightService):  # noqa: ANN201 - MCPServer type va
     )
     def get_findings(job_id: str, include_cleared: bool = False) -> dict[str, Any]:
         return service.get_findings(job_id, include_cleared=include_cleared)
+
+    @server.tool(
+        description=(
+            "Quote a check of the author's next draft against a finished series audit: only the "
+            "places where the draft disagrees with the published books. Pay with order_audit."
+        )
+    )
+    def check_draft(job_id: str, name: str, text: str) -> dict[str, Any]:
+        return service.check_draft(job_id, name, text)
 
     @server.tool(
         description=(

@@ -45,11 +45,21 @@ class Job:
     error: str | None = None
     claims: int | None = None
     contradictions: int | None = None
+    kind: str = "audit"  # "audit": a whole series; "check": one new draft against its bible
+    parent_id: str | None = None  # for a check: the audit whose bible it is checked against
+    draft: str | None = None  # for a check: the draft's file name under draft/
     stage: str | None = None  # "extracting" | "judging" while running
     progress_done: int = 0
     progress_total: int = 0
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+
+
+def order_description(job: Job) -> str:
+    """What the buyer sees on the PayPal order."""
+    if job.kind == "check":
+        return f"Preflight draft check: {job.draft} against {job.series_name}"
+    return f"Preflight continuity audit: {job.series_name} ({len(job.books)} books)"
 
 
 def _now() -> str:
@@ -83,6 +93,44 @@ class JobStore:
         if not p.exists():
             return None
         return Job(**json.loads(p.read_text(encoding="utf-8")))
+
+    def create_check(self, parent_id: str, name: str, data: bytes) -> tuple[Job, Quote]:
+        """A check of one new draft against a finished audit's bible. The check gets its own
+        copy of the series and the bible, so deleting the original job cannot break it."""
+        parent = self.get(parent_id)
+        if parent is None:
+            raise KeyError(parent_id)
+        if parent.status != "done" or parent.kind != "audit":
+            raise ValueError("a draft can only be checked against a finished series audit")
+        if len(data) > MAX_TOTAL_BYTES:
+            raise ValueError(f"draft too large ({len(data) / 1e6:.0f} MB)")
+        if b"\x00" in data[:4096]:
+            raise ValueError(f"{Path(name).name} is not a text file; upload .txt or .md")
+        src = self.dir(parent_id)
+        job_id = secrets.token_urlsafe(8)
+        d = self.dir(job_id)
+        shutil.copytree(src / "books", d / "books")
+        shutil.copy2(src / "bible.jsonl", d / "bible.jsonl")
+        stem = re.sub(r"^\d{1,3}[-_. ]+", "", Path(name).name) or "draft.txt"
+        safe = "".join(ch if ch.isalnum() or ch in "-_." else "-" for ch in stem)
+        (d / "draft").mkdir(parents=True, exist_ok=True)
+        text = data.decode("utf-8", errors="replace")
+        (d / "draft" / safe).write_text(text, encoding="utf-8")
+        tokens, words = count_tokens(text), len(text.split())
+        q = quote(tokens, words=words, books=1, kind="check")
+        job = Job(
+            id=job_id,
+            series_name=parent.series_name,
+            books=list(parent.books),
+            tokens=tokens,
+            words=words,
+            quote_usd=q.total_str,
+            kind="check",
+            parent_id=parent_id,
+            draft=safe,
+        )
+        self.save(job)
+        return job, q
 
     def purge(self, job_id: str) -> Job:
         """Delete everything the customer uploaded or that was derived from it — manuscripts,
@@ -270,11 +318,26 @@ class Runner:
                 settings = self.settings.model_copy(update={"cache_dir": d / "cache"})
                 llm = make_llm(settings)
                 tick = self._progress_writer(job)
-                store = build_bible(
-                    series, llm, settings, d / "bible.jsonl", progress=False, on_progress=tick
-                )
-                write_bible(store, series.name, d / "reports" / "bible.html")
-                report = audit(series, store, llm, settings, progress=False, on_progress=tick)
+                if job.kind == "check" and job.draft:
+                    from canonkeeper.canon import CanonStore
+                    from canonkeeper.pipeline import check_manuscript
+
+                    store = CanonStore.load(d / "bible.jsonl")
+                    report = check_manuscript(
+                        series,
+                        store,
+                        d / "draft" / job.draft,
+                        llm,
+                        settings,
+                        progress=False,
+                        on_progress=tick,
+                    )
+                else:
+                    store = build_bible(
+                        series, llm, settings, d / "bible.jsonl", progress=False, on_progress=tick
+                    )
+                    write_bible(store, series.name, d / "reports" / "bible.html")
+                    report = audit(series, store, llm, settings, progress=False, on_progress=tick)
                 write_report(report, d / "reports")
                 job.claims = report.claims_total
                 job.contradictions = len(report.errors)

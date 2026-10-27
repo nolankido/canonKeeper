@@ -81,6 +81,7 @@ def check_manuscript(
     settings: Settings,
     *,
     progress: bool = True,
+    on_progress: Callable[[str, int, int], None] | None = None,
 ) -> AuditReport:
     """Audit a new, unpublished manuscript against the existing bible.
 
@@ -106,9 +107,13 @@ def check_manuscript(
     for c in store.claims:
         scratch.add(c)
     ext = Extractor(llm, settings)
-    scratch.ingest(ext.extract_series(Series(series.name, [new_book]), progress=progress))
+    scratch.ingest(
+        ext.extract_series(
+            Series(series.name, [new_book]), progress=progress, on_progress=on_progress
+        )
+    )
 
-    report = audit(extended, scratch, llm, settings, progress=progress)
+    report = audit(extended, scratch, llm, settings, progress=progress, on_progress=on_progress)
     report.findings = [
         f
         for f in report.findings

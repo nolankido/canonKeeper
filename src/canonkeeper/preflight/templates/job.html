@@ -2,7 +2,7 @@
 {% block title %}{{ job.series_name }} — {{ job.status }}{% endblock %}
 {% block head %}{% if job.status in ('paid', 'running') %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
 {% block body %}
-<h1>{{ job.series_name }} <span class="status {{ job.status }}">{{ job.status }}</span></h1>
+<h1>{% if job.kind == 'check' %}Check of <code>{{ job.draft }}</code> · {% endif %}{{ job.series_name }} <span class="status {{ job.status }}">{{ job.status }}</span></h1>
 <p class="lede">{{ job.books | length }} books · {{ "{:,}".format(job.tokens) }} tokens · quote ${{ job.quote_usd }}{% if job.order_id %} · order <code>{{ job.order_id }}</code>{% endif %}</p>
 
 <div class="card">
@@ -29,7 +29,8 @@
     <div>Contradictions</div><div class="big" style="color: {{ 'var(--bad)' if job.contradictions else 'var(--ok)' }}">{{ job.contradictions }}</div>
   </div>
   <a class="btn" href="/jobs/{{ job.id }}/report">Open the report</a>
-  <a class="btn secondary" href="/jobs/{{ job.id }}/bible">Browse the bible</a>
+  {% if job.kind == 'check' %}{% if job.parent_id %}<a class="btn secondary" href="/jobs/{{ job.parent_id }}">Back to the series</a>{% endif %}
+  {% else %}<a class="btn secondary" href="/jobs/{{ job.id }}/bible">Browse the bible</a>{% endif %}
 {% elif job.status == 'deleted' %}
   <p>Your manuscripts, the series bible, the reports and every cached model response for this job have been deleted from this server. Only a receipt remains: order <code>{{ job.order_id or '—' }}</code>, ${{ job.quote_usd }}.</p>
 {% elif job.status == 'failed' %}
@@ -38,6 +39,16 @@
   <form action="/jobs/{{ job.id }}/retry" method="post"><button type="submit">Retry</button></form>
 {% endif %}
 </div>
+
+{% if job.status == 'done' and job.kind == 'audit' %}
+<form class="card" action="/jobs/{{ job.id }}/check" method="post" enctype="multipart/form-data">
+  <h2 style="margin-top:0">Writing the next book?</h2>
+  <p>Check a draft against everything this audit learned about the series. You get only the places where the draft disagrees with the published books, each with a fix to the draft. Priced on the draft alone.</p>
+  <label for="draft">Draft (.txt or .md)</label>
+  <input id="draft" name="draft" type="file" accept=".txt,.md,text/plain,text/markdown" required>
+  <button type="submit">Get a quote for the check</button>
+</form>
+{% endif %}
 
 {% if job.status in ('quoted', 'cancelled', 'done', 'failed') %}
 <form class="card" action="/jobs/{{ job.id }}/delete" method="post">

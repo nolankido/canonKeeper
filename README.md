@@ -239,7 +239,11 @@ files land — which makes it a natural pay-per-job service. `canonkeeper serve`
 ```
 upload series ──▶ quote ($5 + $4 per 100k tokens, shown with the arithmetic)
       ──▶ PayPal Orders v2 checkout (sandbox) ──▶ capture ──▶ audit runs in the background
-      ──▶ report + bible pages, job page refreshes itself
+      ──▶ report + bible pages, job page shows live progress
+
+writing the next book? ──▶ upload the draft on the finished audit's page
+      ──▶ quote ($2 + $4 per 100k draft tokens) ──▶ same checkout
+      ──▶ only the places the draft disagrees with the published books
 ```
 
 ```bash
@@ -264,7 +268,7 @@ is ~100 lines of Orders v2 (OAuth → create with `PAY_NOW` → capture, idempot
 
 **Agentic commerce.** `canonkeeper mcp` exposes the same service to an AI assistant over MCP:
 `quote_series → order_audit → (the person approves on PayPal) → confirm_payment → audit_status
-→ get_findings`, plus `delete_job` (manuscripts, bible, reports and cached responses go;
+→ get_findings`, then `check_draft` for each new book (same order/confirm loop), plus `delete_job` (manuscripts, bible, reports and cached responses go;
 a receipt stays — the web job page has the same button). The agent prices the job and creates the order; it never holds the buyer's
 credentials and cannot approve the payment itself — the approval link goes to the person.
 Add it to Claude Desktop or Cursor with `{"command": "canonkeeper", "args": ["mcp"]}`, or watch

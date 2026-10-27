@@ -1,20 +1,29 @@
 {% extends "base.html" %}
 {% block title %}Quote — {{ job.series_name }}{% endblock %}
 {% block body %}
+{% if job.kind == 'check' %}
+<h1>Check <code>{{ job.draft }}</code></h1>
+<p class="lede">against the bible of {{ job.series_name }} ({{ job.books | length }} books) · draft: {{ "{:,}".format(job.words) }} words · {{ "{:,}".format(job.tokens) }} tokens</p>
+{% else %}
 <h1>{{ job.series_name }}</h1>
 <p class="lede">{{ job.books | length }} books · {{ "{:,}".format(job.words) }} words · {{ "{:,}".format(job.tokens) }} tokens</p>
+{% endif %}
 
 <div class="card">
   <div class="kv">
     <div>Price</div><div class="big">${{ quote.total_str }} <small style="font-size:14px;color:var(--muted)">{{ currency }}</small></div>
     <div>How it's calculated</div><div><code>{{ quote.explanation }}</code></div>
+    {% if job.kind == 'check' %}
+    <div>What you get</div><div>Every place the draft disagrees with the published books, each with both passages and a fix to the draft — and changes the draft explains on the page (a reveal, a disguise) marked as deliberate, not as errors.</div>
+    {% else %}
     <div>What you get</div><div>A contradiction report with every finding tied to the two passages that disagree, a suggested fix to the later book, and a browsable series bible of every fact with its source.</div>
+    {% endif %}
     <div>Turnaround</div><div>Minutes for a novella, up to an hour for a long series — the page updates itself.</div>
   </div>
   <form action="/jobs/{{ job.id }}/order" method="post">
     <button type="submit">Pay ${{ quote.total_str }} with PayPal</button>
     <a class="btn secondary" href="/">Start over</a>
   </form>
-  <p class="note">Books in order: {% for b in job.books %}<code>{{ b }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+  <p class="note">{% if job.kind == 'check' %}Checked against: {% else %}Books in order: {% endif %}{% for b in job.books %}<code>{{ b }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
 </div>
 {% endblock %}
