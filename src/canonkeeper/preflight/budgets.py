@@ -51,14 +51,17 @@ class Budget:
     id: str
     key_hash: str
     amount_usd: str
-    status: str = "ordered"  # ordered | active | closed | cancelled
+    status: str = "ordered"  # ordered | active | closing | closed | cancelled
+    close_requested: bool = False  # the person asked to close: refund whatever arrives
     order_id: str | None = None
     approve_url: str | None = None
     capture_id: str | None = None
     funded_at: str | None = None
     spends: list[dict[str, str]] = field(default_factory=list)  # job_id, amount, at, kind
     credits: list[dict[str, str]] = field(default_factory=list)  # job_id, amount, at, reason
-    refunds: list[dict[str, str]] = field(default_factory=list)  # refund_id, amount, at, status
+    # refund_id, amount, at, status (SENDING until PayPal answers: it already counts against the
+    # balance, so nothing can be spent from money on its way back), request_id, for
+    refunds: list[dict[str, str]] = field(default_factory=list)
     created_at: str = field(default_factory=_now)
     updated_at: str = field(default_factory=_now)
 
@@ -77,7 +80,7 @@ class Budget:
     @property
     def balance(self) -> Decimal:
         """What is left to spend (or to give back): funded - spent + credited - refunded."""
-        if self.status not in ("active", "closed"):
+        if self.status not in ("active", "closing", "closed"):
             return Decimal(0)
         return Decimal(self.amount_usd) - self.spent + self.credited - self.refunded
 

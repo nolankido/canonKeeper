@@ -60,6 +60,10 @@ class Job:
     capture_id: str | None = None  # PayPal's capture, needed to refund it
     earlier_orders: list[str] = field(default_factory=list)  # replaced by a re-order
     hold_reason: str | None = None  # why PayPal is holding a captured payment
+    # the one order being captured for this job (so two approved orders never both get
+    # captured), and since when
+    capturing: str | None = None
+    capturing_at: str | None = None
     refund_id: str | None = None
     refunded_at: str | None = None
     refund_status: str | None = None  # PayPal's: COMPLETED, or PENDING while it clears

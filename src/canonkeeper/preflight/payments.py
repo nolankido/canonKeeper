@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 
 import httpx
 
@@ -19,6 +20,7 @@ from canonkeeper.preflight.jobs import Job, JobStore, Runner, order_description
 from canonkeeper.preflight.paypal import (
     UNAPPROVED,
     PayPal,
+    Refund,
     capture_failed,
     capture_held,
     capture_id_of,
@@ -93,8 +95,15 @@ def settle(
             if o.status == "VOIDED":
                 store.update(job.id, expect=("ordered",), status="cancelled")
                 return "this PayPal order has expired; start the checkout again"
+        claim = _claim_capture(job.id, order_id, paypal, store)
+        if claim is not None:
+            if claim.startswith("settle:"):
+                return settle(job, paypal, store, runner, order_id_hint=claim[7:])
+            return claim
         o = paypal.capture_order(order_id)  # idempotent: a second capture reads the first
     except httpx.HTTPStatusError as e:
+        if e.response.status_code < 500:  # PayPal refused: nothing was captured
+            store.update(job.id, where=lambda j: j.capturing == order_id, capturing=None)
         msg = _order_trouble(e, store, fresh)
         _sync(job, store.get(job.id))
         return msg
@@ -105,7 +114,9 @@ def settle(
 
     if problem and capture_failed(o):
         # the held payment did not clear: nothing was charged; the buyer can order again
-        store.update(job.id, expect=OPEN, where=ours, status="cancelled", hold_reason=None)
+        store.update(
+            job.id, expect=OPEN, where=ours, status="cancelled", hold_reason=None, capturing=None
+        )
         _sync(job, store.get(job.id))
         return "PayPal declined the payment, so nothing was charged; start the checkout again"
     if problem and capture_held(o):
@@ -141,6 +152,45 @@ def settle(
         return f"payment {order_id} was captured but the job is now {now.status if now else 'gone'}"
     runner.submit(job.id)
     return None
+
+
+CLAIM_STALE_S = 300.0  # a capture claim older than this lost its process mid-call
+
+
+def _claim_capture(job_id: str, order_id: str, paypal: PayPal, store: JobStore) -> str | None:
+    """Claim the job for one order before capturing it, so two approved orders of the same job
+    (a replaced order approved in an old tab, the new one in another) are never both captured.
+
+    Returns None when the claim is ours, "settle:<order>" when the order that holds the claim
+    turns out to be captured already (settle that one instead), else why we must wait."""
+    now = datetime.now(UTC)
+
+    def free(j: Job) -> bool:
+        return j.capturing in (None, order_id)
+
+    if store.update(job_id, expect=OPEN, where=free, capturing=order_id, capturing_at=_now()):
+        return None
+    current = store.get(job_id)
+    if current is None:
+        return "this job no longer exists"
+    if current.status in PAID:
+        return "settle:" + (current.order_id or order_id)
+    other = current.capturing
+    if not other:
+        return f"job is {current.status}; nothing to pay for yet"
+    o = paypal.get_order(other)
+    if o.status == "COMPLETED":
+        return "settle:" + other
+    since = datetime.fromisoformat(current.capturing_at or _now())
+    if (now - since).total_seconds() < CLAIM_STALE_S:  # its capture may still be on the way
+        return "another payment for this job is being completed; check again in a moment"
+
+    def stale(j: Job) -> bool:
+        return j.capturing == other
+
+    if store.update(job_id, expect=OPEN, where=stale, capturing=order_id, capturing_at=_now()):
+        return None
+    return "another payment for this job is being completed; check again in a moment"
 
 
 def refund(
@@ -316,30 +366,46 @@ def open_budget(
 
 
 def settle_budget(budget: Budget, paypal: PayPal, budgets: BudgetStore) -> str | None:
-    """Fund a budget once PayPal has a completed capture of exactly its amount."""
-    if budget.status in ("active", "closed"):
-        return None
-    if budget.status != "ordered" or not budget.order_id:
-        return f"this budget is {budget.status}"
+    """Fund a budget once PayPal has a completed capture of exactly its amount.
+
+    Decisions are made on the stored budget. A budget that was cancelled is never captured, but
+    if PayPal reports its order already captured (a race with the cancel), it is funded and then
+    refunded in full: captured money is never kept on a cancelled budget."""
+    stored = budgets.get(budget.id) or budget
+    if stored.status in ("active", "closing", "closed"):
+        return _finish_close_if_asked(stored, paypal, budgets)
+    if stored.status not in ("ordered", "cancelled") or not stored.order_id:
+        return f"this budget is {stored.status}"
     try:
-        o = paypal.get_order(budget.order_id)
+        o = paypal.get_order(stored.order_id)
+        if stored.status == "cancelled" and o.status != "COMPLETED":
+            return "this budget was cancelled; nothing was charged"
         if o.status in UNAPPROVED:
             return "not approved yet"
         if o.status == "VOIDED":
             budgets.update(budget.id, lambda b: setattr(b, "status", "cancelled"))
             return "this PayPal order has expired"
-        o = paypal.capture_order(budget.order_id)
+        if o.status != "COMPLETED":
+            o = paypal.capture_order(stored.order_id)
     except httpx.HTTPStatusError as e:
         return f"PayPal could not complete the payment ({e.response.status_code})"
-    problem = capture_problem(o, amount=budget.amount_usd, currency=CURRENCY)
+    problem = capture_problem(o, amount=stored.amount_usd, currency=CURRENCY)
     if problem:
         return problem
 
     def fund(b: Budget) -> None:
-        if b.status == "ordered":
+        if b.status in ("ordered", "cancelled"):
+            if b.status == "cancelled":
+                b.close_requested = True  # the money arrived after a cancel: give it all back
             b.status, b.capture_id, b.funded_at = "active", capture_id_of(o), _now()
 
-    budgets.update(budget.id, fund)
+    funded = budgets.update(budget.id, fund)
+    return _finish_close_if_asked(funded, paypal, budgets)
+
+
+def _finish_close_if_asked(b: Budget, paypal: PayPal, budgets: BudgetStore) -> str | None:
+    if b.close_requested and b.status in ("active", "closing"):
+        return close_budget(b, paypal, budgets)
     return None
 
 
@@ -379,48 +445,114 @@ def spend_budget(
 
 
 def close_budget(budget: Budget, paypal: PayPal, budgets: BudgetStore) -> str | None:
-    """Stop spending and refund the unused balance to the person's PayPal account."""
-    if budget.status == "ordered":
-        budgets.update(budget.id, lambda b: setattr(b, "status", "cancelled"))
+    """Stop spending and refund the unused balance to the person's PayPal account.
+
+    No lock is held across a PayPal call: the refund is first recorded as pending (amount and
+    request id fixed, the budget no longer spendable), then sent, then its answer recorded. A
+    retry after a timeout sends the same refund again, which PayPal answers once."""
+    stored = budgets.get(budget.id)
+    if stored is None:
+        return "unknown budget"
+    if stored.status == "ordered":
+        # Never cancel on a stale copy, and never cancel money PayPal already holds: ask PayPal.
+        try:
+            o = paypal.get_order(stored.order_id or "")
+        except (httpx.HTTPError, KeyError):
+            o = None
+        if o is None or o.status in UNAPPROVED | {"VOIDED"}:
+
+            def cancel(b: Budget) -> None:
+                if b.status == "ordered":
+                    b.status = "cancelled"
+
+            after = budgets.update(budget.id, cancel)
+            if after.status == "cancelled":
+                return None
+            stored = after
+        else:
+            budgets.update(budget.id, lambda b: setattr(b, "close_requested", True))
+            problem = settle_budget(stored, paypal, budgets)
+            after = budgets.get(budget.id) or stored
+            if after.status == "closed":
+                return None
+            return (
+                f"{problem}; the budget will be refunded in full as soon as PayPal confirms it"
+                if problem
+                else None
+            )
+    if stored.status == "cancelled":
         return None
-    if budget.status != "active":
-        return None if budget.status == "closed" else f"this budget is {budget.status}"
-    with budgets.locked(budget.id) as b:
-        if b.status != "active":
-            return None
-        remainder = b.balance
-        if remainder > 0:
-            problem = _refund_from(b, paypal, remainder, f"budget-{b.id}-close", "unused balance")
-            if problem:
-                return problem
-        b.status = "closed"
-    return None
+
+    def claim(b: Budget) -> None:
+        if b.status in ("active", "closing", "closed"):
+            b.close_requested = True
+            if b.status == "active":
+                b.status = "closing"
+            left = b.balance
+            if left > 0:  # includes a closed budget that a late credit put money back into
+                n = sum(1 for r in b.refunds if r.get("for") == "unused balance")
+                b.refunds.append(
+                    {
+                        "request_id": f"budget-{b.id}-close-{n}",
+                        "amount": f"{left:.2f}",
+                        "at": _now(),
+                        "status": "SENDING",
+                        "for": "unused balance",
+                    }
+                )
+
+    budgets.update(budget.id, claim)
+    problem = _send_pending_refunds(budget.id, paypal, budgets)
+
+    def done(b: Budget) -> None:
+        if b.status == "closing" and not any(r["status"] == "SENDING" for r in b.refunds):
+            b.status = "closed"
+
+    budgets.update(budget.id, done)
+    return problem
 
 
-def _refund_from(
-    b: Budget, paypal: PayPal, amount: Decimal, request_id: str, why: str
-) -> str | None:
-    """A partial refund of the budget's funding capture, recorded on the budget. 5xx and
-    timeouts propagate (PayPal may have refunded; asking again is safe, the request id is fixed)."""
-    if not b.capture_id:
-        return "PayPal has no capture for this budget"
-    try:
-        r = paypal.refund_capture(b.capture_id, f"{amount:.2f}", request_id)
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code >= 500:
-            raise
-        return f"PayPal refused the refund ({e.response.status_code})"
-    if r.status not in ("COMPLETED", "PENDING"):
-        return f"PayPal refused the refund ({r.status or 'no status'})"
-    b.refunds.append(
-        {"refund_id": r.id, "amount": f"{amount:.2f}", "at": _now(), "status": r.status, "for": why}
-    )
-    return None
+def _send_pending_refunds(budget_id: str, paypal: PayPal, budgets: BudgetStore) -> str | None:
+    """Send every refund recorded as SENDING, outside the lock, and record each answer. A refused
+    refund is taken off the ledger (the money stays in the budget) and reported; a timeout or a
+    5xx leaves it SENDING, to be sent again with the same request id."""
+    b = budgets.get(budget_id)
+    if b is None:
+        return "unknown budget"
+    problems: list[str] = []
+    for r in [r for r in b.refunds if r["status"] == "SENDING"]:
+        if not b.capture_id:
+            return "PayPal has no capture for this budget"
+        try:
+            answer = paypal.refund_capture(b.capture_id, r["amount"], r["request_id"])
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code >= 500:
+                raise
+            answer = None
+            problems.append(f"PayPal refused the refund ({e.response.status_code})")
+        if answer is not None and answer.status not in ("COMPLETED", "PENDING"):
+            problems.append(f"PayPal refused the refund ({answer.status or 'no status'})")
+            answer = None
+
+        def record(bb: Budget, rid: str = r["request_id"], a: Refund | None = answer) -> None:
+            for entry in bb.refunds:
+                if entry.get("request_id") == rid and entry["status"] == "SENDING":
+                    if a is None:
+                        bb.refunds.remove(entry)
+                        if bb.status == "closing":
+                            bb.status = "active"
+                            bb.close_requested = False
+                    else:
+                        entry["status"], entry["refund_id"] = a.status, a.id
+                    return
+
+        budgets.update(budget_id, record)
+    return "; ".join(problems) or None
 
 
 def _credit_budget(job: Job, paypal: PayPal, budgets: BudgetStore) -> str | None:
     """A failed audit paid from a budget: the money goes back to the budget, or, once the budget
-    is closed, straight back to PayPal."""
+    is closing or closed, straight back to PayPal."""
     assert job.budget_id
     return _give_back_to_budget(
         job.budget_id, job.id, job.id, Decimal(job.quote_usd), "audit failed", paypal, budgets
@@ -436,29 +568,37 @@ def _give_back_to_budget(
     paypal: PayPal,
     budgets: BudgetStore,
 ) -> str | None:
-    """Credit `amount` to a budget once per `key`; once the budget is closed, refund it to
-    PayPal instead (the credit then offsets the refund, so the balance stays at 0)."""
-    try:
-        with budgets.locked(budget_id) as b:
-            if any(c.get("key", c["job_id"]) == key for c in b.credits):
-                return None  # already given back
-            if b.status == "closed":
-                problem = _refund_from(b, paypal, amount, f"budget-{b.id}-{key}", reason)
-                if problem:
-                    return problem
-                reason = f"{reason}; refunded to PayPal"
-            b.credits.append(
+    """Credit `amount` to a budget once per `key`. Once the budget is closing or closed, the
+    credit is matched by a refund to PayPal (recorded as pending first, sent outside the lock)."""
+    if budgets.get(budget_id) is None:
+        return "the budget this job was paid from no longer exists"
+
+    def credit(b: Budget) -> None:
+        if any(c.get("key", c["job_id"]) == key for c in b.credits):
+            return  # already given back (a pending refund, if any, is sent below)
+        refund_too = b.status in ("closing", "closed")
+        b.credits.append(
+            {
+                "job_id": job_id,
+                "key": key,
+                "amount": f"{amount:.2f}",
+                "at": _now(),
+                "reason": f"{reason}; refunded to PayPal" if refund_too else reason,
+            }
+        )
+        if refund_too:
+            b.refunds.append(
                 {
-                    "job_id": job_id,
-                    "key": key,
+                    "request_id": f"budget-{b.id}-{key}",
                     "amount": f"{amount:.2f}",
                     "at": _now(),
-                    "reason": reason,
+                    "status": "SENDING",
+                    "for": reason,
                 }
             )
-    except KeyError:
-        return "the budget this job was paid from no longer exists"
-    return None
+
+    budgets.update(budget_id, credit)
+    return _send_pending_refunds(budget_id, paypal, budgets)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -478,15 +618,18 @@ def mark_finding_wrong(
 ) -> tuple[str | None, Decimal]:
     """Record the author's "this contradiction is wrong" and give back GUARANTEE_USD through
     PayPal (or to the budget that paid), while the guarantee stays under half the price. Returns
-    (problem, amount given back). The mark shows on the report beside the model's call."""
-    from canonkeeper.models import AuditReport, AuthorReview
-    from canonkeeper.report import write_report
+    (problem, amount given back). The mark shows on the report beside the model's call.
 
+    The amount is decided once, under the job's lock, and recorded as pending before PayPal is
+    asked; pending amounts count toward the cap. A retry after a timeout sends the same refund
+    (same amount, same request id) instead of deciding again. No lock is held across PayPal."""
+    from canonkeeper.models import AuditReport
+
+    reports = store.dir(job.id) / "reports"
     with store.lock(job.id):
         fresh = store.get(job.id)
         if fresh is None or fresh.status != "done":
             return "only a finished audit's findings can be marked", Decimal(0)
-        reports = store.dir(job.id) / "reports"
         report = AuditReport.model_validate_json(
             (reports / "report.json").read_text(encoding="utf-8")
         )
@@ -495,43 +638,84 @@ def mark_finding_wrong(
             or report.findings[index].verdict != "contradiction"
         ):
             return "no such contradiction in this report", Decimal(0)
-        if any(g["finding"] == str(index) for g in fresh.guarantee):
+        entry = next((g for g in fresh.guarantee if g["finding"] == str(index)), None)
+        if entry is not None and entry.get("status", "done") == "done":
             return None, Decimal(0)  # marked before; nothing more to give
-        given = sum((Decimal(g["amount"]) for g in fresh.guarantee), Decimal(0))
-        cap = (Decimal(fresh.quote_usd) * GUARANTEE_CAP).quantize(Decimal("0.01"))
-        amount = GUARANTEE_USD if given + GUARANTEE_USD <= cap else Decimal(0)
-        refund_id = ""
-        if amount and fresh.budget_id and budgets is not None:
-            problem = _give_back_to_budget(
-                fresh.budget_id, f"{job.id}-finding-{index}", job.id, amount,
-                f"finding {index + 1} marked wrong", paypal, budgets,
-            )  # fmt: skip
-            if problem:
-                return problem, Decimal(0)
-            refund_id = f"budget:{fresh.budget_id}"
-        elif amount:
-            if not fresh.capture_id:
-                return "PayPal has no capture for this job", Decimal(0)
-            try:
-                r = paypal.refund_capture(
-                    fresh.capture_id, f"{amount:.2f}", f"guarantee-{job.id}-{index}"
-                )
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code >= 500:
-                    raise  # PayPal may have refunded; asking again is safe (fixed request id)
-                return f"PayPal refused the refund ({e.response.status_code})", Decimal(0)
-            if r.status not in ("COMPLETED", "PENDING"):
-                return f"PayPal refused the refund ({r.status or 'no status'})", Decimal(0)
-            refund_id = r.id
-        entry = {
-            "finding": str(index),
-            "amount": f"{amount:.2f}",
-            "refund_id": refund_id,
-            "at": _now(),
-            "note": note[:500],
-        }
-        store.update(job.id, guarantee=[*fresh.guarantee, entry])
-        report.findings[index].author_review = AuthorReview(verdict="wrong", note=note[:500])
-        write_report(report, reports)
+        if entry is None:
+            given = sum((Decimal(g["amount"]) for g in fresh.guarantee), Decimal(0))
+            cap = (Decimal(fresh.quote_usd) * GUARANTEE_CAP).quantize(Decimal("0.01"))
+            amount = GUARANTEE_USD if given + GUARANTEE_USD <= cap else Decimal(0)
+            entry = {
+                "finding": str(index),
+                "amount": f"{amount:.2f}",
+                "refund_id": "",
+                "request_id": f"guarantee-{job.id}-{index}",
+                "at": _now(),
+                "note": note[:500],
+                "status": "pending" if amount else "done",
+            }
+            store.update(job.id, guarantee=[*fresh.guarantee, entry])
+    amount = Decimal(entry["amount"])
+    refund_id = ""
+    if amount and fresh.budget_id and budgets is not None:
+        problem = _give_back_to_budget(
+            fresh.budget_id, f"{job.id}-finding-{index}", job.id, amount,
+            f"finding {index + 1} marked wrong", paypal, budgets,
+        )  # fmt: skip
+        if problem:
+            _drop_guarantee(store, job.id, index)
+            return problem, Decimal(0)
+        refund_id = f"budget:{fresh.budget_id}"
+    elif amount:
+        if not fresh.capture_id:
+            _drop_guarantee(store, job.id, index)
+            return "PayPal has no capture for this job", Decimal(0)
+        try:
+            r = paypal.refund_capture(
+                fresh.capture_id,
+                entry["amount"],
+                entry.get("request_id", f"guarantee-{job.id}-{index}"),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code >= 500:
+                raise  # PayPal may have refunded: the entry stays pending, a retry resends it
+            _drop_guarantee(store, job.id, index)
+            return f"PayPal refused the refund ({e.response.status_code})", Decimal(0)
+        if r.status not in ("COMPLETED", "PENDING"):
+            _drop_guarantee(store, job.id, index)
+            return f"PayPal refused the refund ({r.status or 'no status'})", Decimal(0)
+        refund_id = r.id
+
+    def done(g: dict[str, str]) -> dict[str, str]:
+        if g["finding"] == str(index):
+            return {**g, "status": "done", "refund_id": refund_id or g.get("refund_id", "")}
+        return g
+
+    with store.lock(job.id):
+        now = store.get(job.id)
+        if now is not None:
+            store.update(job.id, guarantee=[done(g) for g in now.guarantee])
+            _annotate_report(reports, now.guarantee)
     _sync(job, store.get(job.id))
     return None, amount
+
+
+def _drop_guarantee(store: JobStore, job_id: str, index: int) -> None:
+    """PayPal refused: nothing was given back, so the mark is taken off to be tried again."""
+    with store.lock(job_id):
+        now = store.get(job_id)
+        if now is not None:
+            store.update(job_id, guarantee=[g for g in now.guarantee if g["finding"] != str(index)])
+
+
+def _annotate_report(reports: Path, guarantee: list[dict[str, str]]) -> None:
+    """Show each mark on the report beside the model's call."""
+    from canonkeeper.models import AuditReport, AuthorReview
+    from canonkeeper.report import write_report
+
+    report = AuditReport.model_validate_json((reports / "report.json").read_text(encoding="utf-8"))
+    for g in guarantee:
+        i = int(g["finding"])
+        if 0 <= i < len(report.findings):
+            report.findings[i].author_review = AuthorReview(verdict="wrong", note=g.get("note", ""))
+    write_report(report, reports)

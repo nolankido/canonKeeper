@@ -444,14 +444,16 @@ def create_app(
             event = json.loads(body)
         except ValueError:
             raise HTTPException(400, "not JSON") from None
+        if not isinstance(event, dict) or not isinstance(event.get("resource") or {}, dict):
+            raise HTTPException(400, "not a PayPal event")
         kind = str(event.get("event_type", ""))
         resource = event.get("resource") or {}
         if kind == "CHECKOUT.ORDER.APPROVED":
             order_id = resource.get("id")
         elif kind == "PAYMENT.CAPTURE.COMPLETED":
-            order_id = ((resource.get("supplementary_data") or {}).get("related_ids") or {}).get(
-                "order_id"
-            )
+            extra = resource.get("supplementary_data")
+            ids = extra.get("related_ids") if isinstance(extra, dict) else None
+            order_id = ids.get("order_id") if isinstance(ids, dict) else None
         else:
             return JSONResponse({"ignored": kind})
         job = await run_in_threadpool(store.by_order, str(order_id or ""))
