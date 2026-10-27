@@ -97,7 +97,7 @@ Vocative names in dialogue as `first_name` claims (Mary Watson calling her husba
 still missed); subscriptions for ongoing series via PayPal Subscriptions; a hosted instance.
 
 ## Built with
-python, fastapi, paypal-orders-v2, mcp, gemini-api, ollama, pydantic, jinja2, rapidfuzz, tiktoken, render
+python, fastapi, paypal-orders-v2, paypal-js-sdk, paypal-webhooks, mcp, gemini-api, ag-grid, ollama, pydantic, jinja2, rapidfuzz, tiktoken, render
 
 ## PayPal tools used
 PayPal REST Orders v2 (sandbox): create order with `payment_source.paypal.experience_context`

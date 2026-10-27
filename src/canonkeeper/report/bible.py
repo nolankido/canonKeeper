@@ -82,6 +82,7 @@ def write_bible(
     views = build_views(store, min_claims=min_claims)
     tmpl = _env.get_template("bible.html")
     write_bible_csv(views, out_path.with_suffix(".csv"))
+    write_bible_grid(views, series_name, out_path.with_name("bible-grid.html"), n_claims=len(store))
     out_path.write_text(
         tmpl.render(
             series=series_name,
@@ -89,6 +90,64 @@ def write_bible(
             n_claims=len(store),
             n_entities=len(views),
             n_disputed=sum(v.disputed for v in views),
+        ),
+        encoding="utf-8",
+    )
+    return out_path
+
+
+GRID_SCRIPT = (
+    "/static/ag-grid-community-36.2.0.min.js"  # served by Preflight; the page falls back to the CDN
+)
+
+
+def bible_rows(views: list[EntityView]) -> list[dict[str, object]]:
+    """One row per sourced fact, as the CSV and the grid show it."""
+    rows: list[dict[str, object]] = []
+    for v in views:
+        for slot in v.slots:
+            for _, claims in slot.values:
+                for c in claims:
+                    rows.append(
+                        {
+                            "entity": v.name,
+                            "fact": label(slot.predicate),
+                            "value": value(c),
+                            "disputed": slot.disputed,
+                            "book": c.provenance.book_title or c.provenance.book,
+                            "chapter": chapter(c.provenance.chapter),
+                            "story_time": c.story_time or "",
+                            "quote": c.provenance.quote,
+                        }
+                    )
+    return rows
+
+
+def write_bible_grid(
+    views: list[EntityView],
+    series_name: str,
+    out_path: Path,
+    *,
+    n_claims: int,
+    card_view: str | None = "bible.html",
+    csv: str | None = "bible.csv",
+) -> Path:
+    """The bible as an AG Grid (Community, MIT): every fact sortable, filterable and searchable,
+    disputed facts highlighted, the passage one click away, CSV out of whatever is shown."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    rows = bible_rows(views)
+    out_path.write_text(
+        _env.get_template("bible_grid.html").render(
+            series=series_name,
+            rows=rows,
+            # what the grid holds (facts about named entities), so the header and the row
+            # count agree; `n_claims` (the whole bible) is kept for the caller's own summary
+            n_claims=len(rows),
+            n_entities=len(views),
+            n_disputed=sum(1 for r in rows if r["disputed"]),
+            card_view=card_view,
+            csv=csv,
+            local_script=GRID_SCRIPT,
         ),
         encoding="utf-8",
     )
@@ -105,20 +164,17 @@ def write_bible_csv(views: list[EntityView], path: Path) -> Path:
         w.writerow(
             ["entity", "fact", "value", "disputed", "book", "chapter", "story time", "quote"]
         )
-        for v in views:
-            for slot in v.slots:
-                for _, claims in slot.values:
-                    for c in claims:
-                        w.writerow(
-                            [
-                                v.name,
-                                label(slot.predicate),
-                                value(c),
-                                "yes" if slot.disputed else "",
-                                c.provenance.book_title or c.provenance.book,
-                                chapter(c.provenance.chapter),
-                                c.story_time or "",
-                                c.provenance.quote,
-                            ]
-                        )
+        for r in bible_rows(views):
+            w.writerow(
+                [
+                    r["entity"],
+                    r["fact"],
+                    r["value"],
+                    "yes" if r["disputed"] else "",
+                    r["book"],
+                    r["chapter"],
+                    r["story_time"],
+                    r["quote"],
+                ]
+            )
     return path

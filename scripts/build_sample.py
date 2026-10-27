@@ -2,7 +2,8 @@
 author's rulings beside the model's and the full list-price cost. No model calls.
 
     python scripts/build_sample.py .canonkeeper/sherlock-holmes/reports/report.json \\
-        --reviews src/canonkeeper/preflight/samples/sherlock-holmes-reviews.json --read-cost 1.40
+        --reviews src/canonkeeper/preflight/samples/sherlock-holmes-reviews.json --read-cost 1.40 \\
+        --bible .canonkeeper/sherlock-holmes/bible.jsonl
 
 `--read-cost`: what reading the books cost at list price, when the audit ran on a bible built
 in an earlier run (the README's figure comes from the request log of the Holmes build).
@@ -49,7 +50,23 @@ def main() -> None:
     ap.add_argument("--reviews", type=Path)
     ap.add_argument("--read-cost", type=float)
     ap.add_argument("--out", type=Path, default=SAMPLE)
+    ap.add_argument("--bible", type=Path, help="bible.jsonl: also build the bible explorer sample")
     a = ap.parse_args()
+    if a.bible:
+        from canonkeeper.canon import CanonStore
+        from canonkeeper.report.bible import build_views, write_bible_grid
+
+        store = CanonStore.load(a.bible)
+        grid = SAMPLE.with_name("sherlock-holmes-bible-grid.html")
+        write_bible_grid(
+            build_views(store),
+            "Sherlock Holmes",
+            grid,
+            n_claims=len(store),
+            card_view=None,
+            csv=None,
+        )
+        print(f"wrote {grid}")
     report = AuditReport.model_validate_json(a.report.read_text(encoding="utf-8"))
     if a.reviews:
         missing = apply_reviews(report, json.loads(a.reviews.read_text(encoding="utf-8")))

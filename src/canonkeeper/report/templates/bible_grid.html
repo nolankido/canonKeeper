@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ series }} · series bible explorer</title>
+<style>
+  :root {
+    --bg: #faf8f3; --fg: #1d1a16; --muted: #6b655c; --card: #ffffff; --line: #e6e1d7;
+    --warn: #b26a00; --warn-bg: #fbf1e1; --accent: #3b4f8a;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16140f; --fg: #ece7dc; --muted: #a39b8d; --card: #1f1c16; --line: #342f27;
+      --warn: #ffb14d; --warn-bg: #2c2215; --accent: #9fb0e8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 var(--serif); }
+  main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 40px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin-bottom: 14px; }
+  .sub a { color: var(--accent); }
+  .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+  input[type=search] { flex: 1 1 260px; padding: 9px 12px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); }
+  label { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  button { padding: 9px 14px; font: inherit; font-size: 14px; border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 8px; cursor: pointer; }
+  #count { font: 13px var(--mono); color: var(--muted); }
+  #grid { height: calc(100vh - 300px); min-height: 420px; }
+  #detail { margin-top: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; min-height: 64px; }
+  #detail .loc { font: 12px var(--mono); color: var(--muted); }
+  #detail q { display: block; font-style: italic; margin-top: 4px; }
+  #fallback { display: none; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  .ag-row.disputed { background: var(--warn-bg); }
+  .ag-row.disputed .flag { color: var(--warn); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>{{ series }}</h1>
+  <div class="sub">Series bible explorer · {{ "{:,}".format(n_claims) }} sourced facts about {{ "{:,}".format(n_entities) }} characters, places and things · {{ "{:,}".format(n_disputed) }} in disputed slots{% if card_view %} · <a href="{{ card_view }}">card view</a>{% endif %}{% if csv %} · <a href="{{ csv }}">spreadsheet (CSV)</a>{% endif %}</div>
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Search every fact and passage (a name, a colour, a place…)" aria-label="Search the bible">
+    <label><input id="disputed" type="checkbox"> Disputed facts only</label>
+    <button id="csv" type="button">Download what is shown (CSV)</button>
+    <span id="count" aria-live="polite"></span>
+  </div>
+  <div id="fallback" role="alert">The grid could not load (it needs the AG Grid script from this site or from cdn.jsdelivr.net). Every fact is also in the {% if card_view %}<a href="{{ card_view }}">card view</a>{% else %}card view{% endif %}{% if csv %} and the <a href="{{ csv }}">spreadsheet</a>{% endif %}.</div>
+  <div id="grid" aria-label="Every fact in the series bible"></div>
+  <div id="detail" aria-live="polite"><span class="loc">Select a row to read the passage behind it.</span></div>
+  <p class="sub" style="margin-top:16px">Grid by <a href="https://www.ag-grid.com/">AG Grid</a> Community (MIT). A disputed fact is one where the books give the same character two different values for something that can have only one (eye colour, birthplace…); the audit report judges whether it is an error or explained in the text.</p>
+</main>
+<script id="rows" type="application/json">{{ rows | tojson }}</script>
+<script>
+(function () {
+  var rows = JSON.parse(document.getElementById("rows").textContent);
+  var api = null, onlyDisputed = false;
+  var detail = document.getElementById("detail"), count = document.getElementById("count");
+
+  function text(tag, cls, value) {
+    var el = document.createElement(tag);
+    if (cls) el.className = cls;
+    el.textContent = value;
+    return el;
+  }
+  function show(r) {
+    detail.replaceChildren(
+      text("div", "loc", r.book + " · " + r.chapter + (r.story_time ? " · " + r.story_time : "") + " — " + r.entity + ", " + r.fact + ": " + r.value + (r.disputed ? " (disputed)" : "")),
+      text("q", "", r.quote)
+    );
+  }
+  function updateCount() {
+    if (api) count.textContent = api.getDisplayedRowCount().toLocaleString() + " of " + rows.length.toLocaleString() + " facts";
+  }
+  function start() {
+    var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var theme = agGrid.themeQuartz
+      .withPart(dark ? agGrid.colorSchemeDarkWarm : agGrid.colorSchemeLightWarm)
+      .withParams({ fontFamily: "inherit", headerFontWeight: 600 });
+    api = agGrid.createGrid(document.getElementById("grid"), {
+      theme: theme,
+      rowData: rows,
+      columnDefs: [
+        { field: "entity", headerName: "Who / what", pinned: "left", width: 200, filter: "agTextColumnFilter" },
+        { field: "fact", headerName: "Fact", width: 150, filter: "agTextColumnFilter" },
+        { field: "value", headerName: "Value", width: 170, filter: "agTextColumnFilter" },
+        { colId: "flag", headerName: "", width: 64, cellClass: "flag", cellDataType: "text",
+          valueGetter: function (p) { return p.data && p.data.disputed ? "⚠" : ""; },
+          headerTooltip: "Disputed: the books give two different values" },
+        { field: "book", headerName: "Book", width: 210, filter: "agTextColumnFilter" },
+        { field: "chapter", headerName: "Chapter", width: 190, filter: "agTextColumnFilter" },
+        { field: "quote", headerName: "Passage", flex: 1, minWidth: 260, tooltipField: "quote", filter: "agTextColumnFilter" }
+      ],
+      defaultColDef: { sortable: true, resizable: true },
+      rowClassRules: { disputed: function (p) { return !!(p.data && p.data.disputed); } },
+      isExternalFilterPresent: function () { return onlyDisputed; },
+      doesExternalFilterPass: function (node) { return !!node.data.disputed; },
+      onRowClicked: function (e) { show(e.data); },
+      onFilterChanged: updateCount,
+      onModelUpdated: updateCount
+    });
+    document.getElementById("search").addEventListener("input", function (e) {
+      api.setGridOption("quickFilterText", e.target.value);
+    });
+    document.getElementById("disputed").addEventListener("change", function (e) {
+      onlyDisputed = e.target.checked;
+      api.onFilterChanged();
+    });
+    document.getElementById("csv").addEventListener("click", function () {
+      api.exportDataAsCsv({ fileName: {{ (series ~ " - series bible.csv") | tojson }} });
+    });
+    updateCount();
+  }
+  function fail() {
+    document.getElementById("fallback").style.display = "block";
+    document.getElementById("grid").style.display = "none";
+  }
+  // The service's own copy first; a page opened from disk falls back to the pinned CDN copy.
+  var sources = [
+    { src: {{ local_script | tojson }} },
+    { src: "https://cdn.jsdelivr.net/npm/ag-grid-community@36.2.0/dist/ag-grid-community.min.js",
+      integrity: "sha384-icvtRKM0YJJgeDhXnWY8UlF1PVBFd4K8Pj61la+vG+EU+awBeoP0xGPZhCD2SQOV" }
+  ];
+  (function load(list) {
+    if (!list.length) return fail();
+    var s = document.createElement("script");
+    s.src = list[0].src;
+    if (list[0].integrity) { s.integrity = list[0].integrity; s.crossOrigin = "anonymous"; }
+    s.onload = function () { window.agGrid ? start() : load(list.slice(1)); };
+    s.onerror = function () { load(list.slice(1)); };
+    document.head.appendChild(s);
+  })(sources);
+})();
+</script>
+</body>
+</html>

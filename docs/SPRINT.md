@@ -32,7 +32,7 @@ sponsor prize. Target: Best Use of Agentic Commerce; sponsor: AG Grid (Render cr
 | T12 | Nov 1 | Extraction recall: names spoken in dialogue, one-line descriptions in chapters about someone else (8 of the 12 misses) | Tech, Impact | Mock rules and tests cover both | open |
 | T13 | Nov 1 night (quota) | Benchmark run 4 on T12; adopt or revert; README row | Tech | Recall up with precision held, or reverted | open |
 | T14 | Nov 2 | Author workflow: resolve or reject "needs your judgement" items and re-render; report links back to its job and draft check | Design, Impact | Round trip works on the demo series | open |
-| T15 | Nov 3 | AG Grid Community bible explorer: every fact with its passage, sort, filter, disputed rows flagged, CSV out (sponsor prize) | Design, sponsor | Smooth on the Holmes bible (3,963 facts) | open |
+| T15 | Nov 3 | AG Grid Community bible explorer: every fact with its passage, sort, filter, disputed rows flagged, CSV out (sponsor prize) | Design, sponsor | Smooth on the Holmes bible (3,963 facts) | done 10-27 (AG Grid Community 36.2.0, vendored; /sample/bible) |
 | T16 | Nov 4 | One visual system across home, quote, job, report, bible; PayPal-branded pay button; phone width; print; fresh-eyes screenshot review | Design | Review finds nothing it would change | open |
 | T17 | Nov 4 | Video script v2: problem, audience and value in the first 15 seconds; real sandbox checkout; Claude Desktop buying a draft check from its budget; real numbers | Presentation | Script timed under 2:50 | open |
 | T18 | Nov 7 (after N3) | Record every scene on the hosted instance; splice Nolan's two clips; captions | Presentation | Full cut assembled | open |

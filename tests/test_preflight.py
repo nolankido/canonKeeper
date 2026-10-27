@@ -1438,3 +1438,49 @@ def test_job_page_carries_a_payment_receipt(client):
     client.app.state.runner.wait(job_id, timeout=60)
     page = client.get(f"/jobs/{job_id}").text
     assert store.get(job_id).capture_id in page and order_id in page and "Nothing yet" not in page
+
+
+def test_the_bible_explorer_is_served_with_its_own_grid_script(client):
+    """T15: the bible as an AG Grid (Community, MIT), linked from the job page, served with the
+    vendored script (no CDN needed when hosted), with the same rows as the CSV."""
+    import re
+
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    token = client.post(f"/jobs/{job_id}/order").headers["location"].split("token=")[1]
+    client.get(client.post("/fake-approve", data={"token": token}).headers["location"])
+    client.app.state.runner.wait(job_id, timeout=60)
+    assert f'href="/jobs/{job_id}/bible-grid.html"' in client.get(f"/jobs/{job_id}").text
+    grid = client.get(f"/jobs/{job_id}/bible-grid.html").text
+    rows = json.loads(
+        re.search(r'<script id="rows" type="application/json">(.*?)</script>', grid, re.S)[1]
+    )
+    csv_rows = client.get(f"/jobs/{job_id}/bible.csv").content.decode("utf-8-sig").splitlines()[1:]
+    assert len(rows) == len(csv_rows) and f"{len(rows):,} sourced facts" in grid
+    assert any(r["entity"] == "Ivy Marlowe" and r["disputed"] for r in rows)
+    assert client.get(f"/jobs/{job_id}/bible.html").status_code == 200  # the grid's relative links
+    assert client.get(f"/jobs/{job_id}/download/bible-grid.html").status_code == 200
+    script = client.get("/static/ag-grid-community-36.2.0.min.js")
+    assert script.status_code == 200 and "createGrid" in script.text
+    assert client.get("/static/AG-GRID-LICENSE.txt").text.startswith("The MIT License")
+    sample = client.get("/sample/bible")
+    assert sample.status_code == 200 and "3,909 sourced facts" in sample.text
+
+
+def test_a_passage_cannot_break_out_of_the_grid_page(tmp_path):
+    from canonkeeper.models import Claim, ClaimKind, Provenance
+    from canonkeeper.report.bible import EntityView, SlotView, write_bible_grid
+
+    claim = Claim(
+        kind=ClaimKind.ATTRIBUTE,
+        subject="Ann",
+        predicate="eye_color",
+        object="green",
+        provenance=Provenance(
+            book="01", book_index=0, chapter="I", chapter_index=0,
+            quote='her eyes</script><script>alert(1)</script> were green',
+        ),
+    )  # fmt: skip
+    view = EntityView("Ann", [], 1, "01", [SlotView("eye_color", [("green", [claim])])])
+    html = write_bible_grid([view], "S", tmp_path / "g.html", n_claims=1).read_text()
+    assert "<script>alert(1)" not in html and "\\u003c/script\\u003e" in html

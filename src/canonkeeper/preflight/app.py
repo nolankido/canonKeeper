@@ -26,6 +26,7 @@ from urllib.parse import urlencode, urlparse
 import httpx
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.concurrency import run_in_threadpool
@@ -63,6 +64,7 @@ from canonkeeper.report.display import headline
 
 _TEMPLATES = Path(__file__).parent / "templates"
 _SAMPLES = Path(__file__).parent / "samples"
+_STATIC = Path(__file__).parent / "static"
 _MY_JOBS, _MY_JOBS_MAX = "preflight_jobs", 10  # cookie: the jobs this browser started
 _JOB_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
@@ -274,6 +276,18 @@ def create_app(
         if not p.exists():
             raise HTTPException(404)
         return FileResponse(p, media_type="text/html")
+
+    @app.get("/sample/bible", response_class=HTMLResponse)
+    def sample_bible() -> FileResponse:
+        """The six Holmes volumes' bible in the grid explorer: 3,963 facts to sort and search."""
+        p = _SAMPLES / "sherlock-holmes-bible-grid.html"
+        if not p.exists():
+            raise HTTPException(404)
+        return FileResponse(p, media_type="text/html")
+
+    # AG Grid Community (MIT, AG-GRID-LICENSE.txt) for the bible explorer, served from here so
+    # the hosted pages do not depend on a CDN.
+    app.mount("/static", StaticFiles(directory=_STATIC), name="static")
 
     store.prune_unpaid()
 
@@ -636,7 +650,7 @@ def create_app(
     def download(job_id: str, name: str) -> FileResponse:
         """The finished files as attachments, named after the series: a free host's disk does
         not keep them forever, and the JSON is what other tools (or an assistant) can read."""
-        if name not in ("report.html", "report.json", "bible.html", "bible.csv"):
+        if name not in ("report.html", "report.json", "bible.html", "bible-grid.html", "bible.csv"):
             raise HTTPException(404)
         job = store.get(job_id)
         if job is None:
@@ -649,14 +663,30 @@ def create_app(
         stem, ext = name.rsplit(".", 1)
         return FileResponse(p, filename=f"{slug}-{kind}-{stem}.{ext}")
 
-    @app.get("/jobs/{job_id}/bible")
-    def bible(job_id: str) -> FileResponse:
+    def bible_file(job_id: str, name: str) -> FileResponse:
         if store.get(job_id) is None:
             raise HTTPException(404)
-        p = store.dir(job_id) / "reports" / "bible.html"
+        p = store.dir(job_id) / "reports" / name
         if not p.exists():
             raise HTTPException(404, "bible not ready")
         return FileResponse(p)
+
+    @app.get("/jobs/{job_id}/bible")
+    def bible(job_id: str) -> FileResponse:
+        return bible_file(job_id, "bible.html")
+
+    # The bible's three views link to each other by relative name, as they do on disk.
+    @app.get("/jobs/{job_id}/bible.html")
+    def bible_cards(job_id: str) -> FileResponse:
+        return bible_file(job_id, "bible.html")
+
+    @app.get("/jobs/{job_id}/bible-grid.html")
+    def bible_grid(job_id: str) -> FileResponse:
+        return bible_file(job_id, "bible-grid.html")
+
+    @app.get("/jobs/{job_id}/bible.csv")
+    def bible_csv(job_id: str) -> FileResponse:
+        return bible_file(job_id, "bible.csv")
 
     if isinstance(pp, FakePayPal):
 
