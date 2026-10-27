@@ -577,8 +577,11 @@ def eval_cmd(
         )
     for f in s.extra:
         console.print(f"[red]false positive[/red] {f.candidate.reason}")
+    judged = report.models.get("adjudicated_by", "-")
+    console.print(f"[dim]judged by: {judged}[/dim]")
     (eval_dir / "result.md").write_text(
-        s.markdown() + "\n" + misses_markdown(misses) + "\n", encoding="utf-8"
+        s.markdown() + f"\n\nJudged by: {judged}\n" + misses_markdown(misses) + "\n",
+        encoding="utf-8",
     )
     (eval_dir / "injections.json").write_text(
         json.dumps([inj.__dict__ for inj in iset.injections], indent=1), encoding="utf-8"

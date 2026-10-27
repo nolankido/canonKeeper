@@ -158,3 +158,11 @@ def test_clearing_a_conflict_needs_a_passage_from_the_text(series, settings, moc
     assert listing.verdict == "ambiguous"
     real = run(lambda m: {"verdict": "contradiction"})
     assert real.verdict == "contradiction"  # contradictions need no extra proof
+
+
+def test_report_records_which_models_really_judged(series, settings, mock_llm, tmp_path):
+    from canonkeeper.pipeline import audit
+
+    store = build_bible(series, mock_llm, settings, tmp_path / "b.jsonl", progress=False)
+    report = audit(series, store, mock_llm, settings, progress=False)
+    assert report.models["adjudicated_by"].startswith(settings.adjudicate_model)

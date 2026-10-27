@@ -14,6 +14,12 @@ from canonkeeper.llm import LLM
 from canonkeeper.models import AuditReport
 
 
+def _answered_since(usage: object, before: dict[str, int]) -> str:
+    now: dict[str, int] = dict(getattr(usage, "answered_by", {}) or {})
+    diff = {m: n - before.get(m, 0) for m, n in now.items() if n - before.get(m, 0) > 0}
+    return ", ".join(f"{m} ×{n}" for m, n in sorted(diff.items(), key=lambda kv: -kv[1])) or "-"
+
+
 def build_bible(
     series: Series,
     llm: LLM,
@@ -61,6 +67,8 @@ def audit(
         candidates = [
             c for c in candidates if any(cl.provenance.book == only_book for cl in c.claims)
         ]
+    usage = getattr(llm, "usage", None)
+    before = dict(usage.answered_by) if usage is not None else {}
     adj = Adjudicator(llm, settings, series)
     findings = adj.judge_all(
         candidates, store, series.name, progress=progress, on_progress=on_progress
@@ -75,6 +83,9 @@ def audit(
             "extract": settings.extract_model,
             "adjudicate": settings.adjudicate_model,
             "provider": settings.provider,
+            # Which models really judged, after fallbacks (a free-tier run can end up on a
+            # smaller model when the configured one is overloaded or out of daily budget).
+            "adjudicated_by": _answered_since(usage, before),
         },
         cost_usd=None if settings.provider == "mock" else round(llm.usage.cost_usd, 4),
     )

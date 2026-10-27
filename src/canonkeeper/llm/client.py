@@ -54,9 +54,12 @@ class Usage:
     retries: int = 0
     cost_usd: float = 0.0
     by_model: dict[str, dict[str, float]] = field(default_factory=dict)
+    answered_by: dict[str, int] = field(default_factory=dict)
+    """Calls per model that actually produced the answer, cached or not (after any fallback)."""
 
     def add(self, model: str, prompt: int, completion: int, cached: bool) -> None:
         self.calls += 1
+        self.answered_by[model] = self.answered_by.get(model, 0) + 1
         if cached:
             self.cached_calls += 1
             return
