@@ -578,3 +578,27 @@ def test_fallbacks_can_be_switched_off_for_a_measurement():
     off = Settings(provider="gemini", model_fallbacks_enabled=False, _env_file=None)
     assert on.model_fallbacks["gemini-3.6-flash"] and off.model_fallbacks == {}
     assert on.model_fallbacks["gemini-3.5-flash-lite"] == ["gemini-3.1-flash-lite"]
+
+
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="needs time.tzset (POSIX)")
+def test_a_log_timestamp_with_its_own_offset_is_not_shifted_by_the_machines_zone():
+    """Regression: on a machine whose clock is in Hawaii, a UTC timestamp at 21:00 was shifted
+    another ten hours and counted on tomorrow's quota, so a spent day looked untouched."""
+    import os
+    from datetime import UTC, datetime
+
+    from canonkeeper.llm.client import _to_provider_day
+
+    before = os.environ.get("TZ")
+    os.environ["TZ"] = "Pacific/Honolulu"
+    time.tzset()
+    try:
+        ts = datetime(2026, 10, 27, 21, 0, tzinfo=UTC).isoformat()
+        assert _to_provider_day(ts, -7) == "2026-10-27"  # 14:00 in California
+        assert _to_provider_day("2026-10-27T11:00:00", -7) == "2026-10-27"  # naive = local
+    finally:
+        if before is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = before
+        time.tzset()

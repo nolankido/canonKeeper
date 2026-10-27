@@ -258,6 +258,9 @@ def _to_provider_day(local_ts: str, day_offset: int) -> str:
         local = datetime.fromisoformat(local_ts)
     except ValueError:
         return ""
+    if local.tzinfo is not None:  # the timestamp says its own offset: never shift it again
+        utc = local.utcoffset() or timedelta(0)
+        return (local.replace(tzinfo=None) - utc + timedelta(hours=day_offset)).date().isoformat()
     utc_offset = datetime.now().astimezone().utcoffset() or timedelta(0)
     return (local - utc_offset + timedelta(hours=day_offset)).date().isoformat()
 
