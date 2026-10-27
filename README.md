@@ -141,7 +141,7 @@ free tier, with no hints. Latest run (2026-10-27):
 The two best-known continuity errors in the canon, found unassisted, each with its passages on
 the page:
 
-![The Holmes audit report: Watson's wound, four passages, the adjudicator's verdict and a fix to the later book](docs/img/report.png)
+![The Holmes audit report: Watson's wound and the Hudson/Turner landlady, each with its passages and a fix to the later book](docs/img/report.png)
 
 Every fact behind it is browsable in the bible page, with its source passage one click away:
 

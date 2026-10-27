@@ -48,7 +48,7 @@ injects contradictions into public-domain novels and scores precision/recall.
 - Cleared 18 candidates, each by quoting the passage that clears it — e.g. Holmes "dying" at
   the Reichenbach Falls and then acting in *The Hound* ("aided by the diary which I kept at the
   time": it is set earlier). Two of its four contradictions were wrong (a disguise; a maiden
-  name), and the report says so in the README rather than hiding it.
+  name), and the README says so rather than hiding it.
 - Benchmark (seeded defects, 6 volumes): ___ precision / ___ recall on 20 injected
   contradictions. ← from `canonkeeper eval`; the first run scored 1.00 / 0.05 and the
   harness pointed straight at extraction, which is the point of having one.

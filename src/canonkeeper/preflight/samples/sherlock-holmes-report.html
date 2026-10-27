@@ -49,11 +49,11 @@
   <div class="sub">6 books · continuity audit by canonkeeper</div>
 
   <div class="stats">
-    <div class="stat"><b>2331</b><span>facts in bible</span></div>
-    <div class="stat"><b>26</b><span>candidates screened</span></div>
-    <div class="stat"><b>1</b><span>contradictions</span></div>
+    <div class="stat"><b>3963</b><span>facts in bible</span></div>
+    <div class="stat"><b>27</b><span>candidates screened</span></div>
+    <div class="stat"><b>4</b><span>contradictions</span></div>
     <div class="stat"><b>2</b><span>deliberate reveals</span></div>
-    <div class="stat"><b>$0.21</b><span>API cost</span></div>
+    <div class="stat"><b>$0.15</b><span>list-price API cost</span></div>
   </div>
 
   <h2>Contradictions</h2>
@@ -61,7 +61,7 @@
   
   <div class="f high">
     <span class="tag high">high</span><span class="tag">slot_mismatch</span>
-    <strong>John Watson.wound_location is &#39;shoulder&#39; (A Study in Scarlet · MR. SHERLOCK HOLMES.), &#39;left arm&#39; (A Study in Scarlet · THE SCIENCE OF DEDUCTION.), &#39;leg&#39; (The Sign of the Four · The Science of Deduction), &#39;limb&#39; (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR)</strong>
+    <strong>John Watson.wound_location is &#39;shoulder&#39; (A Study in Scarlet · MR. SHERLOCK HOLMES.), &#39;left arm&#39; (A Study in Scarlet · THE SCIENCE OF DEDUCTION.), &#39;leg&#39; (The Sign of the Four · The Science of Deduction), &#39;limb&#39; (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR), &#39;old wound&#39; (The Memoirs of Sherlock Holmes · II. The Adventure of the Cardboard Box)</strong>
     
     <div class="claim">
       <div class="loc">Book 1 · MR. SHERLOCK HOLMES. — <code>John Watson.wound_location = shoulder</code></div>
@@ -75,171 +75,308 @@
     
     <div class="claim">
       <div class="loc">Book 2 · The Science of Deduction — <code>John Watson.wound_location = leg</code></div>
-      <q>sat nursing my wounded leg.</q>
+      <q>I had a Jezail bullet through it some time before</q>
     </div>
     
     <div class="claim">
       <div class="loc">Book 3 · X. THE ADVENTURE OF THE NOBLE BACHELOR — <code>John Watson.wound_location = limb</code></div>
-      <q>the jezail bullet which I had brought back in one of my limbs as a relic of my Afghan campaign</q>
+      <q>the jezail bullet which I had brought back in one of my limbs</q>
     </div>
     
-    <p>In &#39;A Study in Scarlet&#39;, Watson&#39;s Jezail bullet wound is located in his shoulder/arm (&#39;struck on the shoulder by a Jezail bullet&#39;, &#39;His left arm has been injured&#39;), whereas in &#39;The Sign of the Four&#39;, Watson claims he &#39;sat nursing my wounded leg&#39;.</p>
-    <div class="fix"><b>Suggested fix (later book):</b> In &#39;The Sign of the Four&#39;, change &#39;sat nursing my wounded leg&#39; to &#39;sat nursing my wounded arm&#39;.</div>
+    <div class="claim">
+      <div class="loc">Book 4 · II. The Adventure of the Cardboard Box — <code>John Watson.wound_location = old wound</code></div>
+      <q>Your hand stole towards your own old wound</q>
+    </div>
+    
+    <p>In &#39;A Study in Scarlet&#39;, Watson describes his Jezail bullet wound as being in his shoulder/arm (&#39;struck on the shoulder by a Jezail bullet&#39;), whereas in &#39;The Sign of the Four&#39;, he states that the bullet passed through his leg (&#39;I sat nursing my wounded leg. I had a Jezail bullet through it some time before&#39;).</p>
+    <div class="fix"><b>Suggested fix (later book):</b> In &#39;The Sign of the Four&#39; (The Science of Deduction), change &#39;I sat nursing my wounded leg. I had a Jezail bullet through it&#39; to &#39;I sat nursing my wounded arm. I had a Jezail bullet through it&#39;.</div>
+  </div>
+  
+  <div class="f high">
+    <span class="tag high">high</span><span class="tag">name_drift</span>
+    <strong>Mrs. Barclay.surname is &#39;Barclay&#39; in The Memoirs of Sherlock Holmes · VIII. The Crooked Man but &#39;Devoy&#39; in The Memoirs of Sherlock Holmes · VIII. The Crooked Man</strong>
+    
+    <div class="claim">
+      <div class="loc">Book 4 · VIII. The Crooked Man — <code>Mrs. Barclay.surname = Barclay</code></div>
+      <q>Mrs. Barclay has always, I understand, been as popular with the ladies of the regiment as her husband was with his brother officers.</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 4 · VIII. The Crooked Man — <code>Mrs. Barclay.surname = Devoy</code></div>
+      <q>Nancy Devoy, the daughter of the colour-sergeant.</q>
+    </div>
+    
+    <p>The passages assign two different surnames (&#39;Barclay&#39; and &#39;Devoy&#39;) to the same person. As written without context in the text provided, they contradict each other regarding her surname.</p>
+    <div class="fix"><b>Suggested fix (later book):</b> Change &#34;Nancy Devoy&#34; to &#34;Nancy Barclay&#34; in the later passage.</div>
+  </div>
+  
+  <div class="f medium">
+    <span class="tag medium">medium</span><span class="tag">slot_mismatch</span>
+    <strong>Sherlock Holmes.eye_color is &#39;dark&#39; (The Sign of the Four · A Break in the Chain), &#39;grey&#39; (The Hound of the Baskervilles · Death on the Moor)</strong>
+    
+    <div class="claim">
+      <div class="loc">Book 2 · A Break in the Chain — <code>Sherlock Holmes.eye_color = dark</code></div>
+      <q>a pair of keen dark eyes</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 5 · Death on the Moor — <code>Sherlock Holmes.eye_color = grey</code></div>
+      <q>his grey eyes dancing with amusement as they fell upon my astonished features.</q>
+    </div>
+    
+    <p>Sherlock Holmes&#39;s eye color is described as &#39;dark&#39; in &#39;The Sign of the Four&#39; (&#39;a pair of keen dark eyes&#39;) and &#39;grey&#39; in &#39;The Hound of the Baskervilles&#39; (&#39;his grey eyes dancing with amusement&#39;). These physical descriptions directly disagree.</p>
+    <div class="fix"><b>Suggested fix (later book):</b> In &#39;The Hound of the Baskervilles&#39; (Death on the Moor), change &#39;his grey eyes dancing with amusement&#39; to &#39;his dark eyes dancing with amusement&#39;.</div>
+  </div>
+  
+  <div class="f medium">
+    <span class="tag medium">medium</span><span class="tag">role_collision</span>
+    <strong>the landlady of Sherlock Holmes&#39;s household is Mrs. Hudson (The Sign of the Four · The Science of Deduction), Mrs. Turner (The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA)</strong>
+    
+    <div class="claim">
+      <div class="loc">Book 2 · The Science of Deduction — <code>Mrs. Hudson.occupation = landlady</code></div>
+      <q>our landlady entered</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 3 · I. A SCANDAL IN BOHEMIA — <code>Mrs. Turner.occupation = landlady</code></div>
+      <q>our landlady had provided</q>
+    </div>
+    
+    <p>In &#39;A Scandal in Bohemia&#39;, Holmes refers to &#39;Mrs. Turner&#39; bringing the tray, and the narrative refers to her as &#39;our landlady&#39;. In &#39;The Sign of the Four&#39;, the landlady of 221B Baker Street is established as Mrs. Hudson. No explanation or change of staff is given in the text.</p>
+    <div class="fix"><b>Suggested fix (later book):</b> Replace &#34;Mrs. Turner&#34; with &#34;Mrs. Hudson&#34;.</div>
   </div>
   
 
   
-  <h2>Reviewed and cleared</h2>
-  <details><summary>25 candidates judged deliberate, ambiguous, or not a conflict</summary>
   
-  <div class="f other">
-    <span class="tag ok">ambiguous</span><span class="tag">slot_mismatch</span>
-    <strong>Violet Hunter.hair_color is &#39;chestnut&#39; (The Adventures of Sherlock Holmes · XII. THE ADVENTURE OF THE COPPER BEECHES), &#39;peculiar tint&#39; (The Adventures of Sherlock Holmes · XII. THE ADVENTURE OF THE COPPER BEECHES)</strong>
-    <p>(no explanation returned)</p>
+  
+  <h2>Needs your judgement</h2>
+  
+  <div class="f medium">
+    <span class="tag medium">ambiguous</span><span class="tag">origin_mismatch</span>
+    <strong>Dr. Becher.nationality is &#39;german&#39; (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB) but nationality is &#39;englishman&#39; (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB)</strong>
+    
+    <div class="claim">
+      <div class="loc">Book 3 · IX. THE ADVENTURE OF THE ENGINEER’S THUMB — <code>Dr. Becher.nationality = german</code></div>
+      <q>is Dr. Becher a German, very thin, with a long, sharp nose?</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 3 · IX. THE ADVENTURE OF THE ENGINEER’S THUMB — <code>Dr. Becher.nationality = englishman</code></div>
+      <q>No, sir, Dr. Becher is an Englishman, and there isn’t a man in the parish who has a better-lined waistcoat.</q>
+    </div>
+    
+    <p>The first passage asks a question speculating whether Dr. Becher is German, while the second passage definitively corrects the query by stating he is an Englishman. The text is loose enough that a speculative question and a corrective answer are consistent.</p>
   </div>
   
-  <div class="f other">
-    <span class="tag ok">ambiguous</span><span class="tag">slot_mismatch</span>
-    <strong>John Straker.wound_location is &#39;head&#39; (The Memoirs of Sherlock Holmes · I. Silver Blaze), &#39;thigh&#39; (The Memoirs of Sherlock Holmes · I. Silver Blaze)</strong>
-    <p>(no explanation returned)</p>
+  <div class="f medium">
+    <span class="tag medium">ambiguous</span><span class="tag">role_collision</span>
+    <strong>the housekeeper of Sherlock Holmes&#39;s household is Mrs. Hudson (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), Helen Stoner (The Adventures of Sherlock Holmes · VIII. THE ADVENTURE OF THE SPECKLED BAND) (tie for Helen Stoner is only that Sherlock Holmes is in the scene)</strong>
+    
+    <div class="claim">
+      <div class="loc">Book 4 · XI. The Naval Treaty — <code>Mrs. Hudson.occupation = housekeeper</code></div>
+      <q>Mrs. Hudson entered with the tea and coffee.</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 3 · VIII. THE ADVENTURE OF THE SPECKLED BAND — <code>Helen Stoner.occupation = housekeeper</code></div>
+      <q>We have a housekeeper now, but she is old and foolish</q>
+    </div>
+    
+    <p>The first passage describes Mrs. Hudson serving tea at Baker Street, while the second passage quotes Helen Stoner referring to an elderly housekeeper in her own household. Neither passage asserts that Helen Stoner is the housekeeper of Holmes&#39;s household.</p>
   </div>
   
-  <div class="f other">
-    <span class="tag ok">ambiguous</span><span class="tag">slot_mismatch</span>
-    <strong>Miss Cushing.hair_color is &#39;grizzled&#39; (The Memoirs of Sherlock Holmes · II. The Adventure of the Cardboard Box), &#39;black&#39; (The Memoirs of Sherlock Holmes · II. The Adventure of the Cardboard Box)</strong>
-    <p>(no explanation returned)</p>
+  <div class="f medium">
+    <span class="tag medium">ambiguous</span><span class="tag">slot_mismatch</span>
+    <strong>Jonathan Small.wound_location is &#39;right leg&#39; (The Sign of the Four · Sherlock Holmes Gives a Demonstration), &#39;palm of his hand&#39; (The Sign of the Four · Sherlock Holmes Gives a Demonstration), &#39;right side&#39; (The Sign of the Four · The End of the Islander), &#39;above the knee&#39; (The Sign of the Four · The Strange Story of Jonathan Small)</strong>
+    
+    <div class="claim">
+      <div class="loc">Book 2 · Sherlock Holmes Gives a Demonstration — <code>Jonathan Small.wound_location = right leg</code></div>
+      <q>with his right leg off,</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 2 · Sherlock Holmes Gives a Demonstration — <code>Jonathan Small.wound_location = palm of his hand</code></div>
+      <q>there is a good deal of skin missing from the palm of his hand.</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 2 · The End of the Islander — <code>Jonathan Small.wound_location = right side</code></div>
+      <q>from the thigh downwards there was but a wooden stump upon the right side.</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 2 · The Strange Story of Jonathan Small — <code>Jonathan Small.wound_location = above the knee</code></div>
+      <q>just above the knee.</q>
+    </div>
+    
+    <p>The passages describe distinct physical features and injuries—an amputated right leg (a wooden stump above the knee) and skin missing from the palm of his hand. Because they describe different body parts, they can be read as consistent.</p>
   </div>
   
-  <div class="f other">
-    <span class="tag ok">deliberate</span><span class="tag">slot_mismatch</span>
-    <strong>Lucy Ferrier.hair_color is &#39;fair&#39; (A Study in Scarlet · ON THE GREAT ALKALI PLAIN.), &#39;chestnut&#39; (A Study in Scarlet · JOHN FERRIER TALKS WITH THE PROPHET.)</strong>
-    <p>The shift in Lucy Ferrier&#39;s hair color from &#39;golden&#39; to &#39;chestnut&#39; is supported by the story&#39;s multi-year time jump from when she was a five-year-old child to a young woman.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">deliberate</span><span class="tag">slot_mismatch</span>
-    <strong>Sherlock Holmes.eye_color is &#39;dark&#39; (The Sign of the Four · A Break in the Chain), &#39;grey&#39; (The Hound of the Baskervilles · Death on the Moor)</strong>
-    <p>In &#39;The Sign of the Four&#39;, the description of dark eyes occurs while Sherlock Holmes is in disguise as an old master mariner. His true eye color is grey.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>John Watson.birthplace is &#39;afghanistan&#39; (A Study in Scarlet · MR. SHERLOCK HOLMES.), &#39;tropics&#39; (A Study in Scarlet · THE SCIENCE OF DEDUCTION.)</strong>
-    <p>The bible mislabeled Watson&#39;s recent military service location (&#39;come from Afghanistan&#39; / &#39;come from the tropics&#39;) as his birthplace. There is no contradiction in the text.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>Sherlock Holmes.height is &#39;over six feet&#39; (A Study in Scarlet · THE SCIENCE OF DEDUCTION.), &#39;tall&#39; (The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA)</strong>
-    <p>Describing a man who is &#39;rather over six feet&#39; in height as &#39;tall&#39; is completely consistent.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>Tobias Gregson.hair_color is &#39;flaxen&#39; (A Study in Scarlet · THE LAURISTON GARDENS MYSTERY), &#39;fair&#39; (A Study in Scarlet · TOBIAS GREGSON SHOWS WHAT HE CAN DO.)</strong>
-    <p>&#39;Flaxen&#39; (pale yellow) is simply a specific shade of &#39;fair&#39; hair, so the two descriptions are consistent.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>Jonathan Small.wound_location is &#39;right leg&#39; (The Sign of the Four · Sherlock Holmes Gives a Demonstration), &#39;right thigh downwards&#39; (The Sign of the Four · The End of the Islander)</strong>
-    <p>Both phrases describe the exact same physical detail: Jonathan Small&#39;s missing right leg (amputated from the thigh down).</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>Jonathan Small.nationality is &#39;englishman&#39; (The Sign of the Four · The Episode of the Barrel), &#39;white&#39; (The Sign of the Four · The Episode of the Barrel), &#39;worcestershire&#39; (The Sign of the Four · The Strange Story of Jonathan Small)</strong>
-    <p>Being an Englishman, a white man, and from Worcestershire (a county in England) are consistent and complementary facts.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
-    <strong>Rodger Baskerville dies in The Hound of the Baskervilles · The Problem but acts in The Hound of the Baskervilles · Three Broken Threads</strong>
-    <p>Both passages consistently state that Rodger Baskerville is dead. Passage 1 states he died in 1876 in Central America of yellow fever, and Passage 2 mentions that he died unmarried. There is no conflict.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
-    <strong>Sherlock Holmes dies in The Sign of the Four · The End of the Islander but acts in The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA</strong>
-    <p>The passage in &#39;The End of the Islander&#39; describes the death of Tonga (the islander dwarf), who was shot by Holmes and Watson and fell into the Thames. Sherlock Holmes did not die in that scene; the bible extraction misattributed Tonga&#39;s death to Sherlock Holmes.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>Sherlock Holmes.hair_color is &#39;white&#39; (The Sign of the Four · A Break in the Chain), &#39;grey&#39; (The Sign of the Four · A Break in the Chain)</strong>
-    <p>The passages describe different parts of a fake costume worn by Sherlock Holmes (&#39;bushy white brows&#39; and &#39;long grey side-whiskers&#39;). Eyebrows and side-whiskers are distinct facial hair features, and both are part of a disguise rather than Holmes&#39;s actual hair color.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>Jonathan Small.birthplace is &#39;pershore&#39; (The Sign of the Four · The Strange Story of Jonathan Small), &#39;worcestershire&#39; (The Sign of the Four · The Strange Story of Jonathan Small)</strong>
-    <p>Pershore is a town located in Worcestershire, England. Being born near Pershore and being a &#39;Worcestershire man&#39; are fully consistent statements.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>Helen Stoner.child_of is &#39;Grimesby Roylott&#39; (The Adventures of Sherlock Holmes · VIII. THE ADVENTURE OF THE SPECKLED BAND), &#39;Mrs. Stoner&#39; (The Adventures of Sherlock Holmes · VIII. THE ADVENTURE OF THE SPECKLED BAND)</strong>
-    <p>Grimesby Roylott is Helen Stoner&#39;s stepfather, whereas Mrs. Stoner is her mother. The two relationship descriptions do not conflict.</p>
-  </div>
-  
-  <div class="f other">
-    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+  <div class="f medium">
+    <span class="tag medium">ambiguous</span><span class="tag">slot_mismatch</span>
     <strong>Dr. Becher.nationality is &#39;german&#39; (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB), &#39;englishman&#39; (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB)</strong>
-    <p>The first quote is a question posed by Victor Hatherley based on a misunderstanding. The station-master immediately corrects him in the second quote, explaining that Dr. Becher is an Englishman and the thin German was merely a foreign guest.</p>
+    
+    <div class="claim">
+      <div class="loc">Book 3 · IX. THE ADVENTURE OF THE ENGINEER’S THUMB — <code>Dr. Becher.nationality = german</code></div>
+      <q>is Dr. Becher a German, very thin, with a long, sharp nose?</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 3 · IX. THE ADVENTURE OF THE ENGINEER’S THUMB — <code>Dr. Becher.nationality = englishman</code></div>
+      <q>Dr. Becher is an Englishman</q>
+    </div>
+    
+    <p>The first passage is a character asking a question (&#39;is Dr. Becher a German...?&#39;), which is subsequently answered and clarified by the second passage stating that Dr. Becher is an Englishman. As a question and answer, the text can be read consistently.</p>
+  </div>
+  
+  <div class="f medium">
+    <span class="tag medium">ambiguous</span><span class="tag">slot_mismatch</span>
+    <strong>Baskerville.eye_color is &#39;dark&#39; (The Hound of the Baskervilles · Sir Henry Baskerville), &#39;hazel&#39; (The Hound of the Baskervilles · Baskerville Hall)</strong>
+    
+    <div class="claim">
+      <div class="loc">Book 5 · Sir Henry Baskerville — <code>Baskerville.eye_color = dark</code></div>
+      <q>dark-eyed man</q>
+    </div>
+    
+    <div class="claim">
+      <div class="loc">Book 5 · Baskerville Hall — <code>Baskerville.eye_color = hazel</code></div>
+      <q>There were pride, valour, and strength in his thick brows, his sensitive nostrils, and his large hazel eyes.</q>
+    </div>
+    
+    <p>Sir Henry Baskerville is described as a &#39;dark-eyed man&#39; in one passage and as having &#39;large hazel eyes&#39; in another. Because hazel eyes are commonly categorized among dark eye colors, these descriptions are broadly compatible.</p>
+  </div>
+  
+  
+
+  
+  <h2>Reviewed and cleared</h2>
+  <details><summary>18 candidates judged deliberate or not a conflict, each on a quoted passage</summary>
+  
+  <div class="f other">
+    <span class="tag ok">deliberate</span><span class="tag">slot_mismatch</span>
+    <strong>Lucy Ferrier.hair_color is &#39;fair&#39; (A Study in Scarlet · ON THE GREAT ALKALI PLAIN.), &#39;chestnut&#39; (A Study in Scarlet · THE FLOWER OF UTAH.)</strong>
+    <p>In Chapter 1 of &#39;A Study in Scarlet&#39;, Lucy Ferrier is depicted as a five-year-old child with golden hair. Chapter 2 explicitly states that twelve years passed, during which her hair naturally darkened to chestnut as she grew into adulthood.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>In three years he was better off than his neighbours, in six he was well-to-do, in nine he was rich, and in twelve there were not half a dozen men in the whole of Salt Lake City who could compare with him.</q></div>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">deliberate</span><span class="tag">slot_mismatch</span>
+    <strong>Jefferson Hope.hair_color is &#39;dark&#39; (A Study in Scarlet · THE FLOWER OF UTAH.), &#39;black&#39; (A Study in Scarlet · THE AVENGING ANGELS.), &#39;grizzled&#39; (A Study in Scarlet · THE AVENGING ANGELS.)</strong>
+    <p>The story explicitly describes Jefferson Hope&#39;s hair turning grizzled from black over the years he spent relentlessly tracking his enemies.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>Year passed into year, his black hair turned grizzled, but still he wandered on, a human bloodhound, with his mind wholly set upon the one object upon which he had devoted his life.</q></div>
   </div>
   
   <div class="f other">
     <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>Mary Holder.eye_color is &#39;dark&#39; (The Adventures of Sherlock Holmes · XI. THE ADVENTURE OF THE BERYL CORONET), &#39;black&#39; (The Adventures of Sherlock Holmes · XI. THE ADVENTURE OF THE BERYL CORONET)</strong>
-    <p>Describing a character&#39;s eyes as &#39;dark&#39; and &#39;black&#39; in descriptive prose is standard synonymous usage and not a factual contradiction.</p>
+    <strong>Sherlock Holmes.height is &#39;over six feet&#39; (A Study in Scarlet · THE SCIENCE OF DEDUCTION.), &#39;tall&#39; (The Memoirs of Sherlock Holmes · III. The Yellow Face)</strong>
+    <p>The series bible extracted a false conflict. Describing Holmes as &#39;rather over six feet&#39; in height is completely consistent with describing him as tall. Furthermore, the second quote cited merely refers to his &#39;long, thin fore-finger&#39;.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>In height he was rather over six feet, and so excessively lean that he seemed to be considerably taller.</q></div>
   </div>
   
   <div class="f other">
     <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>Henry Baskerville.hair_color is &#39;black&#39; (The Hound of the Baskervilles · Sir Henry Baskerville), &#39;dark&#39; (The Hound of the Baskervilles · Baskerville Hall)</strong>
-    <p>The source passages describe Sir Henry&#39;s &#39;thick black eyebrows&#39; and &#39;dark and expressive face&#39;, neither of which is a statement of hair color. The bible extraction mislabeled these facial feature descriptions as hair color.</p>
+    <strong>Lucy Ferrier.child_of is &#39;John Ferrier&#39; (A Study in Scarlet · ON THE GREAT ALKALI PLAIN.), &#39;Effie&#39; (The Memoirs of Sherlock Holmes · III. The Yellow Face), &#39;John Hebron&#39; (The Memoirs of Sherlock Holmes · III. The Yellow Face)</strong>
+    <p>The bible conflated two different characters named Lucy. Lucy Ferrier in &#39;A Study in Scarlet&#39; was adopted by John Ferrier, while little Lucy in &#39;The Yellow Face&#39; is the child of Effie Munro and John Hebron.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>It was our misfortune that our only child took after his people rather than mine. It is often so in such matches, and little Lucy is darker far than ever her father was.</q></div>
   </div>
   
   <div class="f other">
     <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>Jack Stapleton.hair_color is &#39;flaxen&#39; (The Hound of the Baskervilles · The Stapletons of Merripit House), &#39;light&#39; (The Hound of the Baskervilles · The Stapletons of Merripit House)</strong>
-    <p>&#39;Flaxen-haired&#39; and &#39;light hair&#39; are compatible descriptions, as flaxen is a specific shade of light/pale yellow hair.</p>
+    <strong>Lord Saltire.child_of is &#39;Jephro Rucastle&#39; (The Adventures of Sherlock Holmes · XII. THE ADVENTURE OF THE COPPER BEECHES), &#39;Mrs. Rucastle&#39; (The Adventures of Sherlock Holmes · XII. THE ADVENTURE OF THE COPPER BEECHES), &#39;The Duke of Holdernesse&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE PRIORY SCHOOL)</strong>
+    <p>The series bible conflated Lord Saltire (from &#39;The Adventure of the Priory School&#39;) with Edward Rucastle (the unnamed six-year-old son of Jephro and Mrs. Rucastle in &#39;The Adventure of the Copper Beeches&#39;). Lord Saltire is the son of the Duke of Holdernesse.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>Heir and only child, Lord Saltire.</q></div>
   </div>
   
   <div class="f other">
     <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
-    <strong>John Hector McFarlane.hair_color is &#39;flaxen&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER), &#39;fluffy&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER)</strong>
-    <p>The quote &#39;a little, fluffy, blue-eyed person&#39; describes McFarlane&#39;s mother, not John Hector McFarlane himself. The bible extraction incorrectly attributed the mother&#39;s description to McFarlane.</p>
+    <strong>John Straker.wound_location is &#39;head&#39; (The Memoirs of Sherlock Holmes · I. Silver Blaze), &#39;thigh&#39; (The Memoirs of Sherlock Holmes · I. Silver Blaze)</strong>
+    <p>John Straker suffered two distinct wounds in the same incident: a blow to the head from the horse and a cut to the thigh from his own knife. Both injuries are described together in the text.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>His head had been shattered by a savage blow from some heavy weapon, and he was wounded on the thigh, where there was a long, clean cut, inflicted evidently by some very sharp instrument.</q></div>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Sherlock Holmes.wound_location is &#39;throat&#39; (The Memoirs of Sherlock Holmes · VII. The Reigate Squires), &#39;left hand&#39; (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), &#39;knuckles&#39; (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), &#39;lip&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE SOLITARY CYCLIST), &#39;forehead&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE SOLITARY CYCLIST)</strong>
+    <p>These quotes refer to minor, temporary injuries sustained by Sherlock Holmes across entirely separate cases (&#39;The Reigate Squires&#39;, &#39;The Naval Treaty&#39;, and &#39;The Adventure of the Solitary Cyclist&#39;). They are distinct events rather than conflicting permanent traits.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>I feel that young man’s grip on my throat now</q></div>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Baskerville.birthplace is &#39;canada&#39; (The Hound of the Baskervilles · The Problem), &#39;south coast&#39; (The Hound of the Baskervilles · Baskerville Hall)</strong>
+    <p>The text states that Sir Henry Baskerville was farming in Canada, not that he was born there. His father lived on the South Coast. The bible mislabeled his location of occupation as his birthplace.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>On the death of Sir Charles we inquired for this young gentleman and found that he had been farming in Canada.</q></div>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Stapleton.eye_color is &#39;grey&#39; (The Hound of the Baskervilles · The Stapletons of Merripit House), &#39;light&#39; (The Hound of the Baskervilles · The Light upon the Moor [Second Report of Dr. Watson])</strong>
+    <p>Stapleton is described as having grey eyes and &#39;light eyes&#39;. &#39;Light&#39; is an adjective describing the lightness of his grey eyes, not a contradictory eye color.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>for Stapleton was neutral tinted, with light hair and grey eyes</q></div>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">slot_mismatch</span>
+    <strong>Lady Brackenstall.hair_color is &#39;fair&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE ABBEY GRANGE), &#39;golden-haired&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE ABBEY GRANGE)</strong>
+    <p>&#39;Fair&#39; and &#39;golden-haired&#39; are two characterizations of the same hair extracted from a single phrase (&#39;She was a blonde, golden-haired, blue-eyed&#39;).</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>She was a blonde, golden-haired, blue-eyed</q></div>
   </div>
   
   <div class="f other">
     <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
-    <strong>Bartholomew Sholto dies in The Sign of the Four · The Tragedy of Pondicherry Lodge but acts in The Sign of the Four · The Baker Street Irregulars</strong>
-    <p>The passage in &#39;The Baker Street Irregulars&#39; quotes a newspaper report stating that Bartholomew Sholto &#39;was found dead in his room&#39;. The passage is reporting his death, not describing him acting while alive.</p>
+    <strong>Captain Arthur Morstan dies in The Sign of the Four · The Story of the Bald-Headed Man but acts in The Sign of the Four · The Strange Story of Jonathan Small</strong>
+    <p>Captain Morstan&#39;s appearance in &#39;The Strange Story of Jonathan Small&#39; is part of a narrated backstory detailing events that took place years prior to his death.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>When I stooped over him I found, to my horror, that he was dead.</q></div>
   </div>
   
   <div class="f other">
     <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
-    <strong>Enoch Drebber dies in A Study in Scarlet · TOBIAS GREGSON SHOWS WHAT HE CAN DO. but acts in A Study in Scarlet · LIGHT IN THE DARKNESS.</strong>
-    <p>Lestrade is recounting Drebber&#39;s timeline prior to his murder (&#39;seen together at Euston Station about half-past eight on the evening of the third&#39;). Recounting events that occurred before a character&#39;s death is not a conflict.</p>
+    <strong>Enoch J. Drebber dies in A Study in Scarlet · THE LAURISTON GARDENS MYSTERY but acts in A Study in Scarlet · LIGHT IN THE DARKNESS.</strong>
+    <p>Lestrade is giving a report of past events regarding when Drebber&#39;s body was discovered in the Brixton Road. A report of past deeds or the timeline of a crime is explicitly not a dead_speaks conflict.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>At two in the morning Drebber had been found in the Brixton Road.</q></div>
   </div>
   
   <div class="f other">
     <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
-    <strong>Jefferson Hope dies in A Study in Scarlet · LIGHT IN THE DARKNESS. but acts in A Study in Scarlet · THE AVENGING ANGELS.</strong>
-    <p>The quote identifies Jefferson Hope as &#39;the murderer of Enoch Drebber&#39;. The bible extraction mislabeled this relationship as a death predicate (`died = enoch drebber`), generating a false conflict.</p>
+    <strong>Joseph Stangerson dies in A Study in Scarlet · TOBIAS GREGSON SHOWS WHAT HE CAN DO. but acts in A Study in Scarlet · THE AVENGING ANGELS.</strong>
+    <p>Part II of A Study in Scarlet (&#39;The Country of the Saints&#39;) is a retrospective backstory depicting events in Utah years prior to Stangerson&#39;s murder in London. A narrated backstory is not a dead_speaks conflict.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>Rumour reported that Drebber had managed to convert a large part of his property into money, and that he had departed a wealthy man, while his companion, Stangerson, was comparatively poor.</q></div>
   </div>
   
   <div class="f other">
     <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
-    <strong>John Watson dies in The Sign of the Four · The End of the Islander but acts in The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA</strong>
-    <p>The quote describes the death of Tonga, who was shot by Holmes and Watson and fell into the stream. The bible extraction incorrectly assigned the death to Watson (`died = tonga`).</p>
+    <strong>Sherlock Holmes dies in The Memoirs of Sherlock Holmes · XII. The Final Problem but acts in The Hound of the Baskervilles · Sir Henry Baskerville</strong>
+    <p>The Hound of the Baskervilles is a retrospective narrative compiled by Dr. Watson from his past diaries and recollections from an earlier period before Holmes&#39;s death, not a scene set after his death in real time.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>Now, however, I have arrived at a point in my narrative where I am compelled to abandon this method and to trust once more to my recollections, aided by the diary which I kept at the time.</q></div>
   </div>
   
   <div class="f other">
     <span class="tag ok">not_conflict</span><span class="tag">dead_speaks</span>
-    <strong>Jonathan Small dies in The Sign of the Four · The Episode of the Barrel but acts in The Sign of the Four · The Great Agra Treasure</strong>
-    <p>The quote &#39;He bore no grudge against Bartholomew Sholto&#39; was mislabeled in the bible extraction as `died = bartholomew sholto`. Jonathan Small is alive and in custody during the events of the story.</p>
+    <strong>Sir Charles Baskerville dies in The Hound of the Baskervilles · The Curse of the Baskervilles but acts in The Hound of the Baskervilles · Extract from the Diary of Dr. Watson</strong>
+    <p>Barrymore is recounting to Dr. Watson why Sir Charles was standing at the gate on the night he died. Recounting past deeds prior to death is not a dead_speaks conflict.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>I know why he was at the gate at that hour. It was to meet a woman.</q></div>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">name_drift</span>
+    <strong>Dost Akbar.first_name is &#39;Dost&#39; in The Sign of the Four · The Strange Story of Jonathan Small but &#39;Akbar&#39; in The Sign of the Four · The Strange Story of Jonathan Small</strong>
+    <p>Dost Akbar is the full name of the character. Referring to him as &#39;Akbar&#39; alongside &#39;Abdullah&#39; and &#39;Mahomet&#39; uses his family name/surname and is not a name drift error.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>He has with him as travelling-companion my foster-brother Dost Akbar, who knows his secret.</q></div>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">role_collision</span>
+    <strong>the governess of Mrs. Cecil Forrester&#39;s household is Mary Morstan (The Sign of the Four · The Statement of the Case), Mrs. Cecil Forrester (The Sign of the Four · The Statement of the Case) (tie for Mrs. Cecil Forrester is only that Mrs. Cecil Forrester is in the scene)</strong>
+    <p>The series bible mislabeled Mrs. Cecil Forrester as a governess. The text states that Mary Morstan entered the family of Mrs. Cecil Forrester in the capacity of governess, making Mary Morstan the governess and Mrs. Cecil Forrester her employer.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>I had at that time just entered the family of Mrs. Cecil Forrester in the capacity of governess.</q></div>
+  </div>
+  
+  <div class="f other">
+    <span class="tag ok">not_conflict</span><span class="tag">role_collision</span>
+    <strong>the landlady of John Watson&#39;s household is Mrs. Hudson (The Sign of the Four · The Science of Deduction), Mrs. Cecil Forrester (The Sign of the Four · The Great Agra Treasure) (tie for Mrs. Hudson, Mrs. Cecil Forrester is only that John Watson is in the scene)</strong>
+    <p>The series bible incorrectly identified Mrs. Cecil Forrester as Watson&#39;s landlady. Mrs. Cecil Forrester is Mary Morstan&#39;s employer living in her own household, which Watson visits to deliver the treasure chest.</p>
+    <div class="claim"><div class="loc">Why it is cleared</div><q>A quarter of an hour’s drive brought us to Mrs. Cecil Forrester’s. The servant seemed surprised at so late a visitor. Mrs. Cecil Forrester was out for the evening, she explained, and likely to be very late. Miss Morstan, however, was in the drawing-room</q></div>
   </div>
   
   </details>
