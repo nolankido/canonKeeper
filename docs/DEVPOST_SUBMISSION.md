@@ -123,3 +123,27 @@ candidate list; its verdicts are not trusted, and the evidence rule sends them t
 See docs/DEMO_SCRIPT.md: problem → the Holmes finding → buy an audit (sandbox checkout) →
 the same through an assistant over MCP (agent cannot approve) → `check` a draft → benchmark →
 close.
+
+## Testing instructions (paste into Devpost; fill the two blanks)
+**Hosted (fastest):** open `<RENDER URL>`. Press *Try it with the demo series* (an invented
+three-book series with five planted errors), then *Pay with PayPal*. PayPal sandbox buyer:
+`<sandbox buyer email>` / `<password>` — no real money moves. You return to the job page, which
+updates itself; the audit takes about a minute (instant if someone ran it before you: demo-series
+responses are shared). Open the report. *See what you get first* on the home page opens the real
+six-volume Sherlock Holmes audit without paying.
+
+The hosted instance runs on Gemini's free tier, which may use submitted text for training:
+please upload only public-domain text or the demo series.
+
+**Local, no keys at all (2 minutes):**
+```bash
+git clone https://github.com/nolankido/canonKeeper && cd canonKeeper
+pip install -e ".[dev]"
+canonkeeper demo --dest build/demo --open-report   # whole pipeline offline, rule-based model
+canonkeeper serve --provider mock       # Preflight with simulated PayPal: http://127.0.0.1:8787
+# in a second terminal, while serve runs: the same flow driven by an assistant over MCP
+python scripts/mcp_flow_demo.py --brief --auto-approve --provider mock build/demo/books/*.txt
+```
+With `PAYPAL_CLIENT_ID` /
+`PAYPAL_CLIENT_SECRET` (sandbox) in `.env`, `serve` uses the real sandbox, and
+`canonkeeper doctor --round-trip` proves create → approve → capture → refund against it.
