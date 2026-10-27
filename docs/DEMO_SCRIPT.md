@@ -101,11 +101,11 @@ this once, on the laptop, in the repo folder:
    account, which shows its email and password), approve. The terminal then shows capture →
    verify → refund. If any step is red, stop and send me the output.
 2. **Warm the run.** `.venv\Scripts\canonkeeper serve` (sandbox credentials come from `.env`),
-   open http://127.0.0.1:8787, press *Try the demo series*, pay with the sandbox buyer, wait for
+   open http://127.0.0.1:8787, press *Try it with the demo series*, pay with the sandbox buyer, wait for
    *done*. This fills the cache so the recorded run finishes in seconds. Leave the browser
    logged in to the sandbox buyer.
 3. **Record.** Press `Win + Alt + R` (Xbox Game Bar starts recording the active window; the
-   same keys stop it). Go to http://127.0.0.1:8787 → *Try the demo series* → *Pay with
+   same keys stop it). Go to http://127.0.0.1:8787 → *Try it with the demo series* → *Pay with
    PayPal* → approve on the sandbox page → wait on the job page until *done* → *Open the
    report* → scroll to the first card. Stop recording. Aim for 30–40 seconds.
 4. **Hand it back.** The clip lands in `Videos\Captures`. Copy it to
