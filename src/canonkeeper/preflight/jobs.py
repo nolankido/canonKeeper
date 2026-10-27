@@ -90,6 +90,39 @@ def draft_title(filename: str) -> str:
     return f"{_title_from_filename(stem)} (draft)" if stem else "New draft"
 
 
+def decode_upload(data: bytes, name: str = "file") -> str:
+    """Text from an uploaded manuscript, whatever a word processor saved it as.
+
+    UTF-8 (with or without a BOM) is the norm; Word's "Unicode text" is UTF-16 with a BOM;
+    older Windows tools write Windows-1252, whose curly quotes are invalid UTF-8. Anything
+    else with NUL bytes (a .docx, a PDF) is refused with a message that says what to do.
+    """
+    for bom, codec in (
+        (b"\xef\xbb\xbf", "utf-8-sig"),
+        (b"\xff\xfe\x00\x00", "utf-32"),
+        (b"\x00\x00\xfe\xff", "utf-32"),
+        (b"\xff\xfe", "utf-16"),
+        (b"\xfe\xff", "utf-16"),
+    ):
+        if data.startswith(bom):
+            return data.decode(codec, errors="replace")
+    head = data[:4096]
+    if head and b"\x00" in head:
+        # UTF-16 without a BOM: every other byte of ASCII prose is NUL
+        if head[1::2].count(0) > len(head) // 4 and not head[0::2].count(0):
+            return data.decode("utf-16-le", errors="replace")
+        if head[0::2].count(0) > len(head) // 4 and not head[1::2].count(0):
+            return data.decode("utf-16-be", errors="replace")
+        raise ValueError(
+            f"{Path(name).name} is not a text file; save it as plain text (.txt) or Markdown"
+            " (.md) and upload that"
+        )
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("cp1252", errors="replace")
+
+
 def _strip_numbering(name: str) -> str:
     """Drop the author's own numbering ("03 - The Return.txt" → "The Return.txt"), but not
     when the number is the whole name ("01.txt" stays "01.txt", not "txt")."""
@@ -144,8 +177,7 @@ class JobStore:
             raise ValueError("a draft can only be checked against a finished series audit")
         if len(data) > MAX_TOTAL_BYTES:
             raise ValueError(f"draft too large ({len(data) / 1e6:.0f} MB)")
-        if b"\x00" in data[:4096]:
-            raise ValueError(f"{Path(name).name} is not a text file; upload .txt or .md")
+        draft_text = decode_upload(data, name)
         src = self.dir(parent_id)
         self.make_room(len(data) + self._size(parent_id))
         job_id = secrets.token_urlsafe(8)
@@ -156,7 +188,7 @@ class JobStore:
         safe = "".join(ch if ch.isalnum() or ch in "-_." else "-" for ch in stem)
         safe = safe.lstrip(".") or "draft.txt"  # never "..", never a hidden file
         (d / "draft").mkdir(parents=True, exist_ok=True)
-        text = data.decode("utf-8", errors="replace")
+        text = draft_text
         (d / "draft" / safe).write_text(text, encoding="utf-8")
         tokens, words = count_tokens(text), len(text.split())
         q = quote(tokens, words=words, books=1, kind="check")
@@ -270,9 +302,7 @@ class JobStore:
             raise ValueError(
                 f"series too large ({total / 1e6:.0f} MB; limit {MAX_TOTAL_BYTES // 10**6} MB)"
             )
-        for fname, blob in files:
-            if b"\x00" in blob[:4096]:
-                raise ValueError(f"{Path(fname).name} is not a text file; upload .txt or .md")
+        texts = [decode_upload(blob, fname) for fname, blob in files]
         series_name = series_name.strip()[:200] or "Untitled series"
         self.make_room(total)
         job_id = secrets.token_urlsafe(8)
@@ -280,14 +310,12 @@ class JobStore:
         (d / "books").mkdir(parents=True, exist_ok=True)
         names: list[str] = []
         tokens = words = 0
-        name: str
-        data: bytes
-        for i, (name, data) in enumerate(files):
+        for i, name in enumerate(fname for fname, _ in files):
             stem = _strip_numbering(name)
             safe = f"{i + 1:02d}-" + "".join(
                 ch if ch.isalnum() or ch in "-_." else "-" for ch in stem
             )
-            text = data.decode("utf-8", errors="replace")
+            text = texts[i]
             (d / "books" / safe).write_text(text, encoding="utf-8")
             names.append(safe)
             tokens += count_tokens(text)

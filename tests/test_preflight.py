@@ -738,3 +738,20 @@ def test_runner_pings_its_own_url_while_a_job_runs(tmp_path, monkeypatch):
     runner.wait("job1", timeout=5)
     time.sleep(0.05)
     assert runner._keepalive is not None and not runner._keepalive.is_alive()  # stops when idle
+
+
+def test_uploads_in_word_processor_encodings_are_read_not_refused(tmp_path):
+    from canonkeeper.preflight.jobs import JobStore, decode_upload
+
+    prose = "“Ivy Marlowe has green eyes,” said Tobias — naïvely.\n"
+    assert decode_upload(prose.encode("utf-8")) == prose
+    assert decode_upload(b"\xef\xbb\xbf" + prose.encode("utf-8")) == prose  # BOM dropped
+    assert decode_upload(prose.encode("utf-16")) == prose  # Word's "Unicode text"
+    assert decode_upload(prose.encode("utf-16-le")) == prose  # no BOM
+    assert decode_upload(prose.encode("cp1252")) == prose  # old Windows tools
+    with pytest.raises(ValueError, match="save it as plain text"):
+        decode_upload(b"PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00", "book.docx")
+
+    store = JobStore(tmp_path / "pf")
+    job, _ = store.create_from_upload("S", [("01-the-harbour.txt", prose.encode("utf-16"))])
+    assert store.load_series(job).books[0].text == prose
