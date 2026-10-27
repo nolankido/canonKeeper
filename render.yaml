@@ -1,0 +1,26 @@
+# One-click deploy of the Preflight service on Render (free web service, no card).
+#   https://render.com/docs/blueprint-spec
+# Set GEMINI_API_KEY, PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in the dashboard; leave them
+# unset to run in demo mode (mock provider, in-process fake PayPal), which still shows the
+# whole upload → quote → pay → report flow.
+services:
+  - type: web
+    name: preflight
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    # Free instances have ephemeral storage: jobs and caches last until the next deploy.
+    startCommand: canonkeeper serve --host 0.0.0.0 --port $PORT --public-url $RENDER_EXTERNAL_URL
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: CANONKEEPER_PROVIDER
+        value: gemini          # or "mock" for a no-key demo
+      - key: PAYPAL_MODE
+        value: sandbox         # "fake" for a no-credentials demo
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false

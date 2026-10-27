@@ -226,6 +226,9 @@ PAYPAL_CLIENT_ID=… PAYPAL_CLIENT_SECRET=… canonkeeper serve   # real PayPal 
 canonkeeper doctor --paypal            # proves the credentials: OAuth + a sandbox order, never captured
 ```
 
+`render.yaml` deploys the same service as a free Render web service (set the three keys in the
+dashboard, or none for demo mode); `--public-url` is what PayPal sends the buyer back to.
+
 <p align="center">
 <img src="docs/img/preflight-quote.png" width="49%" alt="Quote page: price with the arithmetic shown, Pay with PayPal">
 <img src="docs/img/preflight-job.png" width="49%" alt="Job page after payment: facts in bible, contradictions, open the report">
