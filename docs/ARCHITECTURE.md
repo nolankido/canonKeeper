@@ -36,9 +36,12 @@ Contents block whose entries look like headings, and most have all-caps lines in
 
 Order of attack: (1) if a Contents block exists, its entries are ground truth and the body is
 scanned for lines — or a numeral line plus the next line — that normalise to an entry;
-(2) otherwise the strongest heading *family* present (`CHAPTER n` / `n. TITLE`) is used alone,
-so bare sub-part numerals inside a story do not split it, and `PART` lines set a prefix rather
-than a boundary; (3) otherwise fixed windows. Front matter before the first heading is not a
+(2) otherwise the strongest heading *family* present (Markdown `#` headings / `CHAPTER n` /
+`n. TITLE` / a bare `1`, `II.` run counting up from one) is used alone, so bare sub-part
+numerals inside a story do not split it, and `PART` lines set a prefix rather than a boundary;
+(3) otherwise fixed windows. The Markdown and bare-number families exist for authors' own
+manuscripts; a change here is checked by comparing every Holmes chapter's title and offsets
+before and after, since chapter text and titles are part of the cached prompts. Front matter before the first heading is not a
 chapter, so a title page never becomes canon.
 
 ## Stage 1 — extraction (cheap model; `gemini-3.5-flash-lite` by default)
@@ -159,10 +162,35 @@ remembers and stops sending it — `parse_json` already tolerates fenced or pros
 open-weights endpoint. Adjudication with full-series context depends on the host's context
 limit; the budget setting handles that. This is the mode for private manuscripts.
 
+## Preflight — the paid service
+
+`preflight/`. The same pipeline behind a quote → PayPal → report flow, as a web app
+(`canonkeeper serve`) and as an MCP server (`canonkeeper mcp`) that an author's AI assistant can
+drive. `PreflightService` is transport-agnostic; both front ends and the tests call it.
+
+- **Price.** `pricing.py`: `$5 base + $4 per 100k tokens` (a draft check: a smaller base on the
+  draft's tokens alone), counted with the same tokenizer the pipeline budgets with, shown with
+  its arithmetic before anything runs. Nothing is sent to a model at quote time.
+- **Money path.** `payments.settle()` is the only place a job becomes paid. It is reached from
+  PayPal's return redirect, from the MCP `confirm_payment` tool, and from a "check payment"
+  button for a buyer who approved and closed the tab. It never captures an unapproved order and
+  marks a job paid only on a completed capture (not PENDING) of exactly the quoted amount and
+  currency; only then does the runner start. The agent never holds anything that can approve a
+  payment: the approval link goes to the person.
+- **Refunds.** A paid audit that fails can be retried free (responses are cached, so it resumes)
+  or refunded in full through the Payments v2 capture refund, idempotent per capture. Only
+  failed jobs qualify, and a refunded job can never be run.
+- **Uploads.** Untrusted: job ids are validated before they touch the filesystem, file names
+  are sanitised, text is decoded from whatever a word processor saved (UTF-8/16, Windows-1252),
+  sizes are checked before reading, and unpaid quotes share a disk budget, oldest evicted first.
+- **Free hosts.** Jobs persist as JSON and resume after a restart; on Render the runner pings
+  its own URL while a job runs, because the free plan sleeps after ~15 idle minutes.
+
 ## What is intentionally not here
 
 - A graph database. A few thousand facts in JSONL with an in-memory slot index is faster to
   build, trivially diffable, and hand-editable by an author.
 - Embedding retrieval. Slots make conflicts a dictionary lookup; the adjudicator gets whole
   chapters rather than retrieved snippets, which is the point of the large context.
-- A web app. The report is a static HTML file; the CLI is the product for now.
+- Accounts. A job id is an unguessable capability; whoever holds the link sees the job,
+  and the person can delete everything but the receipt.
