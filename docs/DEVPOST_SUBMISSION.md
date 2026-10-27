@@ -39,14 +39,16 @@ injects contradictions into public-domain novels and scores precision/recall.
 - Free-tier rate limits: client-side pacing, backoff honouring Retry-After, JSON-mode fallback.
 
 ## Accomplishments
-- On the six Holmes volumes (457,890 words) it extracted 2,331 sourced facts, screened 26
-  candidate conflicts, and reported exactly one contradiction: Watson's war wound — "struck on
-  the shoulder by a Jezail bullet" (*A Study in Scarlet*), "sat nursing my wounded leg" (*The
-  Sign of the Four*), "the jezail bullet which I had brought back in one of my limbs" (*The
-  Noble Bachelor*) — with the fix aimed at the later book. The error readers have argued about
-  since 1890, found unassisted, on a free tier, for $0.21 at list price.
-- Ruled Holmes's "dark" eyes in *The Sign of the Four* `deliberate` — "he is in disguise as an old
-  master mariner; his true eye colour is grey" — and explained each of the 20 non-conflicts.
+- On the six Holmes volumes (457,890 words) it extracted 3,963 sourced facts (99.5% of the
+  model's claims grounded to a verbatim passage), screened 27 candidate conflicts, and found
+  the canon's two best-known slips unassisted: Watson's war wound — "struck on the shoulder by
+  a Jezail bullet" (*A Study in Scarlet*) vs "sat nursing my wounded leg" (*The Sign of the
+  Four*) — and the landlady who is Mrs. Hudson in one story and Mrs. Turner in *A Scandal in
+  Bohemia*. Fixes aimed at the later book. Free tier; about $1.60 at list price.
+- Cleared 18 candidates, each by quoting the passage that clears it — e.g. Holmes "dying" at
+  the Reichenbach Falls and then acting in *The Hound* ("aided by the diary which I kept at the
+  time": it is set earlier). Two of its four contradictions were wrong (a disguise; a maiden
+  name), and the report says so in the README rather than hiding it.
 - Benchmark (seeded defects, 6 volumes): ___ precision / ___ recall on 20 injected
   contradictions. ← from `canonkeeper eval`; the first run scored 1.00 / 0.05 and the
   harness pointed straight at extraction, which is the point of having one.

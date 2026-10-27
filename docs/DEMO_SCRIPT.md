@@ -22,11 +22,14 @@ Open the finished Holmes report (`docs/img/report.png` is the frame). Read the f
 > Scarlet*) · "sat nursing my wounded leg" (*The Sign of the Four*). Fix, to the later book:
 > "wounded leg" → "wounded arm".
 
-Say: "Six novels, 2,331 sourced facts, and it reports the one error readers have argued about
-since 1890 — with the four passages on the page and the fix aimed at the later book, because
-the earlier one is already in print." Scroll to a *deliberate* verdict (Holmes's dark eyes:
-"he is in disguise"). "That judgement is the part a spreadsheet cannot do." If the resumed run
-confirms it, add the landlady: "It also noticed Mrs. Hudson became Mrs. Turner for one story."
+Say: "Six novels, nearly four thousand sourced facts, and it reports the two errors readers have
+argued about for a century — Watson's wandering wound, and the landlady who is Mrs. Hudson in
+one story and Mrs. Turner in another — each with the passages on the page and the fix aimed at
+the later book, because the earlier one is already in print." Scroll to *Reviewed and cleared*:
+Holmes "dies" at the Reichenbach Falls and then walks through *The Hound*, and the report clears
+it by quoting Watson: *The Hound* is told from the diary he kept at the time. "Every cleared
+conflict quotes the passage that clears it. That judgement is the part a spreadsheet cannot
+do." (If a re-run rules Holmes's disguised "dark eyes" correctly, show that instead.)
 
 ## 0:50 — Buying an audit (Design, PayPal + AI)
 Browser, `canonkeeper serve` against the PayPal **sandbox**. Upload the three Saltmarsh books.

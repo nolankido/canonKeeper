@@ -125,31 +125,33 @@ model, or Gemini for public-domain text, does the judging.
 ## What it found in Sherlock Holmes
 
 Six Conan Doyle volumes from Project Gutenberg (457,890 words, 630k tokens), on the Gemini
-free tier, with no hints:
+free tier, with no hints. Latest run (2026-10-27):
 
 | | |
 |---|---|
-| facts extracted | 2,331 across 420 entities (99.2% of returned claims grounded to a verbatim passage) |
-| candidate conflicts screened | 26 |
-| **contradiction** | **1, high: Watson's war wound** — "struck on the shoulder by a Jezail bullet" (*A Study in Scarlet*) vs "sat nursing my wounded leg" (*The Sign of the Four*) vs "the jezail bullet which I had brought back in one of my limbs" (*The Noble Bachelor*). Suggested fix, to the later book: change "wounded leg" to "wounded arm". |
-| deliberate | 2 — Holmes's "dark" eyes in *The Sign of the Four* (he is disguised as an old sailor); Lucy Ferrier's hair, golden at five and chestnut as a young woman |
-| not a conflict | 20 — flashbacks after a death, synonyms ("flaxen" / "fair"), and the bible's own mislabels, each explained |
-| list-price cost | $0.74 to read, $0.21 to judge |
+| facts extracted | 3,963 across 624 entities (99.5% of returned claims grounded to a verbatim passage) |
+| candidate conflicts screened | 27, all judged with the relevant chapters in context |
+| **contradiction, correct** | **Watson's war wound** — "struck on the shoulder by a Jezail bullet" (*A Study in Scarlet*) vs "sat nursing my wounded leg. I had a Jezail bullet through it" (*The Sign of the Four*). Fix, to the later book: "wounded leg" → "wounded arm". |
+| **contradiction, correct** | **The landlady** — Mrs. Hudson at Baker Street (*The Sign of the Four*), "When Mrs. Turner has brought in the tray" (*A Scandal in Bohemia*): "No explanation or change of staff is given in the text." Fix: "Mrs. Turner" → "Mrs. Hudson". |
+| contradiction, wrong | Holmes's "keen dark eyes" in *The Sign of the Four* — he is disguised as an old sailor in that scene (an earlier run ruled this deliberate); Mrs. Barclay vs "Nancy Devoy", which is her maiden name |
+| cleared, each on a quoted passage | 18 — e.g. Holmes "dying" at the Reichenbach Falls and then acting in *The Hound* ("I have arrived at a point in my narrative where I am compelled … to trust once more to my recollections, aided by the diary which I kept at the time": *The Hound* is set earlier); Jefferson Hope's hair ("his black hair turned grizzled"); two different Lucys; wounds from different cases |
+| needs your judgement | 5 — the model would not clear them and would not call them errors (Dr. Becher, "is he a German?" / "an Englishman") |
+| list-price cost | about $1.40 to read (444 extraction calls, estimated from the request log) and $0.15 to judge; $0 on the free tier |
 
-That is the continuity error readers have argued about since 1890, found unassisted, with both
-passages on the page:
+The two best-known continuity errors in the canon, found unassisted, each with its passages on
+the page:
 
 ![The Holmes audit report: Watson's wound, four passages, the adjudicator's verdict and a fix to the later book](docs/img/report.png)
 
 Every fact behind it is browsable in the bible page, with its source passage one click away:
 
-![The series bible: Sherlock Holmes, 242 facts, aliases, every slot with its sources](docs/img/bible.png)
+![The series bible: Sherlock Holmes, facts, aliases, every slot with its sources](docs/img/bible.png)
 
-The famous landlady slip (Mrs. Hudson in *The Sign of the Four*, Mrs. Turner in *A Scandal in
-Bohemia*) is now raised by the `role_collision` screen and goes to the adjudicator on the next
-run. Mary Watson calling her husband "James" (*The Man with the Twisted Lip*) is not caught:
-the extractor does not yet record a vocative inside dialogue as a `first_name` claim. That is
-the kind of gap the benchmark below is for.
+The two wrong calls are exactly what the next prompt revision targets (look for a disguise in
+the scene; maiden and married names), and like any prompt change it will be measured with the
+benchmark below before it ships. Mary Watson calling her husband "James" (*The Man with the
+Twisted Lip*) is still not caught: the extractor does not record a vocative inside dialogue as
+a `first_name` claim.
 
 ## Does it actually work? The seeded-defect benchmark
 
