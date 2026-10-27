@@ -190,8 +190,9 @@ Every fact behind it is browsable in the bible page, with its source passage one
 The two wrong calls are exactly what the next prompt revision targets (look for a disguise in
 the scene; maiden and married names), and like any prompt change it will be measured with the
 benchmark below before it ships. Mary Watson calling her husband "James" (*The Man with the
-Twisted Lip*) is still not caught: the extractor does not record a vocative inside dialogue as
-a `first_name` claim.
+Twisted Lip*) is still not caught by default: a name given only in speech is not recorded as a
+`first_name`. A fix that points the extractor at names spoken in dialogue is built and off by
+default (`CANONKEEPER_EXTRACT_SPEECH_NAMES=true`) until the benchmark measures it.
 
 ## Does it actually work? The seeded-defect benchmark
 
