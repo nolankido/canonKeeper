@@ -473,3 +473,35 @@ def test_check_next_draft_against_a_finished_audit(client):
     # The check is self-contained: deleting the series audit does not break it.
     client.post(f"/jobs/{audit_id}/delete", data={"confirm": "yes"})
     assert client.get(f"/jobs/{check_id}/report").status_code == 200
+
+
+def test_paid_jobs_interrupted_by_a_restart_are_resumed(tmp_path):
+    import json as _json
+
+    from canonkeeper.preflight.jobs import JobStore, Runner
+
+    settings = Settings(
+        provider="mock", workdir=tmp_path / "w", cache_dir=tmp_path / "c", _env_file=None
+    )
+    store = JobStore(tmp_path / "pf")
+    files = [
+        ("01-a.txt", BOOK1.encode()),
+        ("02-b.txt", BOOK2.encode()),
+        ("03-c.txt", BOOK3.encode()),
+    ]
+    stuck, _ = store.create_from_upload("Stuck", files)
+    live, _ = store.create_from_upload("Live", files)
+    unpaid, _ = store.create_from_upload("Unpaid", files)
+    for job, status in ((stuck, "running"), (live, "running")):
+        job.status = status
+        store.save(job)
+    p = store._path(stuck.id)  # last progress update long ago: the process died
+    d = _json.loads(p.read_text())
+    d["updated_at"] = "2020-01-01T00:00:00+00:00"
+    p.write_text(_json.dumps(d))
+
+    runner = Runner(store, settings)
+    assert runner.resume_interrupted() == [stuck.id]  # not the fresh one, not the unpaid one
+    runner.wait(stuck.id, timeout=60)
+    assert store.get(stuck.id).status == "done"
+    assert store.get(live.id).status == "running" and store.get(unpaid.id).status == "quoted"

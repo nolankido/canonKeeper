@@ -66,6 +66,7 @@ def create_app(
     workdir = workdir or settings.workdir / "preflight"
     store = JobStore(workdir / "jobs")
     runner = Runner(store, settings)
+    runner.resume_interrupted()
     pp = paypal or make_paypal(state_dir=settings.workdir / "preflight")
     base = (
         public_base_url or os.environ.get("PREFLIGHT_PUBLIC_URL") or "http://127.0.0.1:8787"

@@ -269,6 +269,28 @@ class Runner:
         self._sem = threading.Semaphore(max_workers)
         self._threads: dict[str, threading.Thread] = {}
 
+    def resume_interrupted(self, *, stale_after_s: float = 600.0) -> list[str]:
+        """Re-queue paid jobs that a restart left behind: paid but never started, or 'running'
+        with no progress update for `stale_after_s` (a live job updates every few seconds).
+        Responses are cached, so a resumed job picks up where it stopped. Free hosts restart
+        and spin down; without this a paid audit could sit at 'running' forever."""
+        resumed: list[str] = []
+        now = datetime.now(UTC).timestamp()
+        for job in self.store.all():
+            if job.status == "running":
+                try:
+                    age = now - datetime.fromisoformat(job.updated_at).timestamp()
+                except ValueError:
+                    continue
+                if age < stale_after_s:
+                    continue  # probably still running in another process
+                job.status = "paid"
+                self.store.save(job)
+            if job.status == "paid":
+                self.submit(job.id)
+                resumed.append(job.id)
+        return resumed
+
     def submit(self, job_id: str) -> None:
         if job_id in self._threads and self._threads[job_id].is_alive():
             return
