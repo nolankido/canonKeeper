@@ -44,6 +44,7 @@ from canonkeeper.preflight.payments import (
     OPEN,
     QuotaShort,
     close_budget,
+    mark_finding_wrong,
     open_budget,
     place_order,
     refund,
@@ -163,6 +164,17 @@ class PreflightService:
         if problem:
             out["problem"] = problem
         return out
+
+    def mark_finding_wrong(self, job_id: str, finding_index: int, note: str = "") -> dict[str, Any]:
+        job = self.store.get(job_id)
+        if job is None:
+            raise ValueError("unknown job")
+        problem, amount = mark_finding_wrong(
+            job, finding_index, note, self.paypal, self.store, self.budgets
+        )
+        if problem:
+            return {"job_id": job_id, "marked": False, "reason": problem}
+        return {"job_id": job_id, "marked": True, "given_back": f"{amount:.2f} {CURRENCY}"}
 
     def upload_status(self, token: str) -> dict[str, Any]:
         try:
@@ -311,11 +323,12 @@ class PreflightService:
             return {"job_id": job_id, "status": job.status, "findings": []}
         report = json.loads(p.read_text(encoding="utf-8"))
         rows = []
-        for f in report["findings"]:
+        for index, f in enumerate(report["findings"]):
             if f["verdict"] != "contradiction" and not include_cleared:
                 continue
             rows.append(
                 {
+                    "index": index,  # what mark_finding_wrong takes
                     "summary": headline(Candidate.model_validate(f["candidate"])),
                     "check": f["candidate"]["heuristic"],
                     "verdict": f["verdict"],
@@ -401,6 +414,14 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
     )
     def confirm_budget(budget_id: str) -> dict[str, Any]:
         return service.confirm_budget(budget_id)
+
+    @server.tool(
+        description="When the person says a reported contradiction is wrong: note it on the "
+        "report and give part of the price back (0.50 each, at most half the price). "
+        "finding_index is the finding's `index` from get_findings."
+    )
+    def mark_finding_wrong(job_id: str, finding_index: int, note: str = "") -> dict[str, Any]:
+        return service.mark_finding_wrong(job_id, finding_index, note)
 
     @server.tool(description="A budget's balance and every spend, credit and refund.")
     def budget_status(budget_key: str) -> dict[str, Any]:

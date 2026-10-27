@@ -19,6 +19,7 @@ import os
 import re
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
 
@@ -30,6 +31,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.concurrency import run_in_threadpool
 
 from canonkeeper.config import Settings, load_settings
+from canonkeeper.models import AuditReport
 from canonkeeper.preflight.budgets import Budget
 from canonkeeper.preflight.jobs import (
     MAX_BOOKS,
@@ -40,8 +42,11 @@ from canonkeeper.preflight.jobs import (
 )
 from canonkeeper.preflight.mcp_server import PreflightService, build_server
 from canonkeeper.preflight.payments import (
+    GUARANTEE_CAP,
+    GUARANTEE_USD,
     QuotaShort,
     close_budget,
+    mark_finding_wrong,
     place_order,
     refund,
     settle,
@@ -54,6 +59,7 @@ from canonkeeper.preflight.paypal import (
     PayPalClient,
 )
 from canonkeeper.preflight.pricing import CURRENCY, Quote, quote
+from canonkeeper.report.display import headline
 
 _TEMPLATES = Path(__file__).parent / "templates"
 _SAMPLES = Path(__file__).parent / "samples"
@@ -505,7 +511,51 @@ def create_app(
             "job.html",
             job=job,
             quote=quote(job.tokens, words=job.words, books=len(job.books)),
+            contradictions=contradictions_of(job),
+            guarantee_cap=f"{Decimal(job.quote_usd) * GUARANTEE_CAP:.2f}",
+            guarantee_each=f"{GUARANTEE_USD:.2f}",
         )
+
+    def contradictions_of(job: Job) -> list[dict[str, object]]:
+        """A finished job's contradictions with their report index, for the guarantee form."""
+        if job.status != "done":
+            return []
+        p = store.dir(job.id) / "reports" / "report.json"
+        try:
+            report = AuditReport.model_validate_json(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return []
+        marked = {g["finding"]: g for g in job.guarantee}
+        return [
+            {"index": i, "headline": headline(f.candidate), "marked": marked.get(str(i))}
+            for i, f in enumerate(report.findings)
+            if f.verdict == "contradiction"
+        ]
+
+    @app.post("/jobs/{job_id}/findings/{index}/wrong", response_model=None)
+    def finding_wrong(
+        request: Request, job_id: str, index: int, note: str = Form("")
+    ) -> RedirectResponse | HTMLResponse:
+        """The finding guarantee: a contradiction the author marks wrong is noted on the report,
+        and part of the price goes back through PayPal (capped at half the price)."""
+        job = store.get(job_id)
+        if job is None:
+            raise HTTPException(404)
+        problem, _amount = mark_finding_wrong(job, index, note, pp, store, service.budgets)
+        if problem:
+            job = store.get(job_id) or job
+            return render(
+                request,
+                "job.html",
+                status_code=409,
+                job=job,
+                quote=quote(job.tokens, words=job.words, books=len(job.books)),
+                note=problem,
+                contradictions=contradictions_of(job),
+                guarantee_cap=f"{Decimal(job.quote_usd) * GUARANTEE_CAP:.2f}",
+                guarantee_each=f"{GUARANTEE_USD:.2f}",
+            )
+        return RedirectResponse(f"/jobs/{job_id}#guarantee", status_code=303)
 
     @app.post("/jobs/{job_id}/check")
     async def make_check(request: Request, job_id: str, draft: UploadFile) -> HTMLResponse:

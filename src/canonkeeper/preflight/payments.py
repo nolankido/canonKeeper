@@ -422,32 +422,116 @@ def _credit_budget(job: Job, paypal: PayPal, budgets: BudgetStore) -> str | None
     """A failed audit paid from a budget: the money goes back to the budget, or, once the budget
     is closed, straight back to PayPal."""
     assert job.budget_id
-    amount = Decimal(job.quote_usd)
+    return _give_back_to_budget(
+        job.budget_id, job.id, job.id, Decimal(job.quote_usd), "audit failed", paypal, budgets
+    )
+
+
+def _give_back_to_budget(
+    budget_id: str,
+    key: str,
+    job_id: str,
+    amount: Decimal,
+    reason: str,
+    paypal: PayPal,
+    budgets: BudgetStore,
+) -> str | None:
+    """Credit `amount` to a budget once per `key`; once the budget is closed, refund it to
+    PayPal instead (the credit then offsets the refund, so the balance stays at 0)."""
     try:
-        with budgets.locked(job.budget_id) as b:
-            if any(c["job_id"] == job.id for c in b.credits):
-                return None  # already credited
+        with budgets.locked(budget_id) as b:
+            if any(c.get("key", c["job_id"]) == key for c in b.credits):
+                return None  # already given back
             if b.status == "closed":
-                problem = _refund_from(b, paypal, amount, f"budget-{b.id}-job-{job.id}", job.id)
+                problem = _refund_from(b, paypal, amount, f"budget-{b.id}-{key}", reason)
                 if problem:
                     return problem
-                b.credits.append(  # offsets the spend; the matching refund leaves the balance at 0
-                    {
-                        "job_id": job.id,
-                        "amount": f"{amount:.2f}",
-                        "at": _now(),
-                        "reason": "audit failed; refunded to PayPal",
-                    }
-                )
-                return None
+                reason = f"{reason}; refunded to PayPal"
             b.credits.append(
                 {
-                    "job_id": job.id,
+                    "job_id": job_id,
+                    "key": key,
                     "amount": f"{amount:.2f}",
                     "at": _now(),
-                    "reason": "audit failed",
+                    "reason": reason,
                 }
             )
     except KeyError:
         return "the budget this job was paid from no longer exists"
     return None
+
+
+# ---------------------------------------------------------------------------------------------
+# The finding guarantee (decision 1): a contradiction the author marks wrong earns money back.
+
+GUARANTEE_USD = Decimal("0.50")
+GUARANTEE_CAP = Decimal("0.5")  # at most half the price, however many findings are marked
+
+
+def mark_finding_wrong(
+    job: Job,
+    index: int,
+    note: str,
+    paypal: PayPal,
+    store: JobStore,
+    budgets: BudgetStore | None,
+) -> tuple[str | None, Decimal]:
+    """Record the author's "this contradiction is wrong" and give back GUARANTEE_USD through
+    PayPal (or to the budget that paid), while the guarantee stays under half the price. Returns
+    (problem, amount given back). The mark shows on the report beside the model's call."""
+    from canonkeeper.models import AuditReport, AuthorReview
+    from canonkeeper.report import write_report
+
+    with store.lock(job.id):
+        fresh = store.get(job.id)
+        if fresh is None or fresh.status != "done":
+            return "only a finished audit's findings can be marked", Decimal(0)
+        reports = store.dir(job.id) / "reports"
+        report = AuditReport.model_validate_json(
+            (reports / "report.json").read_text(encoding="utf-8")
+        )
+        if (
+            not 0 <= index < len(report.findings)
+            or report.findings[index].verdict != "contradiction"
+        ):
+            return "no such contradiction in this report", Decimal(0)
+        if any(g["finding"] == str(index) for g in fresh.guarantee):
+            return None, Decimal(0)  # marked before; nothing more to give
+        given = sum((Decimal(g["amount"]) for g in fresh.guarantee), Decimal(0))
+        cap = (Decimal(fresh.quote_usd) * GUARANTEE_CAP).quantize(Decimal("0.01"))
+        amount = GUARANTEE_USD if given + GUARANTEE_USD <= cap else Decimal(0)
+        refund_id = ""
+        if amount and fresh.budget_id and budgets is not None:
+            problem = _give_back_to_budget(
+                fresh.budget_id, f"{job.id}-finding-{index}", job.id, amount,
+                f"finding {index + 1} marked wrong", paypal, budgets,
+            )  # fmt: skip
+            if problem:
+                return problem, Decimal(0)
+            refund_id = f"budget:{fresh.budget_id}"
+        elif amount:
+            if not fresh.capture_id:
+                return "PayPal has no capture for this job", Decimal(0)
+            try:
+                r = paypal.refund_capture(
+                    fresh.capture_id, f"{amount:.2f}", f"guarantee-{job.id}-{index}"
+                )
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code >= 500:
+                    raise  # PayPal may have refunded; asking again is safe (fixed request id)
+                return f"PayPal refused the refund ({e.response.status_code})", Decimal(0)
+            if r.status not in ("COMPLETED", "PENDING"):
+                return f"PayPal refused the refund ({r.status or 'no status'})", Decimal(0)
+            refund_id = r.id
+        entry = {
+            "finding": str(index),
+            "amount": f"{amount:.2f}",
+            "refund_id": refund_id,
+            "at": _now(),
+            "note": note[:500],
+        }
+        store.update(job.id, guarantee=[*fresh.guarantee, entry])
+        report.findings[index].author_review = AuthorReview(verdict="wrong", note=note[:500])
+        write_report(report, reports)
+    _sync(job, store.get(job.id))
+    return None, amount

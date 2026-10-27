@@ -38,7 +38,8 @@ What the author takes away: a report that reads like an editor's note ("John Wat
 shoulder in A Study in Scarlet vs leg in The Sign of the Four", both passages, the fix), the
 series bible as a browsable page and as a spreadsheet with the passage behind every row, and the
 findings as JSON. If a paid audit cannot finish, the author chooses a free retry or a full
-refund through PayPal.
+refund through PayPal. And the finding guarantee: an author who marks a reported contradiction
+wrong gets $0.50 back through PayPal for it (up to half the price), and the mark goes on the report.
 
 ## How we built it
 Python. Extraction with a cheap long-context model under a strict schema with mandatory

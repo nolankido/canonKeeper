@@ -89,6 +89,30 @@
 </div>
 {% endif %}
 
+{% if contradictions %}
+<div class="card" id="guarantee" data-testid="guarantee">
+  <h2 style="margin-top:0">Is a contradiction wrong?</h2>
+  <p>If you know a finding is not a real contradiction (a disguise the model missed, a name that changed for a reason), mark it. It is noted on the report beside the model's call{% if job.order_id or job.budget_id %}, and ${{ guarantee_each }} of the price goes back to you for each one, up to ${{ guarantee_cap }} (half the price){% endif %}.</p>
+  <table>
+    {% for c in contradictions %}
+    <tr>
+      <td>{{ c.headline }}</td>
+      <td style="white-space:nowrap">
+        {% if c.marked %}
+        <span class="status done">marked wrong</span>{% if c.marked.amount != '0.00' %} · ${{ c.marked.amount }} back{% else %} · noted (guarantee cap reached){% endif %}
+        {% else %}
+        <form action="/jobs/{{ job.id }}/findings/{{ c.index }}/wrong" method="post" class="inline">
+          <input name="note" type="text" placeholder="why (optional)" aria-label="Why it is wrong" style="width: 12em">
+          <button type="submit" class="secondary" data-testid="mark-wrong-{{ c.index }}">This one is wrong</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
 {% if job.status == 'done' and job.kind == 'audit' %}
 <form class="card" action="/jobs/{{ job.id }}/check" method="post" enctype="multipart/form-data">
   <h2 style="margin-top:0">Writing the next book?</h2>

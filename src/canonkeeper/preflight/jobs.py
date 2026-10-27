@@ -71,6 +71,8 @@ class Job:
     draft: str | None = None  # for a check: the draft's file name under draft/
     demo: bool = False  # the invented demo series: its model responses are shared
     budget_id: str | None = None  # paid from an agent budget instead of its own PayPal order
+    # The finding guarantee: contradictions the author marked wrong, and what was given back.
+    guarantee: list[dict[str, str]] = field(default_factory=list)
     stage: str | None = None  # "extracting" | "judging" while running
     progress_done: int = 0
     progress_total: int = 0
