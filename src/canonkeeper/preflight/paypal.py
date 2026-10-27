@@ -227,10 +227,12 @@ class FakePayPal:
         o = Order(
             id=oid,
             status="PAYER_ACTION_REQUIRED",
-            approve_url=f"{self._approve_base}?token={oid}&return_to={return_url}",
+            approve_url=f"{self._approve_base}?token={oid}",
             amount=amount,
             currency=currency,
-            raw={"description": description, "reference": reference},
+            # where the buyer goes after approving: fixed at creation, like PayPal's own
+            # return_url, so the approval page cannot be used to redirect anywhere else
+            raw={"description": description, "reference": reference, "return_url": return_url},
         )
         self._orders[oid] = o
         self._save()

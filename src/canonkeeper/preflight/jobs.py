@@ -66,6 +66,14 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _strip_numbering(name: str) -> str:
+    """Drop the author's own numbering ("03 - The Return.txt" → "The Return.txt"), but not
+    when the number is the whole name ("01.txt" stays "01.txt", not "txt")."""
+    p = Path(name)
+    stem = re.sub(r"^\d{1,3}[-_. ]+", "", p.stem)
+    return (stem or p.stem) + p.suffix
+
+
 _JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 MAX_BOOKS = 40
 MAX_TOTAL_BYTES = 40 * 10**6  # ~10M tokens; the six Holmes volumes are 2.6 MB
@@ -118,7 +126,7 @@ class JobStore:
         d = self.dir(job_id)
         shutil.copytree(src / "books", d / "books")
         shutil.copy2(src / "bible.jsonl", d / "bible.jsonl")
-        stem = re.sub(r"^\d{1,3}[-_. ]+", "", Path(name).name) or "draft.txt"
+        stem = _strip_numbering(name) or "draft.txt"
         safe = "".join(ch if ch.isalnum() or ch in "-_." else "-" for ch in stem)
         safe = safe.lstrip(".") or "draft.txt"  # never "..", never a hidden file
         (d / "draft").mkdir(parents=True, exist_ok=True)
@@ -227,9 +235,7 @@ class JobStore:
         name: str
         data: bytes
         for i, (name, data) in enumerate(files):
-            stem = re.sub(
-                r"^\d{1,3}[-_. ]+", "", Path(name).name
-            )  # drop the author's own numbering
+            stem = _strip_numbering(name)
             safe = f"{i + 1:02d}-" + "".join(
                 ch if ch.isalnum() or ch in "-_." else "-" for ch in stem
             )

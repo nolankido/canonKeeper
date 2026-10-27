@@ -102,7 +102,7 @@ async def main() -> None:
             qs = dict(httpx.URL(url).params)
             resp = httpx.post(
                 url.split("?")[0],
-                data={"token": qs["token"], "return_to": qs["return_to"]},
+                data={"token": qs["token"]},
                 follow_redirects=True,
                 timeout=30,
             )

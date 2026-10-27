@@ -12,7 +12,6 @@
   </div>
   <form action="/fake-approve" method="post">
     <input type="hidden" name="token" value="{{ order.id }}">
-    <input type="hidden" name="return_to" value="{{ return_to }}">
     <button type="submit">Pay Now</button>
   </form>
 </div>

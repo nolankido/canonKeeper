@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -22,7 +23,7 @@ from fastapi.templating import Jinja2Templates
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.preflight.jobs import JobStore, Runner, order_description
-from canonkeeper.preflight.paypal import FakePayPal, PayPal, PayPalClient
+from canonkeeper.preflight.paypal import FakePayPal, Order, PayPal, PayPalClient
 from canonkeeper.preflight.pricing import CURRENCY, quote
 
 _TEMPLATES = Path(__file__).parent / "templates"
@@ -247,16 +248,21 @@ def create_app(
 
     if isinstance(pp, FakePayPal):
 
+        def _fake_order(token: str) -> Order:
+            try:
+                return pp.get_order(token)
+            except KeyError:
+                raise HTTPException(404, "no such order") from None
+
         @app.get("/fake-approve", response_class=HTMLResponse)
-        def fake_approve(request: Request, token: str, return_to: str) -> HTMLResponse:
-            o = pp.get_order(token)
-            return render(request, "fake_approve.html", order=o, return_to=return_to)
+        def fake_approve(request: Request, token: str) -> HTMLResponse:
+            return render(request, "fake_approve.html", order=_fake_order(token))
 
         @app.post("/fake-approve")
-        def fake_approve_post(
-            token: str = Form(...), return_to: str = Form(...)
-        ) -> RedirectResponse:
+        def fake_approve_post(token: str = Form(...)) -> RedirectResponse:
+            o = _fake_order(token)
             pp.approve(token)
-            return RedirectResponse(f"{return_to}?token={token}", status_code=303)
+            back = str(o.raw.get("return_url") or "/return")
+            return RedirectResponse(f"{back}?{urlencode({'token': token})}", status_code=303)
 
     return app

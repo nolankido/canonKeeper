@@ -83,9 +83,7 @@ def test_full_flow_with_fake_paypal(client):
     assert r.status_code == 200 and "Pay Now" in r.text and job.quote_usd in r.text
 
     # Buyer approves → PayPal-style return → capture → job runs.
-    r = client.post(
-        "/fake-approve", data={"token": job.order_id, "return_to": "http://testserver/return"}
-    )
+    r = client.post("/fake-approve", data={"token": job.order_id})
     assert r.status_code == 303
     r = client.get(r.headers["location"])
     assert r.status_code == 303 and r.headers["location"] == f"/jobs/{job_id}"
@@ -345,6 +343,9 @@ def test_upload_limits(tmp_path):
         store.create_from_upload("s", [("big.txt", b"a" * (40 * 10**6 + 1))])
     job, _ = store.create_from_upload("   ", [("01 - The Harbour.txt", b"Once upon a time.")])
     assert job.series_name == "Untitled series" and job.books == ["01-The-Harbour.txt"]
+    job, _ = store.create_from_upload("s", [("01.txt", b"One."), ("02.txt", b"Two.")])
+    assert job.books == ["01-01.txt", "02-02.txt"]  # a bare number is the name, not numbering
+    assert [b.title for b in store.load_series(job).books] == ["01", "02"]
 
 
 def test_sample_report_and_no_public_job_list(tmp_path, client):
@@ -533,3 +534,19 @@ def test_a_draft_named_dot_dot_is_stored_inside_its_job(client):
     check, _ = store.create_check(job.id, "..", b"A new chapter.")
     assert (store.dir(check.id) / "draft").is_dir()
     assert [p.name for p in (store.dir(check.id) / "draft").iterdir()] == ["draft.txt"]
+
+
+def test_fake_checkout_only_returns_to_the_url_the_order_was_created_with(client):
+    """The simulated approval page used to redirect to any `return_to` it was handed."""
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    r = client.post(f"/jobs/{job_id}/order")
+    approve = r.headers["location"]
+    assert "return_to" not in approve
+    token = approve.split("token=")[1]
+    r = client.post(
+        "/fake-approve", data={"token": token, "return_to": "https://evil.example/phish"}
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == f"http://testserver/return?token={token}"
+    assert client.get("/fake-approve", params={"token": "FAKENOPE"}).status_code == 404
