@@ -2,7 +2,9 @@
 #   https://render.com/docs/blueprint-spec
 # Set GEMINI_API_KEY, PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in the dashboard; leave them
 # unset to run in demo mode (mock provider, in-process fake PayPal), which still shows the
-# whole upload → quote → pay → report flow.
+# whole upload → quote → pay → report flow. Nothing here pins the modes: a model key selects
+# Gemini, PayPal credentials select the sandbox (set PAYPAL_MODE / CANONKEEPER_PROVIDER in the
+# dashboard only to force one), and each page's banner says which mode it is in.
 services:
   - type: web
     name: preflight
@@ -15,10 +17,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
-      - key: CANONKEEPER_PROVIDER
-        value: gemini          # or "mock" for a no-key demo
-      - key: PAYPAL_MODE
-        value: sandbox         # "fake" for a no-credentials demo
       - key: GEMINI_API_KEY
         sync: false
       - key: PAYPAL_CLIENT_ID

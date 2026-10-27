@@ -93,6 +93,8 @@ def test_bible_command_requires_bible(tmp_path):
 def test_demo_check_separates_slips_from_deliberate_reveal(tmp_path):
     r = runner.invoke(app, ["demo", "--dest", str(tmp_path / "demo")])
     assert r.exit_code == 0, r.output
+    # readable headline, not the pipeline's raw slot ("Hester Vale.eye_color is 'grey' ...")
+    assert "Hester Vale’s eye colour" in r.output and ".eye_color" not in r.output
     check = json.loads(next((tmp_path / "demo").rglob("check/report.json")).read_text())
     by_verdict = {}
     for f in check["findings"]:
@@ -259,3 +261,27 @@ def test_audit_can_write_an_ab_report_beside_the_current_one(tmp_path):
         app, ["compare", str(next(wd.rglob("reports/report.json"))), str(ab / "report.json")]
     )
     assert "no verdict changed" in r.output  # the mock judges deterministically
+
+
+def test_keyless_service_runs_as_an_honest_demo(tmp_path, monkeypatch):
+    """Regression: render.yaml promised a keyless demo but pinned gemini + sandbox, so a deploy
+    without keys crashed (PayPal) or refused every audit (model). Keyless and unpinned → mock;
+    an explicitly chosen provider is kept so a broken real deploy says "no key"."""
+    from canonkeeper.cli import _service_settings
+
+    monkeypatch.chdir(tmp_path)  # no .env with a real key
+    for k in ("GEMINI_API_KEY", "MODEL_API_KEY", "CANONKEEPER_PROVIDER", "CANONKEEPER_API_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    assert _service_settings(None, tmp_path).provider == "mock"
+    assert _service_settings("gemini", tmp_path).provider == "gemini"
+    monkeypatch.setenv("CANONKEEPER_PROVIDER", "gemini")
+    assert _service_settings(None, tmp_path).provider == "gemini"
+    monkeypatch.delenv("CANONKEEPER_PROVIDER")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    assert _service_settings(None, tmp_path).provider == "gemini"
+
+
+def test_render_blueprint_pins_no_mode():
+    text = (Path(__file__).parent.parent / "render.yaml").read_text(encoding="utf-8")
+    assert "PAYPAL_MODE\n" not in text and "key: PAYPAL_MODE" not in text
+    assert "key: CANONKEEPER_PROVIDER" not in text

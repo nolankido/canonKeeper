@@ -62,6 +62,7 @@
   <header><a href="/">Preflight</a><span>pay-per-audit continuity checking · by canonkeeper</span></header>
   {% if paypal_mode == 'fake' %}<div class="banner">Demo mode: payments are simulated in-process. Set PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET for the PayPal sandbox.</div>
   {% elif paypal_mode == 'sandbox' %}<div class="banner">PayPal sandbox: no real money moves. Use a sandbox buyer account at checkout.</div>{% endif %}
+  {% if provider == 'mock' %}<div class="banner">Demo mode: findings come from a rule-based stand-in, not a language model, so the flow is real but the wording is canned. Set GEMINI_API_KEY for real audits.</div>{% endif %}
   {% if no_model %}<div class="banner">{{ no_model }}</div>{% endif %}
   {% if trains_on_prompts %}<div class="banner">This instance runs on Gemini's free tier, which may use submitted text to improve Google's products. Upload public-domain books or the demo series only — never an unpublished manuscript. For private work, run canonkeeper on your own machine with a local model.</div>{% endif %}
   {% block body %}{% endblock %}

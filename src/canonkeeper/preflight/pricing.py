@@ -33,10 +33,14 @@ class Quote:
 
     @property
     def explanation(self) -> str:
-        return (
-            f"${self.base_usd:.2f} base + ${PER_100K_TOKENS_USD:.2f} per 100k tokens × "
-            f"{self.tokens / 100_000:.2f} = ${self.total_usd:.2f}"
+        """The arithmetic as the buyer can redo it: every figure shown adds up to the total."""
+        line = (
+            f"${self.base_usd:.2f} base + {self.tokens:,} tokens at ${PER_100K_TOKENS_USD:.2f} "
+            f"per 100k tokens (${self.usage_usd:.2f}) = ${self.base_usd + self.usage_usd:.2f}"
         )
+        if self.total_usd != self.base_usd + self.usage_usd:
+            line += f", raised to the ${self.total_usd:.2f} minimum"
+        return line
 
 
 def quote(tokens: int, *, words: int = 0, books: int = 0, kind: str = "audit") -> Quote:

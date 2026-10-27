@@ -93,10 +93,9 @@ class PayPal(Protocol):
 
 def _parse(data: dict[str, Any]) -> Order:
     pu = (data.get("purchase_units") or [{}])[0]
-    amt = pu.get("amount") or {}
-    if not amt and pu.get("payments"):
-        caps = pu["payments"].get("captures") or [{}]
-        amt = caps[0].get("amount", {})
+    caps = (pu.get("payments") or {}).get("captures") or []
+    # Once captured, the amount that matters is the money that moved, not the order's.
+    amt = (caps[0].get("amount") if caps else None) or pu.get("amount") or {}
     approve = None
     for link in data.get("links", []):
         if link.get("rel") in ("approve", "payer-action"):
@@ -127,11 +126,14 @@ def capture_problem(o: Order, *, amount: str, currency: str) -> str | None:
         return (
             f"PayPal is holding the payment ({caps[0]['status']}{', ' + reason if reason else ''})"
         )
+    if not o.amount or not o.currency:
+        # Never assume: an unreported amount is not proof the quoted amount arrived.
+        return "PayPal did not report the captured amount"
     try:
-        same_amount = not o.amount or Decimal(o.amount) == Decimal(amount)
+        same_amount = Decimal(o.amount) == Decimal(amount)
     except InvalidOperation:
         same_amount = False
-    if not same_amount or (o.currency and o.currency != currency):
+    if not same_amount or o.currency != currency:
         return f"captured {o.amount} {o.currency}, but the quote was {amount} {currency}"
     return None
 
@@ -225,7 +227,12 @@ class PayPalClient:
         ):
             return self.get_order(order_id)  # callers read the status; nothing to raise
         r.raise_for_status()
-        return _parse(r.json())
+        o = _parse(r.json())
+        if o.status == "COMPLETED" and not o.amount:
+            # A minimal capture reply can omit the amounts; the order itself always has them,
+            # and capture_problem refuses to pay a job on an amount it was not shown.
+            return self.get_order(order_id)
+        return o
 
     def refund_capture(self, capture_id: str) -> Refund:
         """Refund the whole capture (an empty body means the full amount). Idempotent: the

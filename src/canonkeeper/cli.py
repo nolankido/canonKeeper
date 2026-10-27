@@ -28,6 +28,7 @@ from canonkeeper.config import Settings, load_settings
 from canonkeeper.corpus import Series, SeriesManifest, load_series
 from canonkeeper.llm import make_llm
 from canonkeeper.models import AuditReport
+from canonkeeper.report.display import headline
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, help=__doc__)
 
@@ -442,7 +443,7 @@ def demo(
     _print_summary(check_report)
     for f in check_report.findings:
         if f.verdict == "deliberate":
-            console.print(f"[bold green]DELIBERATE[/bold green] {f.candidate.reason}")
+            console.print(f"[bold green]DELIBERATE[/bold green] {headline(f.candidate)}")
             console.print(f"   {f.explanation}")
     console.print(f"\n[green]check report:[/green] {check_html}")
     console.print("[dim]provider=mock: rule-based stand-in, no API calls were made[/dim]")
@@ -677,7 +678,7 @@ def eval_cmd(
             f"{inj.injected!r} ({inj.book}): {miss.detail}"
         )
     for f in s.extra:
-        console.print(f"[red]false positive[/red] {f.candidate.reason}")
+        console.print(f"[red]false positive[/red] {headline(f.candidate)}")
     judged = report.models.get("adjudicated_by", "-")
     console.print(f"[dim]judged by: {judged}[/dim]")
     (eval_dir / "result.md").write_text(
@@ -834,6 +835,21 @@ def archive_eval(
     console.print(f"[green]archived to {dest}[/green]\nREADME row:\n{row}")
 
 
+def _service_settings(provider: str | None, workdir: Path | None) -> Settings:
+    """Settings for `serve` and `mcp`. With no model key and no provider asked for (flag or
+    CANONKEEPER_PROVIDER), run the whole flow on the mock instead of an instance that can only
+    refuse: that is the keyless demo `render.yaml` promises. An explicit provider is kept, keyless
+    or not, so a misconfigured real deploy says "no key" rather than quietly faking results."""
+    settings = _settings(provider, workdir)
+    if (
+        provider is None
+        and not os.environ.get("CANONKEEPER_PROVIDER")
+        and not settings.can_run_models
+    ):
+        settings = _settings("mock", workdir)
+    return settings
+
+
 @app.command()
 def serve(
     host: str = "127.0.0.1",
@@ -849,32 +865,48 @@ def serve(
 
     from canonkeeper.preflight.app import create_app, make_paypal
 
-    settings = _settings(provider, workdir)
+    settings = _service_settings(provider, workdir)
     pp = make_paypal(state_dir=settings.workdir / "preflight")
     console.print(f"provider {settings.provider} · paypal {pp.mode} · http://{host}:{port}")
+    if settings.provider == "mock":
+        console.print(
+            "[yellow]demo mode:[/yellow] no model key, so findings come from the rule-based "
+            "stand-in. Set GEMINI_API_KEY (or --provider) for real audits."
+        )
     if settings.trains_on_prompts:
         console.print(
             "[yellow]note:[/yellow] Gemini free tier may train on prompts — public-domain and "
             "demo text only through this service."
         )
-    web = create_app(
-        settings=settings, paypal=pp, public_base_url=public_url or f"http://{host}:{port}"
-    )
+    base = (public_url or f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}").rstrip("/")
+    from canonkeeper.preflight.mcp_server import PUBLIC_URL_FILE
+
+    state = settings.workdir / "preflight"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / PUBLIC_URL_FILE).write_text(base, encoding="utf-8")  # `mcp` links here
+    web = create_app(settings=settings, paypal=pp, public_base_url=base)
     uvicorn.run(web, host=host, port=port, log_level="info")
 
 
 @app.command()
-def mcp(provider: str | None = None, workdir: Path | None = None) -> None:
+def mcp(
+    provider: str | None = None,
+    workdir: Path | None = None,
+    public_url: str | None = typer.Option(
+        None,
+        help="The web service's URL, for approval and report links (default: what `serve` "
+        "announced in the same workdir, else PREFLIGHT_PUBLIC_URL, else port 8787)",
+    ),
+) -> None:
     """Run Preflight as an MCP server over stdio (quote → order → confirm → status → findings)."""
     from canonkeeper.preflight.mcp_server import build_server, make_service
 
-    settings = _settings(provider, workdir)
-    service = make_service(settings)
+    settings = _service_settings(provider, workdir)
+    service = make_service(settings, public_url=public_url)
     build_server(service).run("stdio")
 
 
 def _print_summary(report: AuditReport) -> None:
-    from canonkeeper.report.display import headline
 
     t = Table(show_header=True)
     t.add_column("verdict")

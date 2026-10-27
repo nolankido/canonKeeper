@@ -29,6 +29,26 @@ def test_quote_is_deterministic_and_explained():
     assert q.total_str == "41.00"
 
 
+@pytest.mark.parametrize(
+    ("tokens", "kind", "shown"),
+    [
+        (1_250, "audit", "$5.00 base + 1,250 tokens at $4.00 per 100k tokens ($0.05) = $5.05"),
+        (150, "check", "$2.00 base + 150 tokens at $4.00 per 100k tokens ($0.01) = $2.01"),
+        (
+            630_000,
+            "audit",
+            "$5.00 base + 630,000 tokens at $4.00 per 100k tokens ($25.20) = $30.20",
+        ),
+    ],
+)
+def test_quote_arithmetic_on_screen_adds_up(tokens, kind, shown):
+    """Regression: the line once read "× 0.01 = $5.05" and "× 0.00 = $2.01" because the multiplier
+    was rounded for display while the total used the exact count."""
+    q = quote(tokens, kind=kind)
+    assert q.explanation == shown
+    assert shown.endswith(f"${q.total_str}")
+
+
 @pytest.fixture
 def client(tmp_path):
     settings = Settings(
@@ -357,7 +377,11 @@ def test_sample_report_and_no_public_job_list(tmp_path, client):
     assert r.status_code == 200 and "Jezail bullet" in r.text
     assert 'href="/sample"' in client.get("/").text
     _upload(client)
-    assert ">The Saltmarsh Chronicles</a>" in client.get("/").text  # demo mode: one user
+    assert ">The Saltmarsh Chronicles</a>" in client.get("/").text  # this browser's own job
+    stranger = TestClient(client.app)  # same server, another browser (no cookie)
+    assert ">The Saltmarsh Chronicles</a>" not in stranger.get("/").text
+    stranger.cookies.set("preflight_jobs", "../etc.%2E%2E.nope")
+    assert stranger.get("/").status_code == 200  # junk in the cookie is ignored
 
     class SandboxLike(FakePayPal):
         mode = "sandbox"
@@ -1141,3 +1165,56 @@ def test_demo_series_runs_share_one_cache_and_uploads_do_not(client, monkeypatch
         client.app.state.runner.wait(job_id, timeout=60)
     shared = store.root.parent / "demo-cache"
     assert seen[0] == seen[1] == shared and seen[2] == store.dir(ids[2]) / "cache"
+
+
+def test_mcp_links_follow_the_running_web_service(tmp_path, monkeypatch):
+    """Regression: `serve --port 8799` + `mcp` handed out approval links on :8787."""
+    from canonkeeper.preflight.mcp_server import PUBLIC_URL_FILE, public_url_for
+
+    monkeypatch.delenv("PREFLIGHT_PUBLIC_URL", raising=False)
+    assert public_url_for(tmp_path) == "http://127.0.0.1:8787"
+    (tmp_path / PUBLIC_URL_FILE).write_text("http://127.0.0.1:8799/\n", encoding="utf-8")
+    assert public_url_for(tmp_path) == "http://127.0.0.1:8799"
+    monkeypatch.setenv("PREFLIGHT_PUBLIC_URL", "https://preflight.example")
+    assert public_url_for(tmp_path) == "https://preflight.example"
+    assert public_url_for(tmp_path, "https://flag.example/") == "https://flag.example"
+
+
+@respx.mock
+def test_a_capture_is_never_paid_on_an_amount_paypal_did_not_report():
+    """Regression: `not o.amount` used to count as a match. A minimal capture reply is re-read
+    from the order (which always carries amounts); with no amount anywhere, the job is not paid."""
+    from canonkeeper.preflight.paypal import Order, capture_problem
+
+    bare = Order(id="X", status="COMPLETED", approve_url=None, amount="", currency="", raw={})
+    assert capture_problem(bare, amount="5.05", currency="USD") is not None
+
+    respx.post(f"{SANDBOX}/v1/oauth2/token").mock(
+        return_value=httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+    )
+    respx.post(f"{SANDBOX}/v2/checkout/orders/9AB/capture").mock(
+        return_value=httpx.Response(201, json={"id": "9AB", "status": "COMPLETED"})
+    )
+    full = {
+        "id": "9AB",
+        "status": "COMPLETED",
+        "purchase_units": [
+            {
+                "amount": {"currency_code": "USD", "value": "5.05"},
+                "payments": {
+                    "captures": [
+                        {
+                            "id": "CAP1",
+                            "status": "COMPLETED",
+                            "amount": {"currency_code": "USD", "value": "5.05"},
+                        }
+                    ]
+                },
+            }
+        ],
+    }
+    respx.get(f"{SANDBOX}/v2/checkout/orders/9AB").mock(return_value=httpx.Response(200, json=full))
+    o = PayPalClient("cid", "sec", mode="sandbox").capture_order("9AB")
+    assert (o.amount, o.currency) == ("5.05", "USD")
+    assert capture_problem(o, amount="5.05", currency="USD") is None
+    assert capture_problem(o, amount="9.99", currency="USD") is not None

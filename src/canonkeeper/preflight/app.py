@@ -42,6 +42,8 @@ from canonkeeper.preflight.pricing import CURRENCY, quote
 
 _TEMPLATES = Path(__file__).parent / "templates"
 _SAMPLES = Path(__file__).parent / "samples"
+_MY_JOBS, _MY_JOBS_MAX = "preflight_jobs", 10  # cookie: the jobs this browser started
+_JOB_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
 def paypal_env() -> dict[str, str]:
@@ -114,6 +116,7 @@ def create_app(
             name,
             {
                 "paypal_mode": pp.mode,
+                "provider": settings.provider,
                 "trains_on_prompts": settings.trains_on_prompts,
                 "no_model": None if settings.can_run_models else no_model,
                 **ctx,
@@ -139,11 +142,23 @@ def create_app(
             "model": "ready" if settings.can_run_models else "no key",
         }
 
+    def mine(request: Request) -> list[str]:
+        """Job ids this browser started (newest first). Job pages are reachable only by their
+        unguessable id, so the home page lists only these: listing the store would show every
+        visitor's series to every other visitor, demo deploys included."""
+        raw = request.cookies.get(_MY_JOBS, "")
+        return [j for j in raw.split(".") if _JOB_ID_RE.fullmatch(j)][:_MY_JOBS_MAX]
+
+    def remember(request: Request, response: HTMLResponse, job_id: str) -> HTMLResponse:
+        ids = [job_id, *(j for j in mine(request) if j != job_id)][:_MY_JOBS_MAX]
+        response.set_cookie(
+            _MY_JOBS, ".".join(ids), max_age=60 * 60 * 24 * 60, httponly=True, samesite="lax"
+        )
+        return response
+
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request) -> HTMLResponse:
-        # Job pages are reachable only by their unguessable id; listing them on the home page
-        # would show every customer's series to every visitor. Demo mode is single-user.
-        jobs = store.all()[:10] if pp.mode == "fake" else []
+        jobs = [j for j in (store.get(i) for i in mine(request)) if j is not None]
         return render(request, "index.html", jobs=jobs, sample=_SAMPLES.exists())
 
     @app.post("/quote-demo")
@@ -159,7 +174,8 @@ def create_app(
             ("03-the-return.txt", BOOK3.encode()),
         ]
         job, q = store.create_from_upload(SERIES_NAME, files)
-        return render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
+        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
+        return remember(request, page, job.id)
 
     @app.get("/sample", response_class=HTMLResponse)
     def sample() -> FileResponse:
@@ -190,7 +206,8 @@ def create_app(
             job, q = await run_in_threadpool(store.create_from_upload, series_name, payload)
         except ValueError as e:
             raise HTTPException(413 if "large" in str(e) else 400, str(e)) from None
-        return render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
+        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
+        return remember(request, page, job.id)
 
     @app.post("/jobs/{job_id}/order")
     def order(job_id: str) -> RedirectResponse:
@@ -275,7 +292,8 @@ def create_app(
         except ValueError as e:
             code = 409 if "finished" in str(e) else 413 if "large" in str(e) else 400
             raise HTTPException(code, str(e)) from None
-        return render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
+        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
+        return remember(request, page, job.id)
 
     @app.post("/jobs/{job_id}/delete")
     def delete(job_id: str, confirm: str = Form("")) -> RedirectResponse:

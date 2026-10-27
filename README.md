@@ -275,7 +275,8 @@ writing the next book? ──▶ upload the draft on the finished audit's page
 ```
 
 ```bash
-canonkeeper serve                      # demo mode: payments simulated in-process, mock provider works too
+canonkeeper serve                      # no keys: demo mode (rule-based answers, simulated PayPal)
+GEMINI_API_KEY=… canonkeeper serve     # real audits on the Gemini free tier, PayPal still simulated
 PAYPAL_CLIENT_ID=… PAYPAL_CLIENT_SECRET=… canonkeeper serve   # real PayPal sandbox (or put them in .env)
 canonkeeper doctor --paypal            # proves the credentials: OAuth + a sandbox order, never captured
 canonkeeper doctor --round-trip        # sandbox: $1 order you approve as the buyer → capture → verify → refund

@@ -298,8 +298,32 @@ def build_server(service: PreflightService):  # noqa: ANN201 - MCPServer type va
     return server
 
 
+PUBLIC_URL_FILE = "public_url"  # written by `serve` into its preflight dir; read by `mcp`
+
+
+def public_url_for(workdir: Path, explicit: str | None = None) -> str:
+    """Where approval links and report links should point: the flag, else PREFLIGHT_PUBLIC_URL,
+    else whatever URL the web service sharing this workdir announced when it started, else the
+    default port. Without the third step, `serve --port 8799` plus `mcp` handed out links to a
+    server that was not there."""
+    import os
+
+    if explicit:
+        return explicit.rstrip("/")
+    if os.environ.get("PREFLIGHT_PUBLIC_URL"):
+        return os.environ["PREFLIGHT_PUBLIC_URL"].rstrip("/")
+    try:
+        announced = (workdir / PUBLIC_URL_FILE).read_text(encoding="utf-8").strip()
+    except OSError:
+        announced = ""
+    return announced.rstrip("/") or "http://127.0.0.1:8787"
+
+
 def make_service(
-    settings: Settings | None = None, paypal: PayPal | None = None, workdir: Path | None = None
+    settings: Settings | None = None,
+    paypal: PayPal | None = None,
+    workdir: Path | None = None,
+    public_url: str | None = None,
 ) -> PreflightService:
     from canonkeeper.preflight.app import make_paypal
 
@@ -309,10 +333,8 @@ def make_service(
         settings,
         paypal or make_paypal(state_dir=wd),
         wd,
-        public_base_url=__import__("os").environ.get(
-            "PREFLIGHT_PUBLIC_URL", "http://127.0.0.1:8787"
-        ),
+        public_base_url=public_url_for(wd, public_url),
     )
 
 
-__all__ = ["FakePayPal", "PreflightService", "build_server", "make_service"]
+__all__ = ["FakePayPal", "PreflightService", "build_server", "make_service", "public_url_for"]
