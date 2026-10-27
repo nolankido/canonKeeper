@@ -35,7 +35,10 @@ continuity checking for series authors (see *Preflight* below).
    `CHAPTER I.` with its title on the next line, a `I. A SCANDAL IN BOHEMIA`, or an unnumbered
    `THE ADVENTURE OF THE EMPTY HOUSE` all resolve to the right chapter, and the Contents block,
    `PART` dividers and shouted body lines (`RACHE.`) do not split anything. Tuned against the
-   actual Project Gutenberg layouts of all six Holmes volumes.
+   actual Project Gutenberg layouts of all six Holmes volumes. Authors' own files work too:
+   Markdown `#` headings, `Chapter 1`, a bare `1` or `II.`; Word's UTF-16 text and
+   Windows-1252 files are read as they are, and a chapter pasted without blank lines between
+   paragraphs is still cut into readable chunks.
 1. **Extract.** Each chapter goes to the extraction model (`gemini-3.5-flash-lite` by default) with a strict schema: atomic claims
    (`Watson · wound_location = shoulder`), a fixed predicate vocabulary, and a **verbatim quote**
    for every claim. Claims whose quote cannot be found in the source chunk are dropped — that is
