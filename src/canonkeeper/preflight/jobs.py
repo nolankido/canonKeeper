@@ -133,6 +133,13 @@ def _title_from_filename(stem: str) -> str:
     return " ".join(w if i and w in _SMALL else w[:1].upper() + w[1:] for i, w in enumerate(words))
 
 
+def back_label_for(job: Job) -> str:
+    """The report's link back to its job page, saying what that page offers."""
+    if job.kind == "check":
+        return "← Back to this draft check's page"
+    return "← Back to the job page: rule on items, check a new draft"
+
+
 def draft_title(filename: str) -> str:
     """ "draft-04-the-ledger.txt" → "The Ledger (draft)": how the report names the new book."""
     stem = re.sub(r"^(?:draft[-_ ]*)?\d{0,3}[-_. ]*", "", Path(filename).stem, flags=re.I)
@@ -616,7 +623,13 @@ class Runner:
                     report = audit(series, store, llm, settings, progress=False, on_progress=tick)
                 if replayed:
                     report.models["replayed"] = replayed
-                write_report(report, d / "reports", back_url=f"/jobs/{job.id}", customer=True)
+                write_report(
+                    report,
+                    d / "reports",
+                    back_url=f"/jobs/{job.id}",
+                    back_label=back_label_for(job),
+                    customer=True,
+                )
                 self.store.update(
                     job.id,
                     expect=("running",),

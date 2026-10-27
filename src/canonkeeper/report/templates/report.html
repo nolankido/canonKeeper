@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>canonkeeper — {{ r.series }}</title>
+<title>{{ r.series }} · {{ "draft check" if is_check else "continuity audit" }}{% if customer %} · Preflight{% else %} · canonkeeper{% endif %}</title>
 <style>
   :root {
     --bg: #faf8f3; --fg: #1d1a16; --muted: #6b655c; --card: #ffffff; --line: #e6e1d7;
@@ -68,7 +68,7 @@
 <main>
   {% if back_url %}<div class="topbar"><b>Preflight</b><a href="{{ back_url }}" data-testid="back-to-job">{{ back_label }}</a></div>{% endif %}
   <h1>{{ r.series }}</h1>
-  <div class="sub">{{ r.books | length }} books · continuity audit{% if not customer %} by canonkeeper{% endif %}</div>
+  <div class="sub">{% if is_check %}Draft check: {{ r.books[-1] }} against {{ r.books | length - 1 }} published book{{ '' if r.books | length == 2 else 's' }}{% else %}{{ r.books | length }} books · continuity audit{% endif %}{% if not customer %} by canonkeeper{% endif %}</div>
   {% if r.models.replayed %}<p class="sub" data-testid="replayed">These findings are {{ r.models.replayed }}: real model output for the demo series, shown without sending anything to a model.</p>{% endif %}
 
   <div class="stats">

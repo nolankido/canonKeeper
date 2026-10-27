@@ -39,7 +39,8 @@ shoulder in A Study in Scarlet vs leg in The Sign of the Four", both passages, t
 series bible as a browsable page and as a spreadsheet with the passage behind every row, and the
 findings as JSON. If a paid audit cannot finish, the author chooses a free retry or a full
 refund through PayPal. And the finding guarantee: an author who marks a reported contradiction
-wrong gets $0.50 back through PayPal for it (up to half the price), and the mark goes on the report.
+wrong gets $0.50 back for it (up to half the price): through PayPal, or into the assistant's
+budget when the budget paid. The mark goes on the report.
 Items the model could not call either way ("needs your judgement") get the author's own ruling,
 free, written onto the report beside the model's note. The bible also opens in an AG Grid
 explorer: every fact with its passage, sorted, filtered, disputed rows flagged, CSV out.
@@ -172,6 +173,7 @@ git clone https://github.com/nolankido/canonKeeper && cd canonKeeper
 pip install -e ".[dev]"
 canonkeeper demo --dest build/demo --open-report   # whole pipeline offline, rule-based model
 canonkeeper serve --provider mock       # Preflight with simulated PayPal: http://127.0.0.1:8787
+# (the offline stand-in reads the demo series' sentence shapes; real books need a model key)
 # in a second terminal, while serve runs: the same flow driven by an assistant over MCP
 python scripts/mcp_flow_demo.py --brief --auto-approve --provider mock build/demo/books/*.txt
 ```

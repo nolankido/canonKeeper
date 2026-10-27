@@ -585,6 +585,11 @@ def create_app(
         guarantee) and "needs your judgement" items to rule on."""
         return {
             "contradictions": contradictions_of(job),
+            "checks": (
+                [j for j in store.all() if j.parent_id == job.id and j.kind == "check"]
+                if job.kind == "audit" and job.status == "done"
+                else []
+            ),
             "judgement": judgement_items(job, store),
             "rulings": RULINGS,
             "guarantee_cap": f"{Decimal(job.quote_usd) * GUARANTEE_CAP:.2f}",

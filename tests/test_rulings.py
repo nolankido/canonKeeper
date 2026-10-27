@@ -119,3 +119,22 @@ def test_the_demo_series_gives_the_author_something_to_rule_on_and_reads_like_an
     svc.runner.wait(check, timeout=60)
     fixes = [r["suggested_fix"] for r in svc.get_findings(check)["findings"]]
     assert fixes and all("draft" in f for f in fixes)
+
+
+def test_a_series_page_lists_its_draft_checks_and_a_checks_report_says_what_it_is(shop):
+    web, svc = shop
+    job, _ = _done_with_ambiguous(svc)
+    draft = svc.demo_draft()
+    check = svc.check_draft(job, draft["name"], draft["text"])["job_id"]
+    svc.paypal.approve(svc.order_audit(check)["order_id"])
+    svc.confirm_payment(check)
+    svc.runner.wait(check, timeout=60)
+    page = web.get(f"/jobs/{job}").text
+    assert 'data-testid="checks"' in page and f'href="/jobs/{check}"' in page
+    report = web.get(f"/jobs/{check}/report").text
+    assert "Draft check:" in report and "against 3 published books" in report
+    assert "Back to this draft check" in report and "· Preflight</title>" in report
+    first = svc.get_findings(job)["findings"][0]
+    svc.mark_finding_wrong(job, first["index"])
+    receipt = web.get(f"/jobs/{job}").text
+    assert f"$0.50 back: {first['summary']}" in receipt.replace("&#39;", "'").replace("&amp;", "&")

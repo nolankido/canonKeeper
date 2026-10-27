@@ -47,7 +47,15 @@ def annotate_report(job: Job, store: JobStore) -> None:
                 verdict=r["verdict"],  # type: ignore[arg-type]
                 note=r.get("note", ""),
             )
-    write_report(report, store.dir(job.id) / "reports", back_url=f"/jobs/{job.id}", customer=True)
+    from canonkeeper.preflight.jobs import back_label_for
+
+    write_report(
+        report,
+        store.dir(job.id) / "reports",
+        back_url=f"/jobs/{job.id}",
+        back_label=back_label_for(job),
+        customer=True,
+    )
 
 
 def rule_on_finding(

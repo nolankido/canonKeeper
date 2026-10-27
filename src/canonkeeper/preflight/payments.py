@@ -683,6 +683,7 @@ def mark_finding_wrong(
                 "request_id": f"guarantee-{job.id}-{index}",
                 "at": _now(),
                 "note": note[:500],
+                "headline": _headline(report, index),
                 "status": "pending" if amount else "done",
             }
             store.update(job.id, guarantee=[*fresh.guarantee, entry])
@@ -691,7 +692,7 @@ def mark_finding_wrong(
     if amount and fresh.budget_id and budgets is not None:
         problem = _give_back_to_budget(
             fresh.budget_id, f"{job.id}-finding-{index}", job.id, amount,
-            f"finding {index + 1} marked wrong", paypal, budgets,
+            f"marked wrong: {entry.get('headline') or 'a finding'}", paypal, budgets,
         )  # fmt: skip
         if problem:
             _drop_guarantee(store, job.id, index)
@@ -731,6 +732,15 @@ def mark_finding_wrong(
             annotate_report(store.get(job.id) or now, store)
     _sync(job, store.get(job.id))
     return None, amount
+
+
+def _headline(report: object, index: int) -> str:
+    from canonkeeper.report.display import headline
+
+    try:
+        return headline(report.findings[index].candidate)  # type: ignore[attr-defined]
+    except (AttributeError, IndexError):
+        return ""
 
 
 def _drop_guarantee(store: JobStore, job_id: str, index: int) -> None:

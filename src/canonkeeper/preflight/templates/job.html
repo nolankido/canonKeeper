@@ -83,6 +83,9 @@
     {% else %}
     <div>Charged</div><div>Nothing yet: the payment is taken only when PayPal confirms it</div>
     {% endif %}
+    {% for g in job.guarantee if g.amount != '0.00' %}
+    <div>Guarantee</div><div>${{ g.amount }} back: {{ g.headline or 'a finding marked wrong' }}{% if g.refund_id %} · refund <code>{{ g.refund_id }}</code>{% endif %}{% if g.status == 'pending' %} · on its way{% endif %}</div>
+    {% endfor %}
     {% if job.refund_id %}
     <div>Refund</div><div><code>{{ job.refund_id }}</code>{% if job.refund_status %} · {{ job.refund_status | lower }}{% endif %}{% if job.refunded_at %} · {{ job.refunded_at[:10] }}{% endif %}</div>
     {% endif %}
@@ -137,6 +140,7 @@
 {% if job.status == 'done' and job.kind == 'audit' %}
 <form class="card" action="/jobs/{{ job.id }}/check" method="post" enctype="multipart/form-data">
   <h2 style="margin-top:0">Writing the next book?</h2>
+  {% if checks %}<p data-testid="checks">Drafts checked against this series: {% for c in checks %}<a href="/jobs/{{ c.id }}">{{ c.draft }}</a> ({{ c.status | label }}{% if c.status == 'done' %}, {{ c.contradictions }} contradiction{{ '' if c.contradictions == 1 else 's' }}{% endif %}){{ ', ' if not loop.last }}{% endfor %}.</p>{% endif %}
   <p>Check a draft against everything this audit learned about the series. You get only the places where the draft disagrees with the published books, each with a fix to the draft. Priced on the draft alone.</p>
   <label for="draft">Draft (.txt or .md)</label>
   <input id="draft" name="draft" type="file" accept=".txt,.md,text/plain,text/markdown" required>

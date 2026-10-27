@@ -50,6 +50,7 @@ def write_report(
             others=[f for f in report.findings if not f.is_error],
             back_url=back_url,
             back_label=back_label,
+            is_check=bool(report.books) and report.books[-1].endswith("(draft)"),
             customer=customer,
             credit=model_credit(report) if customer else "",
         ),

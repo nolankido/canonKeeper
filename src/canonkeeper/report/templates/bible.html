@@ -61,7 +61,7 @@
 <main>
   {% if back_url %}<div class="topbar"><b>Preflight</b><a href="{{ back_url }}" data-testid="back-to-job">← Back to the job page</a></div>{% endif %}
   <h1>{{ series }}</h1>
-  <div class="sub">Series bible · {{ "{:,}".format(n_claims) }} sourced facts about {{ "{:,}".format(n_entities) }} characters, places and things · {{ "{:,}".format(n_disputed) }} where the books disagree</div>
+  <div class="sub">Series bible · {{ "{:,}".format(n_claims) }} sourced facts about {{ "{:,}".format(n_entities) }} characters, places and things · {{ "{:,}".format(n_disputed) }} details where the books disagree (the report judges each)</div>
 
   <div class="toolbar">
     <input id="q" type="search" placeholder="Find a character, place or thing…" aria-label="Find in the bible">
