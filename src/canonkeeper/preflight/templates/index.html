@@ -19,7 +19,7 @@
   {% if trains_on_prompts %}
   <p><strong>Public-domain books only on this site.</strong> It runs on a free AI tier whose terms let Google use uploaded text to improve its products, so do not upload an unpublished manuscript here. To keep a manuscript private, run Preflight on your own computer with a local model: the text never leaves it (<a href="https://github.com/nolankido/canonKeeper#readme">how</a>).</p>
   {% elif provider == 'mock' %}
-  <p><strong>Demo mode: no text is sent to any model.</strong> {% if demo_recorded %}The demo series is answered with real Gemini answers recorded earlier; anything else you upload gets a simple rule-based stand-in, not AI.{% else %}Findings here come from a simple rule-based stand-in, not AI.{% endif %} For a private manuscript with real findings, run Preflight on your own computer with a local model: the text never leaves it (<a href="https://github.com/nolankido/canonKeeper#readme">how</a>).</p>
+  <p><strong>Your text stays on this server: in this demo nothing is sent to any model.</strong>{% if demo_recorded %} The demo series replays real Gemini answers recorded earlier.{% endif %} For a private manuscript with real findings, run Preflight on your own computer with a local model: the text never leaves it (<a href="https://github.com/nolankido/canonKeeper#readme">how</a>).</p>
   {% else %}
   <p><strong>Where your text goes:</strong> to this site's model provider ({{ provider }}) for the audit, and nowhere else. To keep a manuscript entirely on your own computer, run Preflight there with a local model (<a href="https://github.com/nolankido/canonKeeper#readme">how</a>).</p>
   {% endif %}
@@ -27,7 +27,7 @@
 
 <form class="card" action="/quote" method="post" enctype="multipart/form-data">
   <label for="series_name">Series name</label>
-  <input id="series_name" name="series_name" type="text" placeholder="The Saltmarsh Chronicles" required>
+  <input id="series_name" name="series_name" type="text" placeholder="e.g. The Saltmarsh Chronicles" required>
   <label for="files">Manuscripts (.txt or .md), one file per book — they are sorted by filename, so prefix with 01-, 02-, …</label>
   <input id="files" name="files" type="file" multiple accept=".txt,.md,text/plain,text/markdown" required>
   <button type="submit">Get a quote</button>

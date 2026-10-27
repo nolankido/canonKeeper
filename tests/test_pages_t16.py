@@ -53,3 +53,43 @@ def test_every_status_a_job_or_budget_can_have_has_words():
         "ordered", "active", "closing", "closed", "cancelled"
     }  # fmt: skip
     assert job_statuses | budget_statuses <= set(STATUS_LABELS)
+
+
+def test_a_customers_report_credits_the_models_plainly_and_shows_no_cost_tile(tmp_path):
+    from canonkeeper.models import AuditReport
+    from canonkeeper.report.render import write_report
+    from tests.test_report_display import _report
+
+    r: AuditReport = _report(cost_usd=1.55, read_cost_usd=1.40, judge_cost_usd=0.15)
+    r.models = {"extract": "gemini-3.5-flash-lite", "adjudicate": "gemini-3.6-flash",
+                "provider": "gemini", "adjudicated_by": "gemini-3.6-flash ×12, gemini-3.5-flash-lite ×3"}  # fmt: skip
+    html = write_report(r, tmp_path / "c", customer=True, back_url="/jobs/x")[0].read_text()
+    assert "list-price" not in html and "$1.55" not in html and "Models:" not in html
+    assert (
+        "Facts read by gemini-3.5-flash-lite; conflicts judged by gemini-3.6-flash and "
+        "gemini-3.5-flash-lite." in html
+    )
+    assert (
+        'href="/jobs/x" data-testid="back-to-job"' in html and "possible conflicts checked" in html
+    )
+    cli = write_report(r, tmp_path / "d")[0].read_text()
+    assert "read $1.40 · judge $0.15" in cli and "Models:" in cli  # the CLI keeps both
+
+
+def test_bible_pages_say_yes_not_true_and_link_back_to_their_job(tmp_path):
+    from canonkeeper.report.display import value
+
+    class C:
+        object, predicate = "true", "dead"
+
+    assert value(C()) == "yes"  # type: ignore[arg-type]
+    web, svc = _shop(tmp_path)
+    job = svc.quote_series("The Saltmarsh Chronicles", BOOKS)["job_id"]
+    svc.paypal.approve(svc.order_audit(job)["order_id"])
+    svc.confirm_payment(job)
+    svc.runner.wait(job, timeout=60)
+    for page in ("bible", "bible-grid.html"):
+        html = web.get(f"/jobs/{job}/{page}").text
+        assert f'href="/jobs/{job}" data-testid="back-to-job"' in html, page
+        assert "where the books disagree" in html and "slots" not in html.split("<main>")[1][:600]
+    assert "hide: narrow" in web.get(f"/jobs/{job}/bible-grid.html").text  # phone columns

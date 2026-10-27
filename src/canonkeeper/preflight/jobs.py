@@ -610,11 +610,13 @@ class Runner:
                     store = build_bible(
                         series, llm, settings, d / "bible.jsonl", progress=False, on_progress=tick
                     )
-                    write_bible(store, series.name, d / "reports" / "bible.html")
+                    write_bible(
+                        store, series.name, d / "reports" / "bible.html", back_url=f"/jobs/{job.id}"
+                    )
                     report = audit(series, store, llm, settings, progress=False, on_progress=tick)
                 if replayed:
                     report.models["replayed"] = replayed
-                write_report(report, d / "reports", back_url=f"/jobs/{job.id}")
+                write_report(report, d / "reports", back_url=f"/jobs/{job.id}", customer=True)
                 self.store.update(
                     job.id,
                     expect=("running",),

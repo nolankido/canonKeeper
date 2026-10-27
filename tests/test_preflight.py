@@ -1227,7 +1227,7 @@ def test_home_page_says_what_it_is_what_it_costs_and_where_text_goes(client, tmp
     assert 'data-testid="cta-demo"' in html and 'href="/sample"' in html
     assert "For authors of long-running series" in html and "$5 + $4 per 100,000 tokens" in html
     assert "about 73,000 words" in html  # authors count words, not tokens
-    assert "Demo mode: no text is sent to any model." in html  # mock provider
+    assert "in this demo nothing is sent to any model" in html  # mock provider
     assert "run Preflight on your own computer with a local model" in html
     # the privacy line sits above the upload form, where the decision to upload is made
     assert html.index('data-testid="privacy"') < html.index('action="/quote"')
@@ -1464,7 +1464,9 @@ def test_the_bible_explorer_is_served_with_its_own_grid_script(client):
     assert script.status_code == 200 and "createGrid" in script.text
     assert client.get("/static/AG-GRID-LICENSE.txt").text.startswith("The MIT License")
     sample = client.get("/sample/bible")
-    assert sample.status_code == 200 and "3,909 sourced facts" in sample.text
+    assert (
+        sample.status_code == 200 and "3,963 sourced facts" in sample.text
+    )  # every bible fact (an alias cycle once hid 54)
 
 
 def test_a_passage_cannot_break_out_of_the_grid_page(tmp_path):

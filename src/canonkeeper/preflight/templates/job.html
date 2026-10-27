@@ -3,7 +3,7 @@
 {% block head %}{% if job.status in ('paid', 'running', 'refunding', 'held') %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
 {% block body %}
 <h1>{% if job.kind == 'check' %}Check of <code>{{ job.draft }}</code> · {% endif %}{{ job.series_name }} <span class="status {{ job.status }}">{{ job.status | label }}</span></h1>
-<p class="lede">{{ job.books | length }} books · {{ "{:,}".format(job.tokens) }} tokens · quote ${{ job.quote_usd }}{% if job.order_id %} · order <code>{{ job.order_id }}</code>{% endif %}</p>
+<p class="lede">{{ job.books | length }} books · {{ "{:,}".format(job.tokens) }} tokens · price ${{ job.quote_usd }}{% if job.order_id %} · order <code>{{ job.order_id }}</code>{% endif %}</p>
 
 <div class="card">
 {% if note %}<p><strong>PayPal:</strong> {{ note }}.</p>{% endif %}
@@ -33,8 +33,8 @@
   </div>
   <a class="btn" href="/jobs/{{ job.id }}/report">Open the report</a>
   {% if job.kind == 'check' %}{% if job.parent_id %}<a class="btn secondary" href="/jobs/{{ job.parent_id }}">Back to the series</a>{% endif %}
-  {% else %}<a class="btn secondary" href="/jobs/{{ job.id }}/bible-grid.html">Explore the bible</a> <a class="btn secondary" href="/jobs/{{ job.id }}/bible">Bible as cards</a>{% endif %}
-  <p class="note">Keep a copy: <a href="/jobs/{{ job.id }}/download/report.html">report (HTML)</a> · <a href="/jobs/{{ job.id }}/download/report.json">findings (JSON)</a>{% if job.kind != 'check' %} · <a href="/jobs/{{ job.id }}/download/bible.html">series bible (HTML)</a> · <a href="/jobs/{{ job.id }}/download/bible-grid.html">bible explorer (HTML)</a> · <a href="/jobs/{{ job.id }}/download/bible.csv">bible as a spreadsheet (CSV)</a>{% endif %}</p>
+  {% else %}<a class="btn secondary" href="/jobs/{{ job.id }}/bible-grid.html">Explore the bible</a>{% endif %}
+  <p class="note">{% if job.kind != 'check' %}The bible also reads as <a href="/jobs/{{ job.id }}/bible">cards, one per character</a>. {% endif %}Keep a copy: <a href="/jobs/{{ job.id }}/download/report.html">report (HTML)</a> · <a href="/jobs/{{ job.id }}/download/report.json">findings (JSON)</a>{% if job.kind != 'check' %} · <a href="/jobs/{{ job.id }}/download/bible.html">series bible (HTML)</a> · <a href="/jobs/{{ job.id }}/download/bible-grid.html">bible explorer (HTML)</a> · <a href="/jobs/{{ job.id }}/download/bible.csv">bible as a spreadsheet (CSV)</a>{% endif %}</p>
 {% elif job.status == 'deleted' %}
   <p>Your manuscripts, the series bible, the reports and every cached model response for this job have been deleted from this server. Only a receipt remains: order <code>{{ job.order_id or '—' }}</code>, ${{ job.quote_usd }}.</p>
 {% elif job.status == 'failed' %}
@@ -101,10 +101,11 @@
       {% if c.marked %}
       <div><span class="status done">marked wrong</span>{% if c.marked.amount != '0.00' %} · ${{ c.marked.amount }} back{% else %} · noted (guarantee cap reached){% endif %}</div>
       {% else %}
+      <details class="mark"><summary>This one is wrong…</summary>
       <form action="/jobs/{{ job.id }}/findings/{{ c.index }}/wrong" method="post">
         <input name="note" type="text" placeholder="why (optional)" aria-label="Why it is wrong">
-        <button type="submit" class="secondary" data-testid="mark-wrong-{{ c.index }}">This one is wrong</button>
-      </form>
+        <button type="submit" class="secondary" data-testid="mark-wrong-{{ c.index }}">Mark it wrong</button>
+      </form></details>
       {% endif %}
     </div>
     {% endfor %}
@@ -147,7 +148,7 @@
 <form class="card" action="/jobs/{{ job.id }}/delete" method="post">
   <p class="note">Delete your files: the manuscripts, the bible, the reports and the cached model responses. {% if job.status == 'done' %}Download the report first if you want to keep it. {% endif %}This cannot be undone.</p>
   <label><input type="checkbox" name="confirm" value="yes" required> Delete everything for this job</label>
-  <button type="submit" class="secondary">Delete my files</button>
+  <button type="submit" class="danger">Delete my files</button>
 </form>
 {% endif %}
 {% endblock %}

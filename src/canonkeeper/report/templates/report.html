@@ -21,11 +21,15 @@
   body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 var(--serif); }
   main { max-width: 880px; margin: 0 auto; padding: 32px 16px 64px; }
   h1 { font-size: 28px; margin: 0 0 4px; }
-  h2 { font-size: 18px; margin: 36px 0 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+  h2 { font-size: 22px; margin: 36px 0 12px; }
+  a { color: var(--accent); }
+  q.bare { quotes: none; }
+  .topbar { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; font-size: 15px; }
+  .topbar b { font-size: 20px; }
   .sub { color: var(--muted); margin-bottom: 20px; }
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
   .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-  .stat b { display: block; font-size: 24px; font-family: var(--mono); }
+  .stat b { display: block; font-size: 26px; font-variant-numeric: tabular-nums lining-nums; }
   .stat span { color: var(--muted); font-size: 13px; }
   .f { background: var(--card); border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
   .f.high { border-left-color: var(--hi); } .f.medium { border-left-color: var(--med); } .f.low { border-left-color: var(--lo); }
@@ -62,17 +66,19 @@
 </head>
 <body>
 <main>
+  {% if back_url %}<div class="topbar"><b>Preflight</b><a href="{{ back_url }}" data-testid="back-to-job">{{ back_label }}</a></div>{% endif %}
   <h1>{{ r.series }}</h1>
-  <div class="sub">{{ r.books | length }} books · continuity audit by canonkeeper{% if back_url %} · <a href="{{ back_url }}" data-testid="back-to-job">back to the job page</a> (rule on items, check a new draft){% endif %}</div>
+  <div class="sub">{{ r.books | length }} books · continuity audit{% if not customer %} by canonkeeper{% endif %}</div>
   {% if r.models.replayed %}<p class="sub" data-testid="replayed">These findings are {{ r.models.replayed }}: real model output for the demo series, shown without sending anything to a model.</p>{% endif %}
 
   <div class="stats">
-    <div class="stat"><b>{{ r.claims_total }}</b><span>facts in bible</span></div>
-    <div class="stat"><b>{{ r.candidates_total }}</b><span>candidates screened</span></div>
+    <div class="stat"><b>{{ "{:,}".format(r.claims_total) }}</b><span>facts in the series bible</span></div>
+    <div class="stat"><b>{{ "{:,}".format(r.candidates_total) }}</b><span>possible conflicts checked</span></div>
     {% set wrong = r.findings | selectattr('author_review') | selectattr('author_review.verdict', 'equalto', 'wrong') | list %}
     <div class="stat"><b>{{ errors | length }}</b><span>contradictions{% if wrong %} · {{ wrong | length }} marked wrong by the author{% endif %}</span></div>
-    <div class="stat"><b>{{ r.findings | selectattr('verdict', 'equalto', 'deliberate') | list | length }}</b><span>deliberate reveals</span></div>
-    {% if r.read_cost_usd is not none and r.judge_cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % (r.read_cost_usd + r.judge_cost_usd) }}</b><span>list-price API cost (read ${{ '%.2f' % r.read_cost_usd }} · judge ${{ '%.2f' % r.judge_cost_usd }})</span></div>
+    <div class="stat"><b>{{ r.findings | selectattr('verdict', 'equalto', 'deliberate') | list | length }}</b><span>explained in the text</span></div>
+    {% if customer %}{# a customer's report shows what they paid for, not our costs #}
+    {% elif r.read_cost_usd is not none and r.judge_cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % (r.read_cost_usd + r.judge_cost_usd) }}</b><span>list-price API cost (read ${{ '%.2f' % r.read_cost_usd }} · judge ${{ '%.2f' % r.judge_cost_usd }})</span></div>
     {% elif r.cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % (r.judge_cost_usd if r.judge_cost_usd is not none else r.cost_usd) }}</b><span>list-price cost to judge (reading the books not included)</span></div>{% endif %}
   </div>
 
@@ -90,7 +96,7 @@
     {% for c in f.candidate.claims %}
     <div class="claim">
       <div class="loc">{{ c.provenance | where }} — <span title="{{ c.subject }}.{{ c.predicate }} = {{ c.object }}">{{ c.subject }}, {{ c | fact }}</span></div>
-      <q>{{ c.provenance.quote }}</q>
+      <q{% if c.provenance.quote[:1] in '"“‘' %} class="bare"{% endif %}>{{ c.provenance.quote }}</q>
     </div>
     {% endfor %}
     <p>{{ f.explanation }}</p>
@@ -109,7 +115,7 @@
     {% for c in f.candidate.claims %}
     <div class="claim">
       <div class="loc">{{ c.provenance | where }} — <span title="{{ c.subject }}.{{ c.predicate }} = {{ c.object }}">{{ c.subject }}, {{ c | fact }}</span></div>
-      <q>{{ c.provenance.quote }}</q>
+      <q{% if c.provenance.quote[:1] in '"“‘' %} class="bare"{% endif %}>{{ c.provenance.quote }}</q>
     </div>
     {% endfor %}
     <p>{{ f.explanation }}</p>
@@ -126,15 +132,16 @@
     <strong title="{{ f.candidate.reason }}">{{ f.candidate | headline }}</strong>
     {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ {'wrong': 'The author marked this call wrong', 'right': 'The author confirmed this', 'error': 'The author ruled: a real error to fix', 'fine': 'The author ruled: not a problem'}[f.author_review.verdict] }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
     <p>{{ f.explanation }}</p>
-    {% if f.evidence %}<div class="claim"><div class="loc">Why it is cleared</div><q>{{ f.evidence }}</q></div>{% endif %}
+    {% if f.evidence %}<div class="claim"><div class="loc">Why it is cleared</div><q{% if f.evidence[:1] in '"“‘' %} class="bare"{% endif %}>{{ f.evidence }}</q></div>{% endif %}
   </div>
   {% endfor %}
   </details>
   {% endif %}
 
   <footer>
-    Models: {% for k, v in r.models.items() %}<code>{{ k }}={{ v }}</code> {% endfor %}
-    · Every finding links to a verbatim passage; nothing here was inferred without a quote.
+    {% if customer %}{{ credit }}
+    {% else %}Models: {% for k, v in r.models.items() %}<code>{{ k }}={{ v }}</code> {% endfor %}{% endif %}
+    {% if not customer %}·{% endif %} Every finding links to a verbatim passage; nothing here was inferred without a quote.
   </footer>
 </main>
 <script>

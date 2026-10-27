@@ -22,12 +22,14 @@
   main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
   h1 { font-size: 28px; margin: 0 0 4px; }
   .sub { color: var(--muted); margin-bottom: 16px; }
+  .topbar { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; font-size: 15px; } .topbar b { font-size: 20px; } .topbar a, .sub a { color: var(--accent); }
   .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 24px; }
   input[type=search] { flex: 1 1 240px; padding: 10px 12px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); }
   label { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .ent { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin: 12px 0; }
   .ent h2 { margin: 0; font-size: 20px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-  .ent h2 small { font: 13px var(--mono); color: var(--muted); margin-left: 6px; }
+  .ent h2 small { font-size: 14px; font-weight: normal; color: var(--muted); }
+  @media (max-width: 600px) { .ent h2 small { flex-basis: 100%; margin-bottom: 6px; } }
   .aliases { color: var(--muted); font-size: 14px; margin: 2px 0 10px; }
   .slot { display: grid; grid-template-columns: 160px 1fr; gap: 8px 14px; padding: 8px 0; border-top: 1px solid var(--line); }
   .slot .pred { font: 13px var(--mono); color: var(--muted); padding-top: 3px; }
@@ -57,12 +59,13 @@
 </head>
 <body>
 <main>
+  {% if back_url %}<div class="topbar"><b>Preflight</b><a href="{{ back_url }}" data-testid="back-to-job">← Back to the job page</a></div>{% endif %}
   <h1>{{ series }}</h1>
-  <div class="sub">series bible · {{ n_entities }} entities · {{ n_claims }} facts · {{ n_disputed }} slots with disagreeing values</div>
+  <div class="sub">Series bible · {{ "{:,}".format(n_claims) }} sourced facts about {{ "{:,}".format(n_entities) }} characters, places and things · {{ "{:,}".format(n_disputed) }} where the books disagree</div>
 
   <div class="toolbar">
-    <input id="q" type="search" placeholder="filter entities…" autofocus>
-    <label><input id="only" type="checkbox"> only entities with disputed slots</label>
+    <input id="q" type="search" placeholder="Find a character, place or thing…" aria-label="Find in the bible">
+    <label><input id="only" type="checkbox"> only where the books disagree</label>
   </div>
 
   {% for e in entities %}

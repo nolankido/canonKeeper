@@ -77,7 +77,13 @@ def main() -> None:
         if report.judge_cost_usd is None:
             report.judge_cost_usd = report.cost_usd
     with tempfile.TemporaryDirectory() as tmp:
-        html, _ = write_report(report, Path(tmp))
+        html, _ = write_report(
+            report,
+            Path(tmp),
+            customer=True,
+            back_url="/",
+            back_label="← Preflight: audit your own series",
+        )
         shutil.copyfile(html, a.out)
     print(f"wrote {a.out}")
 

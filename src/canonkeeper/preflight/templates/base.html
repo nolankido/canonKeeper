@@ -46,7 +46,14 @@
   button.paypal:hover, .btn.paypal:hover { background: #f2ba36; }
   button.paypal:disabled { opacity: .5; cursor: not-allowed; }
   button.secondary, .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
-  form.inline { display: inline; margin-left: 8px; }
+  form.inline { display: inline; margin-left: 0; }
+  /* buttons in a row keep a gap, and wrap cleanly on a phone */
+  button, .btn { margin-right: 10px; }
+  button.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+  details.mark summary { cursor: pointer; color: var(--accent); font-weight: 600; list-style: none; }
+  details.mark summary::-webkit-details-marker { display: none; }
+  details.mark[open] summary { margin-bottom: 8px; }
+  input[type=file]::file-selector-button { font: inherit; font-weight: 600; margin-right: 12px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 8px; background: transparent; color: var(--accent); cursor: pointer; }
   .items { margin-top: 8px; }
   .item { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--line); }
   .item .what { flex: 1 1 260px; min-width: 0; font-size: 15px; } .item .what .sub { font-size: 14px; margin: 2px 0 0; }
@@ -56,7 +63,7 @@
   .kv { display: grid; grid-template-columns: 180px 1fr; gap: 6px 14px; }
   .kv div:nth-child(odd) { color: var(--muted); font-size: 14px; padding-top: 3px; }
   @media (max-width: 560px) { .kv { grid-template-columns: 1fr; gap: 2px; } .kv div:nth-child(even) { margin-bottom: 10px; } }
-  .big { font-size: 34px; font-family: var(--mono); }
+  .big { font-size: 34px; font-variant-numeric: tabular-nums lining-nums; }
   .status { display: inline-block; font: 13px var(--mono); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); }
   .status.done { color: var(--ok); border-color: var(--ok); } .status.running, .status.paid { color: var(--warn); border-color: var(--warn); }
   .status.failed { color: var(--bad); border-color: var(--bad); }

@@ -23,6 +23,7 @@
   h1 { font-size: 26px; margin: 0 0 4px; }
   .sub { color: var(--muted); margin-bottom: 14px; }
   .sub a { color: var(--accent); }
+  .topbar { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; font-size: 15px; } .topbar b { font-size: 20px; } .topbar a, .sub a { color: var(--accent); }
   .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
   input[type=search] { flex: 1 1 260px; padding: 9px 12px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); }
   label { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
@@ -39,11 +40,12 @@
 </head>
 <body>
 <main>
+  {% if back_url %}<div class="topbar"><b>Preflight</b><a href="{{ back_url }}" data-testid="back-to-job">← Back to the job page</a></div>{% endif %}
   <h1>{{ series }}</h1>
-  <div class="sub">Series bible explorer · {{ "{:,}".format(n_claims) }} sourced facts about {{ "{:,}".format(n_entities) }} characters, places and things · {{ "{:,}".format(n_disputed) }} in disputed slots{% if card_view %} · <a href="{{ card_view }}">card view</a>{% endif %}{% if csv %} · <a href="{{ csv }}">spreadsheet (CSV)</a>{% endif %}</div>
+  <div class="sub">Series bible explorer · {{ "{:,}".format(n_claims) }} sourced facts about {{ "{:,}".format(n_entities) }} characters, places and things · {{ "{:,}".format(n_disputed) }} where the books disagree{% if card_view %} · <a href="{{ card_view }}">card view</a>{% endif %}{% if csv %} · <a href="{{ csv }}">spreadsheet (CSV)</a>{% endif %}</div>
   <div class="toolbar">
-    <input id="search" type="search" placeholder="Search every fact and passage (a name, a colour, a place…)" aria-label="Search the bible">
-    <label><input id="disputed" type="checkbox"> Disputed facts only</label>
+    <input id="search" type="search" placeholder="Search facts and passages: a name, a colour, a place…" aria-label="Search the bible">
+    <label><input id="disputed" type="checkbox"> Only where the books disagree</label>
     <button id="csv" type="button">Download what is shown (CSV)</button>
     <span id="count" aria-live="polite"></span>
   </div>
@@ -75,6 +77,8 @@
     if (api) count.textContent = api.getDisplayedRowCount().toLocaleString() + " of " + rows.length.toLocaleString() + " facts";
   }
   function start() {
+    // a phone shows who, what and the value; the passage opens below the grid on a tap
+    var narrow = window.innerWidth < 640;
     var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     var theme = agGrid.themeQuartz
       .withPart(dark ? agGrid.colorSchemeDarkWarm : agGrid.colorSchemeLightWarm)
@@ -83,15 +87,15 @@
       theme: theme,
       rowData: rows,
       columnDefs: [
-        { field: "entity", headerName: "Who / what", pinned: "left", width: 200, filter: "agTextColumnFilter" },
-        { field: "fact", headerName: "Fact", width: 150, filter: "agTextColumnFilter" },
-        { field: "value", headerName: "Value", width: 170, filter: "agTextColumnFilter" },
-        { colId: "flag", headerName: "", width: 64, cellClass: "flag", cellDataType: "text",
+        { field: "entity", headerName: "Who / what", pinned: narrow ? null : "left", width: narrow ? 130 : 200, filter: "agTextColumnFilter" },
+        { field: "fact", headerName: "Fact", width: narrow ? 100 : 150, filter: "agTextColumnFilter" },
+        { field: "value", headerName: "Value", width: narrow ? 110 : 170, filter: "agTextColumnFilter" },
+        { colId: "flag", headerName: "", width: narrow ? 40 : 64, cellClass: "flag", cellDataType: "text",
           valueGetter: function (p) { return p.data && p.data.disputed ? "⚠" : ""; },
           headerTooltip: "Disputed: the books give two different values" },
-        { field: "book", headerName: "Book", width: 210, filter: "agTextColumnFilter" },
-        { field: "chapter", headerName: "Chapter", width: 190, filter: "agTextColumnFilter" },
-        { field: "quote", headerName: "Passage", flex: 1, minWidth: 260, tooltipField: "quote", filter: "agTextColumnFilter" }
+        { field: "book", headerName: "Book", width: 210, hide: narrow, filter: "agTextColumnFilter" },
+        { field: "chapter", headerName: "Chapter", width: 190, hide: narrow, filter: "agTextColumnFilter" },
+        { field: "quote", headerName: "Passage", flex: 1, minWidth: 260, hide: narrow, tooltipField: "quote", filter: "agTextColumnFilter" }
       ],
       defaultColDef: { sortable: true, resizable: true },
       rowClassRules: { disputed: function (p) { return !!(p.data && p.data.disputed); } },

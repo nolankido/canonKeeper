@@ -76,13 +76,26 @@ def build_views(store: CanonStore, *, min_claims: int = 1) -> list[EntityView]:
 
 
 def write_bible(
-    store: CanonStore, series_name: str, out_path: Path, *, min_claims: int = 1
+    store: CanonStore,
+    series_name: str,
+    out_path: Path,
+    *,
+    min_claims: int = 1,
+    back_url: str | None = None,
 ) -> Path:
+    """The bible as cards (`out_path`), as a spreadsheet and as the grid explorer beside it.
+    `back_url`: the Preflight job page the pages link back to."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     views = build_views(store, min_claims=min_claims)
     tmpl = _env.get_template("bible.html")
     write_bible_csv(views, out_path.with_suffix(".csv"))
-    write_bible_grid(views, series_name, out_path.with_name("bible-grid.html"), n_claims=len(store))
+    write_bible_grid(
+        views,
+        series_name,
+        out_path.with_name("bible-grid.html"),
+        n_claims=len(store),
+        back_url=back_url,
+    )
     out_path.write_text(
         tmpl.render(
             series=series_name,
@@ -90,6 +103,7 @@ def write_bible(
             n_claims=len(store),
             n_entities=len(views),
             n_disputed=sum(v.disputed for v in views),
+            back_url=back_url,
         ),
         encoding="utf-8",
     )
@@ -131,6 +145,7 @@ def write_bible_grid(
     n_claims: int,
     card_view: str | None = "bible.html",
     csv: str | None = "bible.csv",
+    back_url: str | None = None,
 ) -> Path:
     """The bible as an AG Grid (Community, MIT): every fact sortable, filterable and searchable,
     disputed facts highlighted, the passage one click away, CSV out of whatever is shown."""
@@ -145,6 +160,7 @@ def write_bible_grid(
             n_claims=len(rows),
             n_entities=len(views),
             n_disputed=sum(1 for r in rows if r["disputed"]),
+            back_url=back_url,
             card_view=card_view,
             csv=csv,
             local_script=GRID_SCRIPT,

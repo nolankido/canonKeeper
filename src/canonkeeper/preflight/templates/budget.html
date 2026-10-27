@@ -3,7 +3,7 @@
 {% block head %}<meta name="referrer" content="no-referrer">{% endblock %}
 {% block body %}
 <h1>Assistant budget <span class="status {{ budget.status }}">{{ budget.status | label }}</span></h1>
-<p class="lede">A balance you fund through PayPal once, so that your AI assistant can pay for continuity audits and draft checks without asking you each time. It can never spend more than is left, every spend is listed below, and you can close it at any time: the unused balance goes back to your PayPal account.</p>
+<p class="lede">A balance you fund through PayPal once, so that your AI assistant (Claude or any assistant connected to Preflight over MCP) can pay for continuity audits and draft checks without asking you each time. It can never spend more than is left, every spend is listed on this page, and you can close it at any time: the unused balance goes back to your PayPal account.</p>
 
 {% if note %}<div class="banner" role="alert">PayPal: {{ note }}.</div>{% endif %}
 
@@ -50,9 +50,14 @@
     <tr><td>{{ c.at[:16] | replace('T', ' ') }}</td><td>Credited back: {{ c.reason }} (<a href="/jobs/{{ c.job_id }}">job</a>)</td><td>+${{ c.amount }}</td></tr>
     {% endfor %}
     {% for r in budget.refunds %}
-    <tr><td>{{ r.at[:16] | replace('T', ' ') }}</td><td>Refunded to PayPal ({{ r['for'] }}){% if r.refund_id %} · <code>{{ r.refund_id }}</code>{% endif %}</td><td>−${{ r.amount }}</td></tr>
+    <tr><td>{{ r.at[:16] | replace('T', ' ') }}</td><td>{{ 'Refund on its way to PayPal' if r.status == 'SENDING' else 'Refunded to PayPal' }} ({{ r['for'] }}){% if r.refund_id %} · <code>{{ r.refund_id }}</code>{% endif %}</td><td>−${{ r.amount }}</td></tr>
     {% endfor %}
   </table>
+</div>
+{% elif budget.status in ('active', 'ordered') %}
+<div class="card" data-testid="budget-ledger-empty">
+  <strong>Nothing spent yet</strong>
+  <p class="note">{% if budget.status == 'ordered' %}Once you approve on PayPal, your assistant can start.{% else %}Ask your assistant to audit a series or check a draft "from my Preflight budget"; each spend appears here with a link to its job.{% endif %}</p>
 </div>
 {% endif %}
 {% endblock %}

@@ -47,7 +47,7 @@ def annotate_report(job: Job, store: JobStore) -> None:
                 verdict=r["verdict"],  # type: ignore[arg-type]
                 note=r.get("note", ""),
             )
-    write_report(report, store.dir(job.id) / "reports", back_url=f"/jobs/{job.id}")
+    write_report(report, store.dir(job.id) / "reports", back_url=f"/jobs/{job.id}", customer=True)
 
 
 def rule_on_finding(

@@ -21,11 +21,15 @@
   body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 var(--serif); }
   main { max-width: 880px; margin: 0 auto; padding: 32px 16px 64px; }
   h1 { font-size: 28px; margin: 0 0 4px; }
-  h2 { font-size: 18px; margin: 36px 0 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+  h2 { font-size: 22px; margin: 36px 0 12px; }
+  a { color: var(--accent); }
+  q.bare { quotes: none; }
+  .topbar { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; font-size: 15px; }
+  .topbar b { font-size: 20px; }
   .sub { color: var(--muted); margin-bottom: 20px; }
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
   .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-  .stat b { display: block; font-size: 24px; font-family: var(--mono); }
+  .stat b { display: block; font-size: 26px; font-variant-numeric: tabular-nums lining-nums; }
   .stat span { color: var(--muted); font-size: 13px; }
   .f { background: var(--card); border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
   .f.high { border-left-color: var(--hi); } .f.medium { border-left-color: var(--med); } .f.low { border-left-color: var(--lo); }
@@ -38,7 +42,8 @@
   .claim q { display: block; margin-top: 4px; font-style: italic; }
   .review { margin: 10px 0 4px; padding: 8px 12px; border-radius: 8px; font-size: 15px; border: 1px solid var(--line); }
   .review.wrong { border-color: var(--muted); background: var(--bg); }
-  .review.right { border-color: var(--ok); }
+  .review.right, .review.fine { border-color: var(--ok); }
+  .review.error { border-color: var(--hi); }
   .f.overruled { border-left-color: var(--line); } .f.overruled q { opacity: .8; }
   .fix { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--accent); border-radius: 8px; }
   .fix b { color: var(--accent); }
@@ -61,17 +66,18 @@
 </head>
 <body>
 <main>
+  <div class="topbar"><b>Preflight</b><a href="/" data-testid="back-to-job">← Preflight: audit your own series</a></div>
   <h1>Sherlock Holmes</h1>
-  <div class="sub">6 books · continuity audit by canonkeeper</div>
+  <div class="sub">6 books · continuity audit</div>
   
 
   <div class="stats">
-    <div class="stat"><b>3963</b><span>facts in bible</span></div>
-    <div class="stat"><b>27</b><span>candidates screened</span></div>
+    <div class="stat"><b>3,963</b><span>facts in the series bible</span></div>
+    <div class="stat"><b>27</b><span>possible conflicts checked</span></div>
     
     <div class="stat"><b>4</b><span>contradictions · 2 marked wrong by the author</span></div>
-    <div class="stat"><b>2</b><span>deliberate reveals</span></div>
-    <div class="stat"><b>$1.55</b><span>list-price API cost (read $1.40 · judge $0.15)</span></div>
+    <div class="stat"><b>2</b><span>explained in the text</span></div>
+    
     
   </div>
 
@@ -119,7 +125,7 @@
   <div class="f high overruled">
     <span class="tag high">high</span><span class="tag" title="name_drift">name changes</span>
     <strong title="Mrs. Barclay.surname is &#39;Barclay&#39; in The Memoirs of Sherlock Holmes · VIII. The Crooked Man but &#39;Devoy&#39; in The Memoirs of Sherlock Holmes · VIII. The Crooked Man">Mrs. Barclay’s surname: Barclay vs Devoy (both in The Memoirs of Sherlock Holmes)</strong>
-    <div class="review wrong"><b>The author marked this call wrong.</b> Nancy Devoy is her maiden name (she married Colonel Barclay), not a second surname. A judging-prompt change aimed at maiden and married names is being measured on the benchmark.</div>
+    <div class="review wrong"><b>The author marked this call wrong.</b> Nancy Devoy is her maiden name: she married Colonel Barclay. Not a second surname.</div>
     
     <div class="claim">
       <div class="loc">The Memoirs of Sherlock Holmes · VIII. The Crooked Man — <span title="Mrs. Barclay.surname = Barclay">Mrs. Barclay, surname: Barclay</span></div>
@@ -138,7 +144,7 @@
   <div class="f medium overruled">
     <span class="tag medium">medium</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Sherlock Holmes.eye_color is &#39;dark&#39; (The Sign of the Four · A Break in the Chain), &#39;grey&#39; (The Hound of the Baskervilles · Death on the Moor)">Sherlock Holmes’s eye colour: dark in The Sign of the Four vs grey in The Hound of the Baskervilles</strong>
-    <div class="review wrong"><b>The author marked this call wrong.</b> The &#34;keen dark eyes&#34; belong to Holmes disguised as an old sailor in The Sign of the Four; an earlier run ruled this deliberate. A judging-prompt change that looks for a disguise in the scene is being measured on the benchmark.</div>
+    <div class="review wrong"><b>The author marked this call wrong.</b> The &#34;keen dark eyes&#34; are Holmes disguised as an old sailor in The Sign of the Four, not his own.</div>
     
     <div class="claim">
       <div class="loc">The Sign of the Four · A Break in the Chain — <span title="Sherlock Holmes.eye_color = dark">Sherlock Holmes, eye colour: dark</span></div>
@@ -174,6 +180,7 @@
   </div>
   
 
+  
   
   <h2 id="review">Needs your judgement</h2>
   
@@ -431,8 +438,9 @@
   
 
   <footer>
-    Models: <code>extract=gemini-3.5-flash-lite</code> <code>adjudicate=gemini-3.6-flash</code> <code>provider=gemini</code> 
-    · Every finding links to a verbatim passage; nothing here was inferred without a quote.
+    Facts read by gemini-3.5-flash-lite; conflicts judged by gemini-3.6-flash.
+    
+     Every finding links to a verbatim passage; nothing here was inferred without a quote.
   </footer>
 </main>
 <script>

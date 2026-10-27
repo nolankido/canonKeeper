@@ -52,6 +52,8 @@ def label(predicate: str) -> str:
 
 def value(claim: Claim) -> str:
     v = claim.object
+    if v.lower() in ("true", "false"):  # dead: true, alive: true
+        return "yes" if v.lower() == "true" else "no"
     if claim.predicate in _PROPER and v.islower():
         return " ".join(w if w in _SMALL else w[:1].upper() + w[1:] for w in v.split())
     return v
