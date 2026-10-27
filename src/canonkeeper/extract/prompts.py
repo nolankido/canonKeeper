@@ -69,9 +69,6 @@ Semantics that matter
   the fact. Never join two passages with "..." — one continuous passage per claim.
 - Dialogue attribution: in `"I was born in Dublin," said Ezekiah Hopkins`, the subject is
   Ezekiah Hopkins — the speaker — never the chapter's main character.
-- Names in address: when someone calls a person by a given name (`"James," she said to her
-  husband`), that is first_name for the person addressed — quote the line. A plain pet name
-  or title ("my dear", "Doctor") is not.
 - Skip only genuinely generic text: weather, unnamed passers-by, figures of speech.
 """
 
@@ -91,8 +88,7 @@ missed in these categories, which is where continuity errors hide:
 
 Read every sentence. Any sentence — including an aside, a single line of dialogue, or a
 description buried in a paragraph about someone else — that states one of these facts about
-a named person or animal produces a claim. The speaker of a quoted line is its subject; a
-given name used to address someone is first_name for the person addressed.
+a named person or animal produces a claim. The speaker of a quoted line is its subject.
 Do not reason about importance; transcribe.
 
 Return ONLY JSON: {"aliases": {}, "claims": [{"kind": "...", "subject": "...", "predicate":
