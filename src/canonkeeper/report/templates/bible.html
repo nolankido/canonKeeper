@@ -43,6 +43,16 @@
   .src q { display: block; font-style: italic; }
   .hidden { display: none; }
   @media (max-width: 600px) { .slot { grid-template-columns: 1fr; } }
+  @media print {
+    :root, :root:not([data-theme="light"]) {
+      --bg: #fff; --fg: #000; --muted: #444; --card: #fff; --line: #ccc;
+      --hi: #b3261e; --med: #8a5200; --lo: #3d5a22; --ok: #24584a; --accent: #2c3c6e;
+    }
+    body { font-size: 11pt; }
+    main { max-width: none; padding: 0; }
+    .f, .claim, .stat, section.ent { break-inside: avoid; }
+    input, label, .filters { display: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -89,6 +99,10 @@
     }
   }
   q.addEventListener('input', apply); only.addEventListener('change', apply);
+</script>
+<script>
+  // printing or saving as PDF: open every collapsed section so nothing is left out
+  addEventListener("beforeprint", () => document.querySelectorAll("details").forEach(d => d.open = true));
 </script>
 </body>
 </html>

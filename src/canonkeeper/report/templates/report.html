@@ -41,6 +41,16 @@
   details summary { cursor: pointer; color: var(--muted); }
   footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
   code { font-family: var(--mono); font-size: 13px; }
+  @media print {
+    :root, :root:not([data-theme="light"]) {
+      --bg: #fff; --fg: #000; --muted: #444; --card: #fff; --line: #ccc;
+      --hi: #b3261e; --med: #8a5200; --lo: #3d5a22; --ok: #24584a; --accent: #2c3c6e;
+    }
+    body { font-size: 11pt; }
+    main { max-width: none; padding: 0; }
+    .f, .claim, .stat, section.ent { break-inside: avoid; }
+    input, label, .filters { display: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -111,5 +121,9 @@
     · Every finding links to a verbatim passage; nothing here was inferred without a quote.
   </footer>
 </main>
+<script>
+  // printing or saving as PDF: open every collapsed section so nothing is left out
+  addEventListener("beforeprint", () => document.querySelectorAll("details").forEach(d => d.open = true));
+</script>
 </body>
 </html>
