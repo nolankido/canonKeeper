@@ -1,0 +1,3336 @@
+{
+ "series": "Sherlock Holmes",
+ "books": [
+  "01-a-study-in-scarlet",
+  "02-the-sign-of-the-four",
+  "03-the-adventures-of-sherlock-holmes",
+  "04-the-memoirs-of-sherlock-holmes",
+  "05-the-hound-of-the-baskervilles",
+  "06-the-return-of-sherlock-holmes"
+ ],
+ "claims_total": 3937,
+ "candidates_total": 59,
+ "findings": [
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Andaman Islanders",
+      "predicate": "birthplace",
+      "object": "andaman islands",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Baker Street Irregulars",
+       "chapter_index": 7,
+       "quote": "The aborigines of the Andaman Islands may perhaps claim the distinction",
+       "char_start": 131059,
+       "char_end": 131131
+      },
+      "id": "571ed649b842"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Andaman Islanders",
+      "predicate": "birthplace",
+      "object": "cardiff",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "IV. THE BOSCOMBE VALLEY MYSTERY",
+       "chapter_index": 3,
+       "quote": "I was born in Cardiff,\" said Andaman Islanders, \"and I have never once regretted leaving it.\" ",
+       "char_start": 150554,
+       "char_end": 150648
+      },
+      "id": "20488d2b40d0"
+     }
+    ],
+    "reason": "Andaman Islanders.birthplace is 'andaman islands' (The Sign of the Four · The Baker Street Irregulars), 'cardiff' (The Adventures of Sherlock Holmes · IV. THE BOSCOMBE VALLEY MYSTERY)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "high",
+   "explanation": "Book 2 states that the aborigines of the Andaman Islands are native to those islands in the Bay of Bengal, whereas the later passage in Book 3 asserts that Andaman Islanders was born in Cardiff.",
+   "suggested_fix": "Remove the inserted quote '\"I was born in Cardiff,\" said Andaman Islanders, \"and I have never once regretted leaving it.\"' from the passage.",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Godfrey Norton",
+      "predicate": "nationality",
+      "object": "english",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "I. A SCANDAL IN BOHEMIA",
+       "chapter_index": 0,
+       "quote": "“To an English lawyer named Norton.”",
+       "char_start": 42653,
+       "char_end": 42689
+      },
+      "id": "a38991809cc7"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Godfrey Norton",
+      "predicate": "nationality",
+      "object": "german",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "Fixing the Nets",
+       "chapter_index": 12,
+       "quote": "Norton, being German by birth, took the remark more lightly than the rest.",
+       "char_start": 305813,
+       "char_end": 305887
+      },
+      "id": "8f7fe7ce1ecb"
+     }
+    ],
+    "reason": "Godfrey Norton.nationality is 'english' (The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA), 'german' (The Hound of the Baskervilles · Fixing the Nets)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "high",
+   "explanation": "In Book 3, Godfrey Norton is established as an English lawyer, but the later passage in Book 5 states he is German by birth.",
+   "suggested_fix": "Remove the sentence 'Norton, being German by birth, took the remark more lightly than the rest.'",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Victor Hatherley",
+      "predicate": "wound_location",
+      "object": "thumb",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "IX. THE ADVENTURE OF THE ENGINEER’S THUMB",
+       "chapter_index": 8,
+       "quote": "“And now, Doctor, perhaps you would kindly attend to my thumb, or rather to the place where my thumb used to be.”",
+       "char_start": 382233,
+       "char_end": 382347
+      },
+      "id": "8275ac801423"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Victor Hatherley",
+      "predicate": "wound_location",
+      "object": "hand",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE SIX NAPOLEONS",
+       "chapter_index": 7,
+       "quote": "The old wound in Victor Hatherley's hand, the one from the war, ached in the damp.",
+       "char_start": 428521,
+       "char_end": 428603
+      },
+      "id": "1dc764edc0b2"
+     }
+    ],
+    "reason": "Victor Hatherley.wound_location is 'thumb' (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB), 'hand' (The Return of Sherlock Holmes · THE ADVENTURE OF THE SIX NAPOLEONS)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "high",
+   "explanation": "Victor Hatherley had his thumb severed by a cleaver in 'The Adventure of the Engineer's Thumb', which contradicts the later reference to an old war wound in his hand.",
+   "suggested_fix": "Change 'hand, the one from the war,' to 'thumb' in the later passage.",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Dr. Becher",
+      "predicate": "nationality",
+      "object": "german",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "IX. THE ADVENTURE OF THE ENGINEER’S THUMB",
+       "chapter_index": 8,
+       "quote": "is Dr. Becher a German, very thin, with a long, sharp nose?",
+       "char_start": 419460,
+       "char_end": 419520
+      },
+      "id": "fb7ad843bcaf"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Dr. Becher",
+      "predicate": "nationality",
+      "object": "englishman",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "IX. THE ADVENTURE OF THE ENGINEER’S THUMB",
+       "chapter_index": 8,
+       "quote": "Dr. Becher is an Englishman",
+       "char_start": 419572,
+       "char_end": 419600
+      },
+      "id": "05b19324fb74"
+     }
+    ],
+    "reason": "Dr. Becher.nationality is 'german' (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB), 'englishman' (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "high",
+   "explanation": "The text contradicts itself regarding Dr. Becher's nationality, identifying him as German in one passage and an Englishman in another.",
+   "suggested_fix": "Change 'an Englishman' to 'a German' in the later passage.",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "nationality",
+      "object": "american",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "X. THE ADVENTURE OF THE NOBLE BACHELOR",
+       "chapter_index": 9,
+       "quote": "It is always a joy to meet an American, Mr. Moulton",
+       "char_start": 463674,
+       "char_end": 463725
+      },
+      "id": "b97362e5f0b6"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "nationality",
+      "object": "french",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE NORWOOD BUILDER",
+       "chapter_index": 1,
+       "quote": "Francis Hay Moulton, being French by birth, took the remark more lightly than the rest.",
+       "char_start": 56421,
+       "char_end": 56508
+      },
+      "id": "d48dd97a69b1"
+     }
+    ],
+    "reason": "Francis Hay Moulton.nationality is 'american' (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR), 'french' (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "high",
+   "explanation": "Francis Hay Moulton is identified as an American in 'The Adventure of the Noble Bachelor', contradicting the later passage stating he is French by birth.",
+   "suggested_fix": "Change 'French' to 'American' in the later passage.",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Theresa Wright",
+      "predicate": "nationality",
+      "object": "scotch",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "III. The Yellow Face",
+       "chapter_index": 2,
+       "quote": "She was given to the care of a faithful Scotch woman who had once been our servant.",
+       "char_start": 152246,
+       "char_end": 152343
+      },
+      "id": "a71bc8113ac6"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Theresa Wright",
+      "predicate": "nationality",
+      "object": "australian",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE ABBEY GRANGE",
+       "chapter_index": 11,
+       "quote": "She was an interesting person, this stern Australian nurse",
+       "char_start": 606819,
+       "char_end": 606884
+      },
+      "id": "d55dbd478901"
+     }
+    ],
+    "reason": "Theresa Wright.nationality is 'scotch' (The Memoirs of Sherlock Holmes · III. The Yellow Face), 'australian' (The Return of Sherlock Holmes · THE ADVENTURE OF THE ABBEY GRANGE)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "high",
+   "explanation": "Theresa Wright's origin/nationality is stated as Scotch in one story and Australian in a later story without explanation.",
+   "suggested_fix": "Change \"Australian nurse\" to \"Scotch nurse\".",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "event",
+      "subject": "Jefferson Hope",
+      "predicate": "died",
+      "object": "cell",
+      "story_time": "the night after his capture",
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "THE CONCLUSION.",
+       "chapter_index": 13,
+       "quote": "On the very night after his capture the aneurism burst, and he was found in the morning stretched upon the floor of the cell",
+       "char_start": 232631,
+       "char_end": 232757
+      },
+      "id": "a4382b89f1bf"
+     },
+     {
+      "kind": "event",
+      "subject": "Jefferson Hope",
+      "predicate": "born",
+      "object": "edinburgh",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Great Agra Treasure",
+       "chapter_index": 10,
+       "quote": "I was born in Edinburgh",
+       "char_start": 178670,
+       "char_end": 178693
+      },
+      "id": "b7e5ad1703e8"
+     }
+    ],
+    "reason": "Jefferson Hope dies in A Study in Scarlet · THE CONCLUSION. but acts in The Sign of the Four · The Great Agra Treasure",
+    "heuristic": "dead_speaks"
+   },
+   "verdict": "contradiction",
+   "severity": "high",
+   "explanation": "Jefferson Hope died in Book 1, but is erroneously depicted speaking dialogue in Book 2.",
+   "suggested_fix": "Change the speaker in the later passage from Jefferson Hope to Jonathan Small.",
+   "evidence": "“I was born in Edinburgh,” said Jefferson Hope, “and I have never once regretted leaving it.”",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "John Watson",
+      "predicate": "wound_location",
+      "object": "shoulder",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "MR. SHERLOCK HOLMES.",
+       "chapter_index": 0,
+       "quote": "There I was struck on the shoulder by a Jezail bullet, which shattered the bone and grazed the subclavian artery.",
+       "char_start": 1896,
+       "char_end": 2010
+      },
+      "id": "ad0c80841eb4"
+     },
+     {
+      "kind": "attribute",
+      "subject": "John Watson",
+      "predicate": "wound_location",
+      "object": "left arm",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "THE SCIENCE OF DEDUCTION.",
+       "chapter_index": 1,
+       "quote": "His left arm has been injured.",
+       "char_start": 33201,
+       "char_end": 33231
+      },
+      "id": "a0698ac4b520"
+     },
+     {
+      "kind": "attribute",
+      "subject": "John Watson",
+      "predicate": "wound_location",
+      "object": "leg",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Science of Deduction",
+       "chapter_index": 0,
+       "quote": "I had a Jezail bullet through it some time before",
+       "char_start": 6001,
+       "char_end": 6051
+      },
+      "id": "9f195f23844c"
+     },
+     {
+      "kind": "attribute",
+      "subject": "John Watson",
+      "predicate": "wound_location",
+      "object": "limb",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "X. THE ADVENTURE OF THE NOBLE BACHELOR",
+       "chapter_index": 9,
+       "quote": "the jezail bullet which I had brought back in one of my limbs",
+       "char_start": 423921,
+       "char_end": 423983
+      },
+      "id": "c247ec0fe2d2"
+     },
+     {
+      "kind": "attribute",
+      "subject": "John Watson",
+      "predicate": "wound_location",
+      "object": "old wound",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "II. The Adventure of the Cardboard Box",
+       "chapter_index": 1,
+       "quote": "Your hand stole towards your own old wound",
+       "char_start": 66320,
+       "char_end": 66369
+      },
+      "id": "65e54e2e0fc1"
+     }
+    ],
+    "reason": "John Watson.wound_location is 'shoulder' (A Study in Scarlet · MR. SHERLOCK HOLMES.), 'left arm' (A Study in Scarlet · THE SCIENCE OF DEDUCTION.), 'leg' (The Sign of the Four · The Science of Deduction), 'limb' (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR), 'old wound' (The Memoirs of Sherlock Holmes · II. The Adventure of the Cardboard Box)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "medium",
+   "explanation": "In Book 1 (A Study in Scarlet), Watson states he was struck in the shoulder by a Jezail bullet during the Afghan campaign (\"struck on the shoulder by a Jezail bullet\"). In Book 2 (The Sign of the Four), however, Watson refers to \"nursing my wounded leg. I had a Jezail bullet through it some time before\". A single bullet wound cannot be in both his shoulder/arm and his leg.",
+   "suggested_fix": "In Book 2, change \"sat nursing my wounded leg. I had a Jezail bullet through it\" to \"sat nursing my wounded arm. I had a Jezail bullet through it\".",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Jabez Wilson",
+      "predicate": "hair_color",
+      "object": "fiery red",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "II. THE RED-HEADED LEAGUE",
+       "chapter_index": 1,
+       "quote": "very stout, florid-faced, elderly gentleman with fiery red hair.",
+       "char_start": 48336,
+       "char_end": 48402
+      },
+      "id": "c5a7e7949034"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Jabez Wilson",
+      "predicate": "hair_color",
+      "object": "black",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE SOLITARY CYCLIST",
+       "chapter_index": 3,
+       "quote": "Jabez Wilson pushed back a lock of black hair and said nothing.",
+       "char_start": 185529,
+       "char_end": 185592
+      },
+      "id": "46fc7e04acb6"
+     }
+    ],
+    "reason": "Jabez Wilson.hair_color is 'fiery red' (The Adventures of Sherlock Holmes · II. THE RED-HEADED LEAGUE), 'black' (The Return of Sherlock Holmes · THE ADVENTURE OF THE SOLITARY CYCLIST)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "medium",
+   "explanation": "Jabez Wilson's prominent feature throughout 'The Red-Headed League' is his fiery red hair, which contradicts the later passage describing him with a lock of black hair.",
+   "suggested_fix": "Change 'black' to 'fiery red' in the later passage.",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Henry Baker",
+      "predicate": "hair_color",
+      "object": "grizzled",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "VII. THE ADVENTURE OF THE BLUE CARBUNCLE",
+       "chapter_index": 6,
+       "quote": "has grizzled hair which he has had cut within the last few days,",
+       "char_start": 287380,
+       "char_end": 287445
+      },
+      "id": "e5ce39bd7a42"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Henry Baker",
+      "predicate": "hair_color",
+      "object": "fair",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE SOLITARY CYCLIST",
+       "chapter_index": 3,
+       "quote": "Henry Baker pushed back a lock of fair hair and said nothing.",
+       "char_start": 207922,
+       "char_end": 207983
+      },
+      "id": "4d04bcc4b949"
+     }
+    ],
+    "reason": "Henry Baker.hair_color is 'grizzled' (The Adventures of Sherlock Holmes · VII. THE ADVENTURE OF THE BLUE CARBUNCLE), 'fair' (The Return of Sherlock Holmes · THE ADVENTURE OF THE SOLITARY CYCLIST)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "medium",
+   "explanation": "Henry Baker's hair is described as grizzled in 'The Adventure of the Blue Carbuncle', which contradicts the later passage describing him with fair hair.",
+   "suggested_fix": "Change 'fair' to 'grizzled' in the later passage.",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Miss Cushing",
+      "predicate": "hair_color",
+      "object": "grizzled",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "II. The Adventure of the Cardboard Box",
+       "chapter_index": 1,
+       "quote": "She was a placid-faced woman, with large, gentle eyes, and grizzled hair curving down over her temples on each side.",
+       "char_start": 71421,
+       "char_end": 71544
+      },
+      "id": "f03b3a56400c"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Miss Cushing",
+      "predicate": "hair_color",
+      "object": "black",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "The Hound of the Baskervilles",
+       "chapter_index": 13,
+       "quote": "Susan Cushing pushed back a lock of black hair and said nothing.",
+       "char_start": 330553,
+       "char_end": 330617
+      },
+      "id": "d8306fce1486"
+     }
+    ],
+    "reason": "Miss Cushing.hair_color is 'grizzled' (The Memoirs of Sherlock Holmes · II. The Adventure of the Cardboard Box), 'black' (The Hound of the Baskervilles · The Hound of the Baskervilles)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "medium",
+   "explanation": "Miss Cushing's hair color is described as grizzled in 'The Adventure of the Cardboard Box' and black in the later passage without any explanation.",
+   "suggested_fix": "Change \"black hair\" to \"grizzled hair\".",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Annie Harrison",
+      "predicate": "hair_color",
+      "object": "black",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "XI. The Naval Treaty",
+       "chapter_index": 10,
+       "quote": "a wealth of deep black hair.",
+       "char_start": 470171,
+       "char_end": 470206
+      },
+      "id": "cb52c5824e27"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Annie Harrison",
+      "predicate": "hair_color",
+      "object": "chestnut",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "A Retrospection",
+       "chapter_index": 14,
+       "quote": "Annie Harrison pushed back a lock of chestnut hair and said nothing.",
+       "char_start": 338297,
+       "char_end": 338365
+      },
+      "id": "a8766dab1bd3"
+     }
+    ],
+    "reason": "Annie Harrison.hair_color is 'black' (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), 'chestnut' (The Hound of the Baskervilles · A Retrospection)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "contradiction",
+   "severity": "medium",
+   "explanation": "Annie Harrison's hair color is given as black in 'The Naval Treaty' and chestnut in a later passage without textual explanation.",
+   "suggested_fix": "Change \"chestnut hair\" to \"black hair\".",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Mrs. Hudson",
+      "predicate": "occupation",
+      "object": "landlady",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Science of Deduction",
+       "chapter_index": 0,
+       "quote": "our landlady entered",
+       "char_start": 17181,
+       "char_end": 17201
+      },
+      "id": "cccef6a6a5d9"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Mrs. Turner",
+      "predicate": "occupation",
+      "object": "landlady",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "I. A SCANDAL IN BOHEMIA",
+       "chapter_index": 0,
+       "quote": "our landlady had provided",
+       "char_start": 30047,
+       "char_end": 30073
+      },
+      "id": "51fc1f63a8b0"
+     }
+    ],
+    "reason": "the landlady of Sherlock Holmes's household is Mrs. Hudson (The Sign of the Four · The Science of Deduction), Mrs. Turner (The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA)",
+    "heuristic": "role_collision"
+   },
+   "verdict": "contradiction",
+   "severity": "medium",
+   "explanation": "Two different names (Mrs. Hudson and Mrs. Turner) are used for Sherlock Holmes's landlady without any explanation of a change in staff.",
+   "suggested_fix": "Replace 'Mrs. Turner' with 'Mrs. Hudson'.",
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Dr. Becher",
+      "predicate": "nationality",
+      "object": "german",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "IX. THE ADVENTURE OF THE ENGINEER’S THUMB",
+       "chapter_index": 8,
+       "quote": "is Dr. Becher a German, very thin, with a long, sharp nose?",
+       "char_start": 419460,
+       "char_end": 419520
+      },
+      "id": "fb7ad843bcaf"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Dr. Becher",
+      "predicate": "nationality",
+      "object": "englishman",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "IX. THE ADVENTURE OF THE ENGINEER’S THUMB",
+       "chapter_index": 8,
+       "quote": "No, sir, Dr. Becher is an Englishman, and there isn’t a man in the parish who has a better-lined waistcoat.",
+       "char_start": 419563,
+       "char_end": 419672
+      },
+      "id": "d6ffbc7fa9ed"
+     }
+    ],
+    "reason": "Dr. Becher.nationality is 'german' (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB) but nationality is 'englishman' (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB)",
+    "heuristic": "origin_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "medium",
+   "explanation": "Needs your judgement: the adjudicator ruled this deliberate but quoted nothing from the text that shows it. Its reasoning: The engineer initially assumed the doctor was German based on the company he kept, but the station-master corrects this misconception.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Lucy Ferrier",
+      "predicate": "hair_color",
+      "object": "fair",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "ON THE GREAT ALKALI PLAIN.",
+       "chapter_index": 7,
+       "quote": "her golden haired head resting upon the breast of his velveteen tunic.",
+       "char_start": 138878,
+       "char_end": 138949
+      },
+      "id": "abc328ee9bf1"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Lucy Ferrier",
+      "predicate": "hair_color",
+      "object": "chestnut",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "THE FLOWER OF UTAH.",
+       "chapter_index": 8,
+       "quote": "her fair face flushed with the exercise and her long chestnut hair floating out behind her.",
+       "char_start": 151174,
+       "char_end": 151266
+      },
+      "id": "c347e2aca039"
+     }
+    ],
+    "reason": "Lucy Ferrier.hair_color is 'fair' (A Study in Scarlet · ON THE GREAT ALKALI PLAIN.), 'chestnut' (A Study in Scarlet · THE FLOWER OF UTAH.)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "Needs your judgement: the adjudicator ruled this deliberate but quoted nothing from the text that shows it. Its reasoning: In Book 1, Chapter 1, Lucy Ferrier is a five-year-old child with golden hair. Fourteen years pass before Chapter 2, where she is a grown woman of nineteen whose hair has darkened to chestnut, a change supported by the text.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Jefferson Hope",
+      "predicate": "hair_color",
+      "object": "dark",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "THE FLOWER OF UTAH.",
+       "chapter_index": 8,
+       "quote": "She looked up at his dark, fierce face",
+       "char_start": 153515,
+       "char_end": 153553
+      },
+      "id": "f4ae74c3baa3"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Jefferson Hope",
+      "predicate": "hair_color",
+      "object": "black",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "THE AVENGING ANGELS.",
+       "chapter_index": 11,
+       "quote": "his black hair turned grizzled",
+       "char_start": 206550,
+       "char_end": 206580
+      },
+      "id": "73cf9d3a0427"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Jefferson Hope",
+      "predicate": "hair_color",
+      "object": "grizzled",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "THE AVENGING ANGELS.",
+       "chapter_index": 11,
+       "quote": "his black hair turned grizzled",
+       "char_start": 206550,
+       "char_end": 206580
+      },
+      "id": "87fcd90e12ff"
+     }
+    ],
+    "reason": "Jefferson Hope.hair_color is 'dark' (A Study in Scarlet · THE FLOWER OF UTAH.), 'black' (A Study in Scarlet · THE AVENGING ANGELS.), 'grizzled' (A Study in Scarlet · THE AVENGING ANGELS.)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "Needs your judgement: the adjudicator ruled this deliberate but quoted nothing from the text that shows it. Its reasoning: The text explicitly explains that Jefferson Hope's black hair turned grizzled over time through hardship and distress.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Arthur Pinner",
+      "predicate": "eye_color",
+      "object": "dark",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "IV. The Stockbroker’s Clerk",
+       "chapter_index": 3,
+       "quote": "In he walked, a middle-sized, dark-haired, dark-eyed, black-bearded man",
+       "char_start": 165265,
+       "char_end": 165343
+      },
+      "id": "f3d7884dc8e2"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Arthur Pinner",
+      "predicate": "eye_color",
+      "object": "brown",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "The Curse of the Baskervilles",
+       "chapter_index": 1,
+       "quote": "Arthur Pinner looked up, and the brown eyes that everyone remarked upon were fixed on the door.",
+       "char_start": 29298,
+       "char_end": 29393
+      },
+      "id": "5bef55574bd4"
+     }
+    ],
+    "reason": "Arthur Pinner.eye_color is 'dark' (The Memoirs of Sherlock Holmes · IV. The Stockbroker’s Clerk), 'brown' (The Hound of the Baskervilles · The Curse of the Baskervilles)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "Arthur Pinner is described as having 'dark' eyes in one text and 'brown' eyes in another. Since brown eyes are dark, the two descriptions are loose enough to be consistent.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Sherlock Holmes",
+      "predicate": "wound_location",
+      "object": "throat",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "VII. The Reigate Squires",
+       "chapter_index": 6,
+       "quote": "I feel that young man’s grip on my throat now",
+       "char_start": 331354,
+       "char_end": 331406
+      },
+      "id": "f98ff05a1070"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Sherlock Holmes",
+      "predicate": "wound_location",
+      "object": "left hand",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "XI. The Naval Treaty",
+       "chapter_index": 10,
+       "quote": "his left hand was swathed in a bandage",
+       "char_start": 523531,
+       "char_end": 523569
+      },
+      "id": "c08066f9d4bc"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Sherlock Holmes",
+      "predicate": "wound_location",
+      "object": "knuckles",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "XI. The Naval Treaty",
+       "chapter_index": 10,
+       "quote": "got a cut over the knuckles",
+       "char_start": 531708,
+       "char_end": 531735
+      },
+      "id": "b5842f9ff97a"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Sherlock Holmes",
+      "predicate": "wound_location",
+      "object": "lip",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE SOLITARY CYCLIST",
+       "chapter_index": 3,
+       "quote": "he arrived at Baker Street late in the evening, with a cut lip",
+       "char_start": 192283,
+       "char_end": 192345
+      },
+      "id": "2210b31c961d"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Sherlock Holmes",
+      "predicate": "wound_location",
+      "object": "forehead",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE SOLITARY CYCLIST",
+       "chapter_index": 3,
+       "quote": "and a discoloured lump upon his forehead",
+       "char_start": 192353,
+       "char_end": 192393
+      },
+      "id": "2d1e01c29d64"
+     }
+    ],
+    "reason": "Sherlock Holmes.wound_location is 'throat' (The Memoirs of Sherlock Holmes · VII. The Reigate Squires), 'left hand' (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), 'knuckles' (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), 'lip' (The Return of Sherlock Holmes · THE ADVENTURE OF THE SOLITARY CYCLIST), 'forehead' (The Return of Sherlock Holmes · THE ADVENTURE OF THE SOLITARY CYCLIST)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "The passages record various minor injuries (throat grip, hand cut, cut lip, forehead lump) sustained by Sherlock Holmes at different times across different cases, which are consistent with separate events.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Sir Henry Baskerville",
+      "predicate": "eye_color",
+      "object": "dark",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "Sir Henry Baskerville",
+       "chapter_index": 3,
+       "quote": "The latter was a small, alert, dark-eyed man about thirty years of age",
+       "char_start": 59204,
+       "char_end": 59281
+      },
+      "id": "a61eb9af2417"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Sir Henry Baskerville",
+      "predicate": "eye_color",
+      "object": "hazel",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "Baskerville Hall",
+       "chapter_index": 5,
+       "quote": "There were pride, valour, and strength in his thick brows, his sensitive nostrils, and his large hazel eyes.",
+       "char_start": 112080,
+       "char_end": 112195
+      },
+      "id": "1fae7a4d3a3a"
+     }
+    ],
+    "reason": "Sir Henry Baskerville.eye_color is 'dark' (The Hound of the Baskervilles · Sir Henry Baskerville), 'hazel' (The Hound of the Baskervilles · Baskerville Hall)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "Sir Henry is described as 'dark-eyed' in his initial appearance, and later as having 'hazel eyes'. Hazel eyes are a shade of brown/green that is commonly described as dark, so the two descriptions are loose enough to be read as consistent.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "nationality",
+      "object": "american",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "X. THE ADVENTURE OF THE NOBLE BACHELOR",
+       "chapter_index": 9,
+       "quote": "It is always a joy to meet an American, Mr. Moulton",
+       "char_start": 463674,
+       "char_end": 463725
+      },
+      "id": "b97362e5f0b6"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "birthplace",
+      "object": "france",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE NORWOOD BUILDER",
+       "chapter_index": 1,
+       "quote": "Francis Hay Moulton, being French by birth, took the remark more lightly than the rest.",
+       "char_start": 56421,
+       "char_end": 56508
+      },
+      "id": "c81f4b95eb7f"
+     }
+    ],
+    "reason": "Francis Hay Moulton.nationality is 'american' (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR) but birthplace is 'france' (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER)",
+    "heuristic": "origin_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "The text does not provide enough details to reconcile birthplace and nationality across separate book references without external context.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "nationality",
+      "object": "american",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "X. THE ADVENTURE OF THE NOBLE BACHELOR",
+       "chapter_index": 9,
+       "quote": "Francis H. Moulton, an American gentleman",
+       "char_start": 466849,
+       "char_end": 466890
+      },
+      "id": "fa37b2dc2993"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "nationality",
+      "object": "french",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE NORWOOD BUILDER",
+       "chapter_index": 1,
+       "quote": "Francis Hay Moulton, being French by birth, took the remark more lightly than the rest.",
+       "char_start": 56421,
+       "char_end": 56508
+      },
+      "id": "d48dd97a69b1"
+     }
+    ],
+    "reason": "Francis Hay Moulton.nationality is 'american' (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR) but nationality is 'french' (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER)",
+    "heuristic": "origin_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "References across different books regarding nationality and birthplace are insufficiently detailed in the provided text to definitively rule out error or background complexity.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "nationality",
+      "object": "american",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "X. THE ADVENTURE OF THE NOBLE BACHELOR",
+       "chapter_index": 9,
+       "quote": "Francis H. Moulton, an American gentleman",
+       "char_start": 466849,
+       "char_end": 466890
+      },
+      "id": "fa37b2dc2993"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "birthplace",
+      "object": "france",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE NORWOOD BUILDER",
+       "chapter_index": 1,
+       "quote": "Francis Hay Moulton, being French by birth, took the remark more lightly than the rest.",
+       "char_start": 56421,
+       "char_end": 56508
+      },
+      "id": "c81f4b95eb7f"
+     }
+    ],
+    "reason": "Francis Hay Moulton.nationality is 'american' (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR) but birthplace is 'france' (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER)",
+    "heuristic": "origin_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "Needs your judgement: the adjudicator ruled this not_conflict but quoted no passage from the text that shows it. Its reasoning: Being born in France does not conflict with holding American nationality, as naturalization or birth abroad to American parents is common.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "nationality",
+      "object": "american",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "X. THE ADVENTURE OF THE NOBLE BACHELOR",
+       "chapter_index": 9,
+       "quote": "Francis H. Moulton, an American gentleman, had left only the\n\nday before",
+       "char_start": 466849,
+       "char_end": 466921
+      },
+      "id": "00f73df0c7da"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "birthplace",
+      "object": "france",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE NORWOOD BUILDER",
+       "chapter_index": 1,
+       "quote": "Francis Hay Moulton, being French by birth, took the remark more lightly than the rest.",
+       "char_start": 56421,
+       "char_end": 56508
+      },
+      "id": "c81f4b95eb7f"
+     }
+    ],
+    "reason": "Francis Hay Moulton.nationality is 'american' (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR) but birthplace is 'france' (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER)",
+    "heuristic": "origin_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "Needs your judgement: the adjudicator ruled this not_conflict but quoted no passage from the text that shows it. Its reasoning: Birthplace in France is entirely consistent with holding American nationality.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Godfrey Norton",
+      "predicate": "nationality",
+      "object": "english",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "I. A SCANDAL IN BOHEMIA",
+       "chapter_index": 0,
+       "quote": "“To an English lawyer named Norton.”",
+       "char_start": 42653,
+       "char_end": 42689
+      },
+      "id": "a38991809cc7"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Godfrey Norton",
+      "predicate": "birthplace",
+      "object": "germany",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "Fixing the Nets",
+       "chapter_index": 12,
+       "quote": "Norton, being German by birth, took the remark more lightly than the rest.",
+       "char_start": 305813,
+       "char_end": 305887
+      },
+      "id": "383390756217"
+     }
+    ],
+    "reason": "Godfrey Norton.nationality is 'english' (The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA) but birthplace is 'germany' (The Hound of the Baskervilles · Fixing the Nets)",
+    "heuristic": "origin_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "Needs your judgement: the adjudicator ruled this not_conflict but quoted no passage from the text that shows it. Its reasoning: Being German by birth does not conflict with holding English nationality.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Godfrey Norton",
+      "predicate": "nationality",
+      "object": "english",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "I. A SCANDAL IN BOHEMIA",
+       "chapter_index": 0,
+       "quote": "To an English lawyer named Norton.",
+       "char_start": 42654,
+       "char_end": 42688
+      },
+      "id": "b8b26307b04e"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Godfrey Norton",
+      "predicate": "birthplace",
+      "object": "germany",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "Fixing the Nets",
+       "chapter_index": 12,
+       "quote": "Norton, being German by birth, took the remark more lightly than the rest.",
+       "char_start": 305813,
+       "char_end": 305887
+      },
+      "id": "383390756217"
+     }
+    ],
+    "reason": "Godfrey Norton.nationality is 'english' (The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA) but birthplace is 'germany' (The Hound of the Baskervilles · Fixing the Nets)",
+    "heuristic": "origin_mismatch"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "Needs your judgement: the adjudicator ruled this not_conflict but quoted no passage from the text that shows it. Its reasoning: German birth and English nationality are fully compatible.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "A middle-aged woman",
+      "predicate": "occupation",
+      "object": "housekeeper",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE NORWOOD BUILDER",
+       "chapter_index": 1,
+       "quote": "A middle-aged woman, who was, I suppose, his housekeeper.",
+       "char_start": 70711,
+       "char_end": 70768
+      },
+      "id": "1299b592cb64"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Jonas Oldacre's housekeeper",
+      "predicate": "occupation",
+      "object": "housekeeper",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE NORWOOD BUILDER",
+       "chapter_index": 1,
+       "quote": "save, of course, that precious housekeeper of his, whom I should lose no time in adding to your bag, Lestrade.",
+       "char_start": 104566,
+       "char_end": 104690
+      },
+      "id": "b0e6398f6a1f"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Mrs. Lexington",
+      "predicate": "occupation",
+      "object": "housekeeper",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE NORWOOD BUILDER",
+       "chapter_index": 1,
+       "quote": "I tried my luck with the housekeeper. Mrs. Lexington is her name",
+       "char_start": 86320,
+       "char_end": 86391
+      },
+      "id": "d4c82a5bc1a5"
+     }
+    ],
+    "reason": "the housekeeper of Jonas Oldacre's household is A middle-aged woman (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER), Jonas Oldacre's housekeeper (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER), Mrs. Lexington (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER)",
+    "heuristic": "role_collision"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "Needs your judgement: the adjudicator ruled this deliberate but quoted nothing from the text that shows it. Its reasoning: The housekeeper is initially introduced anonymously as a middle-aged woman and is subsequently named as Mrs. Lexington as the investigation progresses.",
+   "suggested_fix": null,
+   "evidence": null,
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Brunton",
+      "predicate": "occupation",
+      "object": "butler",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "VI. The Musgrave Ritual",
+       "chapter_index": 5,
+       "quote": "Brunton the butler.",
+       "char_start": 254701,
+       "char_end": 254720
+      },
+      "id": "bd710aded099"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Richard Brunton",
+      "predicate": "occupation",
+      "object": "butler",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "VI. The Musgrave Ritual",
+       "chapter_index": 5,
+       "quote": "I was surprised to find that the butler had returned",
+       "char_start": 260437,
+       "char_end": 260489
+      },
+      "id": "3a06aa24eac5"
+     }
+    ],
+    "reason": "the butler of Reginald Musgrave's household is Brunton (The Memoirs of Sherlock Holmes · VI. The Musgrave Ritual), Richard Brunton (The Memoirs of Sherlock Holmes · VI. The Musgrave Ritual) (tie for Richard Brunton is only that Reginald Musgrave is in the scene)",
+    "heuristic": "role_collision"
+   },
+   "verdict": "ambiguous",
+   "severity": "low",
+   "explanation": "The bible extraction split the same character ('Brunton' and 'Richard Brunton') into two entries, both holding the role of butler.",
+   "suggested_fix": null,
+   "evidence": "Brunton, the butler, was in the library.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Mrs. Barclay",
+      "predicate": "surname",
+      "object": "Barclay",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "VIII. The Crooked Man",
+       "chapter_index": 7,
+       "quote": "Mrs. Barclay has always, I understand, been as popular with the ladies of the regiment as her husband was with his brother officers.",
+       "char_start": 340259,
+       "char_end": 340405
+      },
+      "id": "19795211b8ac"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Mrs. Barclay",
+      "predicate": "surname",
+      "object": "Devoy",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "VIII. The Crooked Man",
+       "chapter_index": 7,
+       "quote": "Nancy Devoy, the daughter of the colour-sergeant.",
+       "char_start": 368493,
+       "char_end": 368549
+      },
+      "id": "cd454e973167"
+     }
+    ],
+    "reason": "Mrs. Barclay.surname is 'Barclay' in The Memoirs of Sherlock Holmes · VIII. The Crooked Man but 'Devoy' in The Memoirs of Sherlock Holmes · VIII. The Crooked Man",
+    "heuristic": "name_drift"
+   },
+   "verdict": "deliberate",
+   "severity": "high",
+   "explanation": "Nancy Devoy is her maiden name, which naturally changed to Barclay upon her marriage to Colonel Barclay.",
+   "suggested_fix": null,
+   "evidence": "lonel Barclay had married at the time when he was a sergeant, and his wife, whose maiden name was Miss Nancy Devoy, was the daughter of a former colour-sergeant in the same cor",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Sherlock Holmes",
+      "predicate": "height",
+      "object": "over six feet",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "THE SCIENCE OF DEDUCTION.",
+       "chapter_index": 1,
+       "quote": "In height he was rather over six feet, and so excessively lean that he seemed to be considerably taller.",
+       "char_start": 18615,
+       "char_end": 18720
+      },
+      "id": "3e69bfc9f78d"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Sherlock Holmes",
+      "predicate": "height",
+      "object": "tall",
+      "story_time": null,
+      "confidence": 0.8,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "III. The Yellow Face",
+       "chapter_index": 2,
+       "quote": "long, thin fore-finger",
+       "char_start": 116152,
+       "char_end": 116174
+      },
+      "id": "525f43de1bcd"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Sherlock Holmes",
+      "predicate": "height",
+      "object": "middle height",
+      "story_time": null,
+      "confidence": 0.8,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "Three Broken Threads",
+       "chapter_index": 4,
+       "quote": "I’d put him at forty years of age, and he was of a middle height, two or three inches shorter than you, sir.",
+       "char_start": 103822,
+       "char_end": 103944
+      },
+      "id": "2b2abde2d5e2"
+     }
+    ],
+    "reason": "Sherlock Holmes.height is 'over six feet' (A Study in Scarlet · THE SCIENCE OF DEDUCTION.), 'tall' (The Memoirs of Sherlock Holmes · III. The Yellow Face), 'middle height' (The Hound of the Baskervilles · Three Broken Threads)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "deliberate",
+   "severity": "medium",
+   "explanation": "The description of \"middle height\" in Book 5 is given by cabman John Clayton regarding a passenger who spied on Sir Henry. Holmes explains that the spy gave Holmes's name to the driver as a taunt, so the cabman was describing the impostor/spy, not Sherlock Holmes.",
+   "suggested_fix": null,
+   "evidence": "The cunning rascal! He knew our number, knew that Sir Henry Baskerville had consulted me, spotted who I was in Regent Street, conjectured that I had got the number of the cab and would lay my hands on the driver, and so sent back this audacious message.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Sherlock Holmes",
+      "predicate": "eye_color",
+      "object": "dark",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "A Break in the Chain",
+       "chapter_index": 8,
+       "quote": "a pair of keen dark eyes",
+       "char_start": 147587,
+       "char_end": 147611
+      },
+      "id": "c935b3c99f08"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Sherlock Holmes",
+      "predicate": "eye_color",
+      "object": "grey",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "Death on the Moor",
+       "chapter_index": 11,
+       "quote": "his grey eyes dancing with amusement as they fell upon my astonished features.",
+       "char_start": 262011,
+       "char_end": 262096
+      },
+      "id": "5de72867d85c"
+     }
+    ],
+    "reason": "Sherlock Holmes.eye_color is 'dark' (The Sign of the Four · A Break in the Chain), 'grey' (The Hound of the Baskervilles · Death on the Moor)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "deliberate",
+   "severity": "medium",
+   "explanation": "Sherlock Holmes was wearing an elaborate disguise as an elderly master mariner when Watson described him as having dark eyes.",
+   "suggested_fix": null,
+   "evidence": "“Here is the old man,” said he, holding out a heap of white hair. “Here he is,—wig, whiskers, eyebrows, and all. I thought my disguise was pretty good, but I hardly expected that it would stand that test.”",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "John Watson",
+      "predicate": "birthplace",
+      "object": "afghanistan",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "MR. SHERLOCK HOLMES.",
+       "chapter_index": 0,
+       "quote": "how the deuce did he know that I had come from Afghanistan?",
+       "char_start": 15894,
+       "char_end": 15953
+      },
+      "id": "baf9078d4990"
+     },
+     {
+      "kind": "attribute",
+      "subject": "John Watson",
+      "predicate": "birthplace",
+      "object": "norwich",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "The Stapletons of Merripit House",
+       "chapter_index": 6,
+       "quote": "I was born in Norwich",
+       "char_start": 155401,
+       "char_end": 155422
+      },
+      "id": "b4e1f7c818b0"
+     }
+    ],
+    "reason": "John Watson.birthplace is 'afghanistan' (A Study in Scarlet · MR. SHERLOCK HOLMES.), 'norwich' (The Hound of the Baskervilles · The Stapletons of Merripit House)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible mislabeled Watson's military deployment location as his birthplace. Watson served in Afghanistan during the second Afghan war and was returning from there, but was born in Norwich.",
+   "suggested_fix": null,
+   "evidence": "On landing at Bombay, I learned that my corps had advanced through the passes, and was already deep in the enemy’s country. I followed, however, with many other officers who were in the same situation as myself, and succeeded in reaching Candahar in safety, where I found my regiment",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Lucy Ferrier",
+      "predicate": "child_of",
+      "object": "John Ferrier",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "ON THE GREAT ALKALI PLAIN.",
+       "chapter_index": 7,
+       "quote": "she’s mine ’cause I saved her.",
+       "char_start": 140607,
+       "char_end": 140638
+      },
+      "id": "95ffc1a455ee"
+     },
+     {
+      "kind": "relation",
+      "subject": "Lucy Ferrier",
+      "predicate": "child_of",
+      "object": "Effie",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "III. The Yellow Face",
+       "chapter_index": 2,
+       "quote": "But dark or fair, she is my own dear little girlie, and her mother’s pet.",
+       "char_start": 151930,
+       "char_end": 152010
+      },
+      "id": "81daaef5a115"
+     },
+     {
+      "kind": "relation",
+      "subject": "Lucy Ferrier",
+      "predicate": "child_of",
+      "object": "John Hebron",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "III. The Yellow Face",
+       "chapter_index": 2,
+       "quote": "It was our misfortune that our only child took after his people rather than mine.",
+       "char_start": 151739,
+       "char_end": 151827
+      },
+      "id": "867f5ad0f4fb"
+     }
+    ],
+    "reason": "Lucy Ferrier.child_of is 'John Ferrier' (A Study in Scarlet · ON THE GREAT ALKALI PLAIN.), 'Effie' (The Memoirs of Sherlock Holmes · III. The Yellow Face), 'John Hebron' (The Memoirs of Sherlock Holmes · III. The Yellow Face)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible conflated two different characters named Lucy: Lucy Ferrier (adopted daughter of John Ferrier in A Study in Scarlet) and little Lucy Hebron (child of Effie and John Hebron in The Yellow Face).",
+   "suggested_fix": null,
+   "evidence": "That is John Hebron, of Atlanta,” said the lady, “and a nobler man never walked the earth. I cut myself off from my race in order to wed him, but never once while he lived did I for an instant regret it. It was our misfortune that our only child took after his people rather than mine.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Jefferson Hope",
+      "predicate": "birthplace",
+      "object": "america",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "A CONTINUATION OF THE REMINISCENCES OF JOHN WATSON, M.D.",
+       "chapter_index": 12,
+       "quote": "Among the many billets which I have filled in America during my wandering life",
+       "char_start": 222199,
+       "char_end": 222278
+      },
+      "id": "c7e3208d24c3"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Jefferson Hope",
+      "predicate": "birthplace",
+      "object": "edinburgh",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Great Agra Treasure",
+       "chapter_index": 10,
+       "quote": "I was born in Edinburgh",
+       "char_start": 178670,
+       "char_end": 178693
+      },
+      "id": "9a78c9cce9cb"
+     }
+    ],
+    "reason": "Jefferson Hope.birthplace is 'america' (A Study in Scarlet · A CONTINUATION OF THE REMINISCENCES OF JOHN WATSON, M.D.), 'edinburgh' (The Sign of the Four · The Great Agra Treasure)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible misattributed a statement made by Jonathan Small in The Sign of the Four (\"I was born in Edinburgh\") to Jefferson Hope, a character from A Study in Scarlet.",
+   "suggested_fix": null,
+   "evidence": "The old wound in Jonathan Small's hand, the one from the war, ached in the damp.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Jonathan Small",
+      "predicate": "wound_location",
+      "object": "right leg",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "Sherlock Holmes Gives a Demonstration",
+       "chapter_index": 5,
+       "quote": "with his right leg off,",
+       "char_start": 88048,
+       "char_end": 88072
+      },
+      "id": "a8702ec6d71e"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Jonathan Small",
+      "predicate": "wound_location",
+      "object": "palm of his hand",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "Sherlock Holmes Gives a Demonstration",
+       "chapter_index": 5,
+       "quote": "there is a good deal of skin missing from the palm of his hand.",
+       "char_start": 88372,
+       "char_end": 88436
+      },
+      "id": "4bb183981375"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Jonathan Small",
+      "predicate": "wound_location",
+      "object": "right side",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The End of the Islander",
+       "chapter_index": 9,
+       "quote": "from the thigh downwards there was but a wooden stump upon the right side.",
+       "char_start": 167244,
+       "char_end": 167319
+      },
+      "id": "9f052293e0f9"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Jonathan Small",
+      "predicate": "wound_location",
+      "object": "above the knee",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "just above the knee.",
+       "char_start": 188920,
+       "char_end": 188940
+      },
+      "id": "aac8e43627be"
+     }
+    ],
+    "reason": "Jonathan Small.wound_location is 'right leg' (The Sign of the Four · Sherlock Holmes Gives a Demonstration), 'palm of his hand' (The Sign of the Four · Sherlock Holmes Gives a Demonstration), 'right side' (The Sign of the Four · The End of the Islander), 'above the knee' (The Sign of the Four · The Strange Story of Jonathan Small)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "Jonathan Small has two separate physical injuries described in the text: an amputated right leg (leaving a wooden stump on his right side) and missing skin/scarring on the palm of his hand. The bible incorrectly combined two distinct injuries into a single slot.",
+   "suggested_fix": null,
+   "evidence": "with his right leg off, and by the divine help I may take him yet.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "relation",
+      "subject": "Lord Saltire",
+      "predicate": "child_of",
+      "object": "Jephro Rucastle",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "XII. THE ADVENTURE OF THE COPPER BEECHES",
+       "chapter_index": 11,
+       "quote": "passionately devoted both to her husband and to her little son.",
+       "char_start": 545794,
+       "char_end": 545858
+      },
+      "id": "561b93963fbc"
+     },
+     {
+      "kind": "relation",
+      "subject": "Lord Saltire",
+      "predicate": "child_of",
+      "object": "Mrs. Rucastle",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "XII. THE ADVENTURE OF THE COPPER BEECHES",
+       "chapter_index": 11,
+       "quote": "passionately devoted both to her husband and to her little son.",
+       "char_start": 545794,
+       "char_end": 545858
+      },
+      "id": "82ea1a37caaf"
+     },
+     {
+      "kind": "relation",
+      "subject": "Lord Saltire",
+      "predicate": "child_of",
+      "object": "The Duke of Holdernesse",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE PRIORY SCHOOL",
+       "chapter_index": 4,
+       "quote": "I would only ask you now, sir, whether you have formed any explanation in your own mind as to the mysterious disappearance of your son?",
+       "char_start": 236196,
+       "char_end": 236345
+      },
+      "id": "644a182036b6"
+     }
+    ],
+    "reason": "Lord Saltire.child_of is 'Jephro Rucastle' (The Adventures of Sherlock Holmes · XII. THE ADVENTURE OF THE COPPER BEECHES), 'Mrs. Rucastle' (The Adventures of Sherlock Holmes · XII. THE ADVENTURE OF THE COPPER BEECHES), 'The Duke of Holdernesse' (The Return of Sherlock Holmes · THE ADVENTURE OF THE PRIORY SCHOOL)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The Bible misattributed the quote from 'The Adventure of the Copper Beeches' regarding Mrs. Rucastle's son (little Edward) to Lord Saltire. Lord Saltire is the son of the Duke of Holdernesse in 'The Adventure of the Priory School'.",
+   "suggested_fix": null,
+   "evidence": "Mrs. Rucastle seemed to me to be colourless in mind as well as in feature. She impressed me neither favourably nor the reverse. She was a nonentity. It was easy to see that she was passionately devoted both to her husband and to her little son.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "John Straker",
+      "predicate": "wound_location",
+      "object": "head",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "I. Silver Blaze",
+       "chapter_index": 0,
+       "quote": "His head had been shattered by a savage blow from some heavy weapon",
+       "char_start": 14361,
+       "char_end": 14435
+      },
+      "id": "3fedb6f35ca9"
+     },
+     {
+      "kind": "attribute",
+      "subject": "John Straker",
+      "predicate": "wound_location",
+      "object": "thigh",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "I. Silver Blaze",
+       "chapter_index": 0,
+       "quote": "he was wounded on the thigh, where there was a long, clean cut",
+       "char_start": 14448,
+       "char_end": 14510
+      },
+      "id": "37836d893eb3"
+     }
+    ],
+    "reason": "John Straker.wound_location is 'head' (The Memoirs of Sherlock Holmes · I. Silver Blaze), 'thigh' (The Memoirs of Sherlock Holmes · I. Silver Blaze)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "John Straker suffered both a head injury and a thigh wound in the same attack. The text explicitly mentions both injuries, so recording both does not constitute a contradiction.",
+   "suggested_fix": null,
+   "evidence": "His head had been shattered by a savage blow from some heavy weapon, and he was wounded on the thigh, where there was a long, clean cut, inflicted evidently by some very sharp instrument.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Sir Henry Baskerville",
+      "predicate": "birthplace",
+      "object": "canada",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "The Problem",
+       "chapter_index": 2,
+       "quote": "found that he had been farming in Canada.",
+       "char_start": 46816,
+       "char_end": 46857
+      },
+      "id": "d10113236d0c"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Sir Henry Baskerville",
+      "predicate": "birthplace",
+      "object": "south coast",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "Baskerville Hall",
+       "chapter_index": 5,
+       "quote": "I was a boy in my teens at the time of my father’s death and had never seen the Hall, for he lived in a little cottage on the South Coast.",
+       "char_start": 110791,
+       "char_end": 110943
+      },
+      "id": "b08972613427"
+     }
+    ],
+    "reason": "Sir Henry Baskerville.birthplace is 'canada' (The Hound of the Baskervilles · The Problem), 'south coast' (The Hound of the Baskervilles · Baskerville Hall)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The Bible extractor incorrectly recorded 'canada' as Sir Henry Baskerville's birthplace. The text states that he was 'farming in Canada', not born there.",
+   "suggested_fix": null,
+   "evidence": "On the death of Sir Charles we inquired for this young gentleman and found that he had been farming in Canada.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Jack Stapleton",
+      "predicate": "eye_color",
+      "object": "grey",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "The Stapletons of Merripit House",
+       "chapter_index": 6,
+       "quote": "Stapleton was neutral tinted, with light hair and grey eyes",
+       "char_start": 146093,
+       "char_end": 146159
+      },
+      "id": "dcf98994c502"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Jack Stapleton",
+      "predicate": "eye_color",
+      "object": "light",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "The Light upon the Moor [Second Report of Dr. Watson]",
+       "chapter_index": 8,
+       "quote": "those light eyes of his were blazing with fury.",
+       "char_start": 186714,
+       "char_end": 186768
+      },
+      "id": "3548b983cfbb"
+     }
+    ],
+    "reason": "Jack Stapleton.eye_color is 'grey' (The Hound of the Baskervilles · The Stapletons of Merripit House), 'light' (The Hound of the Baskervilles · The Light upon the Moor [Second Report of Dr. Watson])",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "Jack Stapleton is described as having 'grey eyes', and later his eyes are referred to as 'light eyes'. Grey eyes are a light eye color, so describing grey eyes as light eyes is entirely consistent and not a conflict.",
+   "suggested_fix": null,
+   "evidence": "Stapleton was neutral tinted, with light hair and grey eyes",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Beryl Garcia",
+      "predicate": "birthplace",
+      "object": "costa rica",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "A Retrospection",
+       "chapter_index": 14,
+       "quote": "Beryl Garcia, one of the beauties of Costa Rica",
+       "char_start": 340798,
+       "char_end": 340852
+      },
+      "id": "daca204ac6a9"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Beryl Garcia",
+      "predicate": "birthplace",
+      "object": "spain",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "A Retrospection",
+       "chapter_index": 14,
+       "quote": "A woman of Spanish blood does not condone such an injury so lightly.",
+       "char_start": 359921,
+       "char_end": 360003
+      },
+      "id": "f117d4186c83"
+     }
+    ],
+    "reason": "Beryl Garcia.birthplace is 'costa rica' (The Hound of the Baskervilles · A Retrospection), 'spain' (The Hound of the Baskervilles · A Retrospection)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The text states that Beryl Garcia was 'one of the beauties of Costa Rica' and mentions that she is 'a woman of Spanish blood'. Having Spanish ancestry or blood does not mean she was born in Spain; the bible misread Spanish blood as a birthplace of Spain.",
+   "suggested_fix": null,
+   "evidence": "A woman of Spanish blood does not condone such an injury so lightly.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Lady Brackenstall",
+      "predicate": "hair_color",
+      "object": "fair",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE ABBEY GRANGE",
+       "chapter_index": 11,
+       "quote": "She was a blonde, golden-haired, blue-eyed",
+       "char_start": 578774,
+       "char_end": 578816
+      },
+      "id": "37d3b055a8ff"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Lady Brackenstall",
+      "predicate": "hair_color",
+      "object": "golden-haired",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE ABBEY GRANGE",
+       "chapter_index": 11,
+       "quote": "She was a blonde, golden-haired, blue-eyed, and would no",
+       "char_start": 578774,
+       "char_end": 578830
+      },
+      "id": "27c524372351"
+     }
+    ],
+    "reason": "Lady Brackenstall.hair_color is 'fair' (The Return of Sherlock Holmes · THE ADVENTURE OF THE ABBEY GRANGE), 'golden-haired' (The Return of Sherlock Holmes · THE ADVENTURE OF THE ABBEY GRANGE)",
+    "heuristic": "slot_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "Lady Brackenstall is described in the exact same sentence as 'blonde, golden-haired'. 'Blonde' and 'golden-haired' are synonymous terms describing the same hair color in a single passage.",
+   "suggested_fix": null,
+   "evidence": "She was a blonde, golden-haired, blue-eyed",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Captain Morstan",
+      "predicate": "dead",
+      "object": "true",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Story of the Bald-Headed Man",
+       "chapter_index": 3,
+       "quote": "When I stooped over him I found, to my horror, that he was dead.",
+       "char_start": 49029,
+       "char_end": 49094
+      },
+      "id": "45ca17dd2734"
+     },
+     {
+      "kind": "event",
+      "subject": "Captain Morstan",
+      "predicate": "retired",
+      "object": "army",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "and he had left the army",
+       "char_start": 225573,
+       "char_end": 225597
+      },
+      "id": "006e3d233b9c"
+     }
+    ],
+    "reason": "Captain Morstan dies in The Sign of the Four · The Story of the Bald-Headed Man but acts in The Sign of the Four · The Strange Story of Jonathan Small",
+    "heuristic": "dead_speaks"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The reference to Captain Morstan leaving the army occurs during Jonathan Small's narration of past events prior to Morstan's death. Per the screen instructions, a flashback or narrated backstory of past deeds is not a dead_speaks conflict.",
+   "suggested_fix": null,
+   "evidence": "and he had left the army",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "event",
+      "subject": "Cartwright",
+      "predicate": "died",
+      "object": "hanged",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "IX. The Resident Patient",
+       "chapter_index": 8,
+       "quote": "On his evidence Cartwright was hanged",
+       "char_start": 414951,
+       "char_end": 414988
+      },
+      "id": "901348a79c21"
+     },
+     {
+      "kind": "event",
+      "subject": "Cartwright",
+      "predicate": "arrived",
+      "object": "coombe tracey",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "A Retrospection",
+       "chapter_index": 14,
+       "quote": "Cartwright had come down with me",
+       "char_start": 355297,
+       "char_end": 355329
+      },
+      "id": "b5d783c91ec5"
+     }
+    ],
+    "reason": "Cartwright dies in The Memoirs of Sherlock Holmes · IX. The Resident Patient but acts in The Hound of the Baskervilles · A Retrospection",
+    "heuristic": "dead_speaks"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible merged two distinct characters with the surname Cartwright: Cartwright the member of the Worthingdon bank gang who was hanged after 1875 in 'The Resident Patient', and Cartwright the 14-year-old messenger boy employed by Sherlock Holmes in 'The Hound of the Baskervilles'.",
+   "suggested_fix": null,
+   "evidence": "I have some recollection, Wilson, that you had among your boys a lad named Cartwright, who showed some ability during the investigation.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "event",
+      "subject": "Charles Baskerville",
+      "predicate": "died",
+      "object": "devonshire",
+      "story_time": "some three months ago",
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "The Curse of the Baskervilles",
+       "chapter_index": 1,
+       "quote": "whose sudden and tragic death some three months ago created so much excitement in Devonshire.",
+       "char_start": 16033,
+       "char_end": 16133
+      },
+      "id": "1687f04a3d25"
+     },
+     {
+      "kind": "state",
+      "subject": "Charles Baskerville",
+      "predicate": "location",
+      "object": "gate",
+      "story_time": "at the time of death",
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "Extract from the Diary of Dr. Watson",
+       "chapter_index": 9,
+       "quote": "I know why he was at the gate at that hour. It was to meet a woman.",
+       "char_start": 220822,
+       "char_end": 220896
+      },
+      "id": "00ff512b2ea0"
+     }
+    ],
+    "reason": "Charles Baskerville dies in The Hound of the Baskervilles · The Curse of the Baskervilles but acts in The Hound of the Baskervilles · Extract from the Diary of Dr. Watson",
+    "heuristic": "dead_speaks"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "Dr. Watson's statement regarding Sir Charles Baskerville being at the gate to meet a woman is a discussion of the circumstances surrounding his past death. A report of past deeds or circumstances of death is not a dead_speaks conflict.",
+   "suggested_fix": null,
+   "evidence": "I know why he was at the gate at that hour. It was to meet a woman.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "state",
+      "subject": "Enoch J. Drebber",
+      "predicate": "dead",
+      "object": "true",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "THE LAURISTON GARDENS MYSTERY",
+       "chapter_index": 2,
+       "quote": "discovered the body of a gentleman, well dressed",
+       "char_start": 39431,
+       "char_end": 39480
+      },
+      "id": "af2d486ac038"
+     },
+     {
+      "kind": "state",
+      "subject": "Enoch J. Drebber",
+      "predicate": "location",
+      "object": "brixton road",
+      "story_time": "two in the morning",
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "LIGHT IN THE DARKNESS.",
+       "chapter_index": 6,
+       "quote": "At two in the morning Drebber had been found in the Brixton Road.",
+       "char_start": 106132,
+       "char_end": 106198
+      },
+      "id": "f887a082b925"
+     }
+    ],
+    "reason": "Enoch J. Drebber dies in A Study in Scarlet · THE LAURISTON GARDENS MYSTERY but acts in A Study in Scarlet · LIGHT IN THE DARKNESS.",
+    "heuristic": "dead_speaks"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The passage stating that Drebber was found in the Brixton Road at two in the morning is a report recounting the timeline of when his corpse was discovered, not an instance of the character acting after death.",
+   "suggested_fix": null,
+   "evidence": "At two in the morning Drebber had been found in the Brixton Road.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "event",
+      "subject": "Jack Stapleton",
+      "predicate": "died",
+      "object": "1876",
+      "story_time": "1876",
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "The Problem",
+       "chapter_index": 2,
+       "quote": "He made England too hot to hold him, fled to Central America, and died there in 1876 of yellow fever.",
+       "char_start": 47548,
+       "char_end": 47656
+      },
+      "id": "1a92708b7939"
+     },
+     {
+      "kind": "event",
+      "subject": "Jack Stapleton",
+      "predicate": "moved",
+      "object": "devonshire",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "A Retrospection",
+       "chapter_index": 14,
+       "quote": "The Stapletons then went down to Devonshire",
+       "char_start": 353737,
+       "char_end": 353780
+      },
+      "id": "853399309cac"
+     }
+    ],
+    "reason": "Jack Stapleton dies in The Hound of the Baskervilles · The Problem but acts in The Hound of the Baskervilles · A Retrospection",
+    "heuristic": "dead_speaks"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible extraction incorrectly attributed the 1876 death of Rodger Baskerville to Jack Stapleton.",
+   "suggested_fix": null,
+   "evidence": "He made England too hot to hold him, fled to Central America, and died there in 1876 of yellow fever.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "state",
+      "subject": "Joseph Stangerson",
+      "predicate": "dead",
+      "object": "true",
+      "story_time": "six o’clock this morning",
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "TOBIAS GREGSON SHOWS WHAT HE CAN DO.",
+       "chapter_index": 5,
+       "quote": "was murdered at Halliday’s Private Hotel about six o’clock this morning.",
+       "char_start": 104772,
+       "char_end": 104845
+      },
+      "id": "c61af73b68d0"
+     },
+     {
+      "kind": "state",
+      "subject": "Joseph Stangerson",
+      "predicate": "wealth",
+      "object": "poor",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "01-a-study-in-scarlet",
+       "book_index": 0,
+       "book_title": "A Study in Scarlet",
+       "chapter": "THE AVENGING ANGELS.",
+       "chapter_index": 11,
+       "quote": "Stangerson, was comparatively poor.",
+       "char_start": 206093,
+       "char_end": 206128
+      },
+      "id": "aeac098046ee"
+     }
+    ],
+    "reason": "Joseph Stangerson dies in A Study in Scarlet · TOBIAS GREGSON SHOWS WHAT HE CAN DO. but acts in A Study in Scarlet · THE AVENGING ANGELS.",
+    "heuristic": "dead_speaks"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "Stangerson's financial state is mentioned in a retrospective flashback chapter depicting events prior to his murder.",
+   "suggested_fix": null,
+   "evidence": "Stangerson, was comparatively poor.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "state",
+      "subject": "Sherlock Holmes",
+      "predicate": "dead",
+      "object": "true",
+      "story_time": "after 4th of May",
+      "confidence": 1.0,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "XII. The Final Problem",
+       "chapter_index": 11,
+       "quote": "Any attempt at recovering the bodies was absolutely hopeless, and there, deep down in that dreadful caldron of swirling water and seething foam, will lie for all time the most dangerous criminal and the foremost champion of the law of their generation.",
+       "char_start": 579911,
+       "char_end": 580191
+      },
+      "id": "ad77621b64eb"
+     },
+     {
+      "kind": "state",
+      "subject": "Sherlock Holmes",
+      "predicate": "location",
+      "object": "stone hut",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "The Man on the Tor",
+       "chapter_index": 10,
+       "quote": "down beneath me in a cleft of the hills there was a circle of the old stone huts, and in the middle of them there was one which retained sufficient roof to act as a screen against the weather.",
+       "char_start": 256237,
+       "char_end": 256450
+      },
+      "id": "89553d143c45"
+     }
+    ],
+    "reason": "Sherlock Holmes dies in The Memoirs of Sherlock Holmes · XII. The Final Problem but acts in The Hound of the Baskervilles · The Man on the Tor",
+    "heuristic": "dead_speaks"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The Hound of the Baskervilles is chronologically set prior to the events of The Final Problem.",
+   "suggested_fix": null,
+   "evidence": "down beneath me in a cleft of the hills there was a circle of the old stone huts",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "event",
+      "subject": "Tonga",
+      "predicate": "died",
+      "object": "stream",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The End of the Islander",
+       "chapter_index": 9,
+       "quote": "fell sideways into the stream.",
+       "char_start": 168739,
+       "char_end": 168769
+      },
+      "id": "c7f628fefe45"
+     },
+     {
+      "kind": "event",
+      "subject": "Tonga",
+      "predicate": "killed",
+      "object": "Bartholomew Sholto",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "Tonga thought he had done something very clever in killing him",
+       "char_start": 232083,
+       "char_end": 232146
+      },
+      "id": "52d14a0e8d24"
+     }
+    ],
+    "reason": "Tonga dies in The Sign of the Four · The End of the Islander but acts in The Sign of the Four · The Strange Story of Jonathan Small",
+    "heuristic": "dead_speaks"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "Jonathan Small's narrative recounts past events that occurred before Tonga's death.",
+   "suggested_fix": null,
+   "evidence": "Tonga thought he had done something very clever in killing him",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "event",
+      "subject": "Ronald Adair",
+      "predicate": "died",
+      "object": "london",
+      "story_time": "spring of 1894",
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE EMPTY HOUSE",
+       "chapter_index": 0,
+       "quote": "the murder of the Honourable Ronald Adair under most unusual and inexplicable circumstances.",
+       "char_start": 742,
+       "char_end": 848
+      },
+      "id": "dc011c5916ca"
+     },
+     {
+      "kind": "state",
+      "subject": "Ronald Adair",
+      "predicate": "died",
+      "object": "march 30 1894",
+      "story_time": "March 30, 1894, between 10:00 and 11:20 PM",
+      "confidence": 1.0,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE EMPTY HOUSE",
+       "chapter_index": 0,
+       "quote": "death came, in most strange and unexpected form, between the hours of ten and eleven-twenty on the night of March 30, 1894.",
+       "char_start": 4457,
+       "char_end": 4594
+      },
+      "id": "dfb900789362"
+     }
+    ],
+    "reason": "Ronald Adair.died has conflicting years [30, 1894]",
+    "heuristic": "timeline"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "March 30, 1894 falls during the spring of 1894.",
+   "suggested_fix": null,
+   "evidence": "death came, in most strange and unexpected form, between the hours of ten and eleven-twenty on the night of March 30, 1894.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "name",
+      "subject": "Dost Akbar",
+      "predicate": "full_name",
+      "object": "Mahomet Singh",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "In Quest of a Solution",
+       "chapter_index": 2,
+       "quote": "Jonathan Small, Mahomet Singh, Abdullah Khan, Dost Akbar.",
+       "char_start": 31881,
+       "char_end": 31939
+      },
+      "id": "d158b70e9141"
+     },
+     {
+      "kind": "name",
+      "subject": "Dost Akbar",
+      "predicate": "full_name",
+      "object": "Dost Akbar",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "In Quest of a Solution",
+       "chapter_index": 2,
+       "quote": "Mahomet Singh, Abdullah Khan, Dost Akbar.",
+       "char_start": 31897,
+       "char_end": 31939
+      },
+      "id": "6e8679d24ebb"
+     }
+    ],
+    "reason": "Dost Akbar.full_name is 'Mahomet Singh' in The Sign of the Four · In Quest of a Solution but 'Dost Akbar' in The Sign of the Four · In Quest of a Solution",
+    "heuristic": "name_drift"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "Mahomet Singh and Dost Akbar are two distinct individuals among Small's companions, not two names for the same person.",
+   "suggested_fix": null,
+   "evidence": "Jonathan Small, Mahomet Singh, Abdullah Khan, Dost Akbar.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Dost Akbar",
+      "predicate": "first_name",
+      "object": "Dost",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "Dost Akbar",
+       "char_start": 200753,
+       "char_end": 200763
+      },
+      "id": "467add8e2f18"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Dost Akbar",
+      "predicate": "first_name",
+      "object": "Mahomet",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "Mahomet Singh",
+       "char_start": 200861,
+       "char_end": 200874
+      },
+      "id": "76eae7e967f6"
+     }
+    ],
+    "reason": "Dost Akbar.first_name is 'Dost' in The Sign of the Four · The Strange Story of Jonathan Small but 'Mahomet' in The Sign of the Four · The Strange Story of Jonathan Small",
+    "heuristic": "name_drift"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "Mahomet Singh and Dost Akbar are separate individuals, so differing first names do not represent a name drift.",
+   "suggested_fix": null,
+   "evidence": "Mahomet Singh, Abdullah Khan, and Dost Ak",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Dost Akbar",
+      "predicate": "first_name",
+      "object": "Dost",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "Dost Akbar",
+       "char_start": 200753,
+       "char_end": 200763
+      },
+      "id": "467add8e2f18"
+     },
+     {
+      "kind": "name",
+      "subject": "Dost Akbar",
+      "predicate": "first_name",
+      "object": "Akbar",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "signed with the sign of four,—that is, of Abdullah, Akbar, Mahomet, and myself.",
+       "char_start": 225095,
+       "char_end": 225175
+      },
+      "id": "06da6a96bf37"
+     }
+    ],
+    "reason": "Dost Akbar.first_name is 'Dost' in The Sign of the Four · The Strange Story of Jonathan Small but 'Akbar' in The Sign of the Four · The Strange Story of Jonathan Small",
+    "heuristic": "name_drift"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible extraction incorrectly treated an item from a comma-separated list of names as a first name due to proximity.",
+   "suggested_fix": null,
+   "evidence": "signed with the sign of four,—that is, of Abdullah, Akbar, Mahomet, and myself.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Dost Akbar",
+      "predicate": "first_name",
+      "object": "Mahomet",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "Mahomet Singh",
+       "char_start": 200861,
+       "char_end": 200874
+      },
+      "id": "76eae7e967f6"
+     },
+     {
+      "kind": "name",
+      "subject": "Dost Akbar",
+      "predicate": "first_name",
+      "object": "Akbar",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "signed with the sign of four,—that is, of Abdullah, Akbar, Mahomet, and myself.",
+       "char_start": 225095,
+       "char_end": 225175
+      },
+      "id": "06da6a96bf37"
+     }
+    ],
+    "reason": "Dost Akbar.first_name is 'Mahomet' in The Sign of the Four · The Strange Story of Jonathan Small but 'Akbar' in The Sign of the Four · The Strange Story of Jonathan Small",
+    "heuristic": "name_drift"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible extraction erroneously assigned another character's first name (Mahomet Singh) to Dost Akbar.",
+   "suggested_fix": null,
+   "evidence": "Mahomet Singh",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Dost Akbar",
+      "predicate": "surname",
+      "object": "Akbar",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "Dost Akbar",
+       "char_start": 200753,
+       "char_end": 200763
+      },
+      "id": "4b7f9ed91ed7"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Dost Akbar",
+      "predicate": "surname",
+      "object": "Singh",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Strange Story of Jonathan Small",
+       "chapter_index": 11,
+       "quote": "Mahomet Singh",
+       "char_start": 200861,
+       "char_end": 200874
+      },
+      "id": "84f0a8f2079d"
+     }
+    ],
+    "reason": "Dost Akbar.surname is 'Akbar' in The Sign of the Four · The Strange Story of Jonathan Small but 'Singh' in The Sign of the Four · The Strange Story of Jonathan Small",
+    "heuristic": "name_drift"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible extraction confused the surname of Mahomet Singh with Dost Akbar.",
+   "suggested_fix": null,
+   "evidence": "Mahomet Singh",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "name",
+      "subject": "John Clay",
+      "predicate": "first_name",
+      "object": "Archie",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "II. THE RED-HEADED LEAGUE",
+       "chapter_index": 1,
+       "quote": "Jump, Archie, jump, and I’ll swing for it!",
+       "char_start": 92226,
+       "char_end": 92268
+      },
+      "id": "f6aa3994009f"
+     },
+     {
+      "kind": "attribute",
+      "subject": "John Clay",
+      "predicate": "first_name",
+      "object": "John",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "II. THE RED-HEADED LEAGUE",
+       "chapter_index": 1,
+       "quote": "“It’s no use, John Clay,” said Holmes blandly.",
+       "char_start": 92602,
+       "char_end": 92648
+      },
+      "id": "8cbbd0f199f7"
+     }
+    ],
+    "reason": "John Clay.first_name is 'Archie' in The Adventures of Sherlock Holmes · II. THE RED-HEADED LEAGUE but 'John' in The Adventures of Sherlock Holmes · II. THE RED-HEADED LEAGUE",
+    "heuristic": "name_drift"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "Archie is John Clay's accomplice, not John Clay's alternate first name; the bible extraction misattributed the name.",
+   "suggested_fix": null,
+   "evidence": "Jump, Archie, jump, and I’ll swing for it!",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "nationality",
+      "object": "american",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "X. THE ADVENTURE OF THE NOBLE BACHELOR",
+       "chapter_index": 9,
+       "quote": "Francis H. Moulton, an American gentleman, had left only the\n\nday before",
+       "char_start": 466849,
+       "char_end": 466921
+      },
+      "id": "00f73df0c7da"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Francis Hay Moulton",
+      "predicate": "nationality",
+      "object": "french",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "06-the-return-of-sherlock-holmes",
+       "book_index": 5,
+       "book_title": "The Return of Sherlock Holmes",
+       "chapter": "THE ADVENTURE OF THE NORWOOD BUILDER",
+       "chapter_index": 1,
+       "quote": "Francis Hay Moulton, being French by birth, took the remark more lightly than the rest.",
+       "char_start": 56421,
+       "char_end": 56508
+      },
+      "id": "d48dd97a69b1"
+     }
+    ],
+    "reason": "Francis Hay Moulton.nationality is 'american' (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR) but nationality is 'french' (The Return of Sherlock Holmes · THE ADVENTURE OF THE NORWOOD BUILDER)",
+    "heuristic": "origin_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible incorrectly extracted 'nationality = french' from the phrase 'French by birth', which denotes birthplace rather than nationality.",
+   "suggested_fix": null,
+   "evidence": "Francis Hay Moulton, being French by birth, took the remark more lightly than the rest.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Godfrey Norton",
+      "predicate": "nationality",
+      "object": "english",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "I. A SCANDAL IN BOHEMIA",
+       "chapter_index": 0,
+       "quote": "To an English lawyer named Norton.",
+       "char_start": 42654,
+       "char_end": 42688
+      },
+      "id": "b8b26307b04e"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Godfrey Norton",
+      "predicate": "nationality",
+      "object": "german",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "05-the-hound-of-the-baskervilles",
+       "book_index": 4,
+       "book_title": "The Hound of the Baskervilles",
+       "chapter": "Fixing the Nets",
+       "chapter_index": 12,
+       "quote": "Norton, being German by birth, took the remark more lightly than the rest.",
+       "char_start": 305813,
+       "char_end": 305887
+      },
+      "id": "8f7fe7ce1ecb"
+     }
+    ],
+    "reason": "Godfrey Norton.nationality is 'english' (The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA) but nationality is 'german' (The Hound of the Baskervilles · Fixing the Nets)",
+    "heuristic": "origin_mismatch"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible incorrectly extracted 'nationality = german' from 'German by birth'.",
+   "suggested_fix": null,
+   "evidence": "Norton, being German by birth, took the remark more lightly than the rest.",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Mrs. Hudson",
+      "predicate": "occupation",
+      "object": "housekeeper",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "04-the-memoirs-of-sherlock-holmes",
+       "book_index": 3,
+       "book_title": "The Memoirs of Sherlock Holmes",
+       "chapter": "XI. The Naval Treaty",
+       "chapter_index": 10,
+       "quote": "Mrs. Hudson entered with the tea and coffee.",
+       "char_start": 524947,
+       "char_end": 524998
+      },
+      "id": "4e729a41e4ff"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Helen Stoner",
+      "predicate": "occupation",
+      "object": "housekeeper",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "03-the-adventures-of-sherlock-holmes",
+       "book_index": 2,
+       "book_title": "The Adventures of Sherlock Holmes",
+       "chapter": "VIII. THE ADVENTURE OF THE SPECKLED BAND",
+       "chapter_index": 7,
+       "quote": "We have a housekeeper now, but she is old and foolish",
+       "char_start": 344419,
+       "char_end": 344473
+      },
+      "id": "c5ba552704bb"
+     }
+    ],
+    "reason": "the housekeeper of Sherlock Holmes's household is Mrs. Hudson (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), Helen Stoner (The Adventures of Sherlock Holmes · VIII. THE ADVENTURE OF THE SPECKLED BAND) (tie for Helen Stoner is only that Sherlock Holmes is in the scene)",
+    "heuristic": "role_collision"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "Helen Stoner belongs to a completely different household (Stoke Moran), and the bible incorrectly associated her as a housekeeper in Holmes's Baker Street residence.",
+   "suggested_fix": null,
+   "evidence": "We have a housekeeper now, but she is old and foolish",
+   "adjudicator_model": "gemini-3.6-flash"
+  },
+  {
+   "candidate": {
+    "claims": [
+     {
+      "kind": "attribute",
+      "subject": "Mary Morstan",
+      "predicate": "occupation",
+      "object": "governess",
+      "story_time": null,
+      "confidence": 1.0,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Statement of the Case",
+       "chapter_index": 1,
+       "quote": "I had at that time just entered the family of Mrs. Cecil Forrester in the capacity of governess.",
+       "char_start": 21986,
+       "char_end": 22083
+      },
+      "id": "5f3718e483e9"
+     },
+     {
+      "kind": "attribute",
+      "subject": "Mrs. Cecil Forrester",
+      "predicate": "occupation",
+      "object": "governess",
+      "story_time": null,
+      "confidence": 0.9,
+      "provenance": {
+       "book": "02-the-sign-of-the-four",
+       "book_index": 1,
+       "book_title": "The Sign of the Four",
+       "chapter": "The Statement of the Case",
+       "chapter_index": 1,
+       "quote": "I had at that time just entered the family of Mrs. Cecil Forrester in the capacity of governess.",
+       "char_start": 21986,
+       "char_end": 22083
+      },
+      "id": "9838e78bd251"
+     }
+    ],
+    "reason": "the governess of Mrs. Cecil Forrester's household is Mary Morstan (The Sign of the Four · The Statement of the Case), Mrs. Cecil Forrester (The Sign of the Four · The Statement of the Case) (tie for Mrs. Cecil Forrester is only that Mrs. Cecil Forrester is in the scene)",
+    "heuristic": "role_collision"
+   },
+   "verdict": "not_conflict",
+   "severity": "low",
+   "explanation": "The bible extraction erroneously assigned the role of governess to Mrs. Cecil Forrester due to proximity in the sentence, whereas Mary Morstan is the one who entered the family as governess.",
+   "suggested_fix": null,
+   "evidence": "I had at that time just entered the family of Mrs. Cecil Forrester in the capacity of governess.",
+   "adjudicator_model": "gemini-3.6-flash"
+  }
+ ],
+ "models": {
+  "extract": "gemini-3.5-flash-lite",
+  "adjudicate": "gemini-3.6-flash",
+  "provider": "gemini"
+ },
+ "cost_usd": 0.5676
+}

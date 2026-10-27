@@ -49,9 +49,10 @@ injects contradictions into public-domain novels and scores precision/recall.
   the Reichenbach Falls and then acting in *The Hound* ("aided by the diary which I kept at the
   time": it is set earlier). Two of its four contradictions were wrong (a disguise; a maiden
   name), and the README says so rather than hiding it.
-- Benchmark (seeded defects, 6 volumes): ___ precision / ___ recall on 20 injected
-  contradictions. ← from `canonkeeper eval`; the first run scored 1.00 / 0.05 and the
-  harness pointed straight at extraction, which is the point of having one.
+- Benchmark (seeded defects, 6 volumes, 20 planted contradictions): precision 0.80, recall
+  0.40, F1 0.53 (0.64 / 0.35 / 0.45 as first scored; both kept, with the files to reproduce
+  them). The first run scored 1.00 / 0.05; the harness pointed straight at extraction, and the
+  per-stage breakdown still does — 8 of the 12 remaining misses are never extracted.
 
 ## What we learned
 - Provenance is the product. Requiring a verbatim quote for every fact (and dropping the

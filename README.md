@@ -168,15 +168,29 @@ canonkeeper eval evals/corpora/sherlock-holmes/series.json --n 20 --seed 0
 
 | corpus | run | injected | reported | TP | FP | FN | precision | recall | F1 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Sherlock Holmes (6 volumes) | general pass only, low effort | 20 | 1 | 1 | 0 | 19 | 1.00 | 0.05 | 0.10 |
-| Sherlock Holmes (6 volumes) | + descriptive sweep, medium effort | *(running)* | | | | | | | |
+| Sherlock Holmes (6 volumes) | 1 · general pass only, low effort | 20 | 1 | 1 | 0 | 19 | 1.00 | 0.05 | 0.10 |
+| Sherlock Holmes (6 volumes) | 2 · + descriptive sweep, medium effort, evidence-checked verdicts — as written by the run | 20 | 11 | 7 | 4 | 13 | 0.64 | 0.35 | 0.45 |
+| Sherlock Holmes (6 volumes) | 2 · same run, rescored (`canonkeeper rescore`) | 20 | 11 | 8 | 2 | 12 | **0.80** | **0.40** | **0.53** |
 
-The first number is bad, and it is the reason the harness exists: every one of the 19 misses
-was lost at **extraction**, not at judgement — a single planted sentence in a chapter about
-someone else was skipped by the general pass. A second, narrow extraction pass over
-descriptive facts and a higher reasoning budget took extraction recall on the planted chunks
-from 7/20 to 15/20 (`scripts/probe_extraction.py` measures that in two minutes without a
-full audit). The second row is the full pipeline with those changes.
+The first number was bad, and it is the reason the harness exists: every one of the 19 misses
+was lost at **extraction**, not at judgement. A second, narrow extraction pass over descriptive
+facts and a higher reasoning budget took recall from 0.05 to 0.35–0.40, with precision 0.64–0.80.
+
+Run 2 plants a different 20 defects than run 1 (the rebuilt bible changed which facts were
+eligible), so the rows are not a paired comparison. The rescored row applies two scoring rules
+added after reading run 2's misses — a planted "Susan Cushing" extracted as "Miss Cushing" is
+the same person, and a contradiction that quotes a planted sentence for another reason is listed
+apart rather than as a false positive — and both rows are kept so the effect of the rule change
+is visible. All files are in [`evals/results/holmes-seed0-2026-10-27`](evals/results/holmes-seed0-2026-10-27);
+`canonkeeper rescore` reproduces the score with no model calls.
+
+**Where recall is still lost** (the run's own per-stage breakdown): of 12 misses, 8 were never
+extracted from the planted sentence (mostly a one-line eye-colour or first-name remark in a
+chapter about someone else), and 4 were judged not to be contradictions — two of those were
+plants that were not clear contradictions ("dark" vs "brown" eyes; Watson "born in Afghanistan",
+which was the bible misreading where he served). The benchmark now refuses such plants, and
+extraction is where the next round of work goes. Judging in run 2 was half `gemini-3.6-flash`,
+half `gemini-3.5-flash-lite` after the free-tier fallback.
 
 ## Project layout
 
@@ -301,7 +315,7 @@ Working offline pipeline; real-model runs on the Gemini free tier. See
 - [x] `check` on an unpublished draft, with the deliberate-reveal case in the demo
 - [x] Gemini free-tier provider with pacing, backoff, JSON-mode fallback; `doctor` command
 - [x] first real run on Sherlock Holmes (Watson's wound found; 2,331 sourced facts)
-- [ ] second benchmark row with the descriptive sweep (running on the free tier)
+- [x] second benchmark run with the descriptive sweep: P 0.80 / R 0.40 rescored, artifacts committed
 - [x] Preflight: upload → quote → PayPal checkout → capture → audit → report (`canonkeeper serve`)
 - [x] PayPal sandbox credentials and Orders v2 create verified (`canonkeeper doctor --paypal`)
 - [ ] full sandbox checkout recorded with a sandbox buyer account (for the video)

@@ -614,8 +614,14 @@ def rescore(
     base = AuditReport.model_validate_json(base_path.read_text("utf-8"))
     baseline_ids = {finding_key(f) for f in base.errors}
     s = score(injections, report.findings, baseline_ids=baseline_ids)
-    claims = CanonStore.load(eval_dir / "bible.jsonl").claims
-    misses = diagnose(s.missed, claims, report.findings, baseline_ids=baseline_ids)
+    bible = eval_dir / "bible.jsonl"
+    misses = (
+        diagnose(
+            s.missed, CanonStore.load(bible).claims, report.findings, baseline_ids=baseline_ids
+        )
+        if bible.exists()
+        else []  # the stage breakdown needs the mutated bible; the score does not
+    )
     judged = report.models.get("adjudicated_by", "-")
     console.print(s.markdown())
     (eval_dir / "result.md").write_text(
