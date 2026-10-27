@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from types import SimpleNamespace
 
 import httpx
@@ -473,3 +474,70 @@ def test_a_per_call_timeout_reaches_the_api_and_leaves_the_cache_key_alone(tmp_p
     assert seen[0]["timeout"] == 90 and "timeout" not in seen[1]
     llm.complete("m", [{"role": "user", "content": "a"}])  # same request, no timeout given
     assert len(seen) == 2  # served from the cache: the timeout is not part of the key
+
+
+def test_one_503_burst_across_parallel_requests_does_not_switch_models(tmp_path):
+    """Three requests in flight each meet the same momentary 503 and then succeed: that is
+    one blip per request, not "three in a row", so the model must not be abandoned."""
+    import threading
+
+    seen: list[str] = []
+    failed_once: set[str] = set()
+    gate = threading.Barrier(3)
+    lock = threading.Lock()
+
+    def create(**kwargs):
+        text = kwargs["messages"][0]["content"]
+        with lock:
+            seen.append(kwargs["model"])
+            first = text not in failed_once
+            failed_once.add(text)
+        if first:
+            gate.wait(5)  # all three fail together
+            raise InternalServerError("overloaded", response=_resp(503), body=None)
+        return _completion("{}")
+
+    llm = OpenAICompatibleLLM(
+        "k",
+        "https://example.test/v1",
+        cache_dir=tmp_path / "c",
+        sleep=lambda s: time.sleep(0.2),  # a real backoff: all three fail before any retry
+        model_fallbacks={"lite": ["flash"]},
+        overload_threshold=3,
+    )
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    threads = [
+        threading.Thread(target=llm.complete, args=("lite", [{"role": "user", "content": c}]))
+        for c in "abc"
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(10)
+    assert "flash" not in seen and llm.resolve_model("lite") == "lite"
+
+
+def test_the_ladder_never_walks_into_a_fallbacks_own_fallbacks(tmp_path):
+    """Extraction falls back among Flash-Lite models only; reaching Flash through a
+    fallback's ladder would spend the small quota judging depends on."""
+    seen: list[str] = []
+
+    def create(**kwargs):
+        seen.append(kwargs["model"])
+        if kwargs["model"] in ("lite", "lite2"):
+            raise InternalServerError("overloaded", response=_resp(503), body=None)
+        return _completion("{}")
+
+    llm = OpenAICompatibleLLM(
+        "k",
+        "https://example.test/v1",
+        cache_dir=tmp_path / "c",
+        sleep=lambda s: None,
+        model_fallbacks={"lite": ["lite2"], "lite2": ["flash"]},
+        overload_threshold=3,
+        max_retries=6,
+    )
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    with pytest.raises(InternalServerError):
+        llm.complete("lite", [{"role": "user", "content": "a"}])
+    assert "flash" not in seen and "lite2" in seen

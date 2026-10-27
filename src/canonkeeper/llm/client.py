@@ -275,7 +275,7 @@ class OpenAICompatibleLLM:
         self._today_count: dict[str, int] = self._count_today() if self._budget else {}
         self._overloaded: set[str] = set()
         """Models that answered 503 `overload_threshold` times in a row this run."""
-        self._consecutive_503: dict[str, int] = {}
+        self._local = threading.local()
         self._state = threading.RLock()
         self.usage = Usage()
         if cache_dir:
@@ -357,24 +357,29 @@ class OpenAICompatibleLLM:
 
     # --- one request with retries ----------------------------------------------------------
     def _next_model(self, model: str) -> str | None:
-        for m in self._fallbacks.get(model, []):
-            if m not in self._overloaded:
+        """The next model to try after `model`, from the *requested* model's own ladder only.
+        Walking a fallback's own ladder let extraction (Flash-Lite) reach the Flash models
+        whose small daily quota judging depends on."""
+        requested = getattr(self._local, "requested", None) or model
+        for m in self._fallbacks.get(requested, []):
+            if m not in self._overloaded and m != model:
                 return m
         return None
 
     def resolve_model(self, model: str) -> str:
-        """The model that will actually be called: the requested one unless it is overloaded."""
-        seen: set[str] = set()
-        while model in self._overloaded and model not in seen:
-            seen.add(model)
-            nxt = self._next_model(model)
-            if not nxt:
-                break
-            model = nxt
+        """The model that will actually be called: the requested one unless it is overloaded,
+        then the first of its own fallbacks that is not."""
+        if model not in self._overloaded:
+            return model
+        for m in self._fallbacks.get(model, []):
+            if m not in self._overloaded:
+                return m
         return model
 
     def _create(self, kwargs: dict[str, Any]) -> Any:
         attempt = 0
+        streak = 0  # this request's own failures in a row: requests in flight on other threads
+        # each hitting one burst of 503s are not "three in a row"
         model = kwargs.get("model", "?")
         approx = _approx_tokens(kwargs.get("messages", []))
         while True:
@@ -384,7 +389,6 @@ class OpenAICompatibleLLM:
             try:
                 resp = self._client.chat.completions.create(**kwargs)
                 with self._state:
-                    self._consecutive_503[model] = 0
                     self._today_count[model] = self._today_count.get(model, 0) + 1
                 u = getattr(resp, "usage", None)
                 self._log(
@@ -427,10 +431,8 @@ class OpenAICompatibleLLM:
                     # ladder rather than burning the whole retry budget on one model. A
                     # timeout counts double: each one has already cost `timeout_s` (observed:
                     # 3.8-flash hanging for 5 min per attempt mid-audit).
-                    with self._state:
-                        n = self._consecutive_503.get(model, 0) + (2 if timed_out else 1)
-                        self._consecutive_503[model] = n
-                    if n >= self._overload_threshold and self._next_model(model):
+                    streak += 2 if timed_out else 1
+                    if streak >= self._overload_threshold and self._next_model(model):
                         self._overloaded.add(model)
                         self._log(
                             model=model,
@@ -440,7 +442,7 @@ class OpenAICompatibleLLM:
                         )
                         raise _Overloaded(model) from exc
                 else:
-                    self._consecutive_503[model] = 0
+                    streak = 0
                 if "response_format" in kwargs and _rejects_response_format(exc):
                     self._json_mode_supported = False
                     kwargs = {k: v for k, v in kwargs.items() if k != "response_format"}
@@ -508,6 +510,7 @@ class OpenAICompatibleLLM:
             return str(data["content"])
 
         requested = model
+        self._local.requested = requested
         model = self.resolve_model(requested)
         while True:
             kwargs: dict[str, Any] = {
