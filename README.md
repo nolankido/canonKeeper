@@ -18,9 +18,17 @@ titles across four series imprints.
 | **Agents welcome** | The same service is an MCP server at `<url>/mcp` (streamable HTTP; or `canonkeeper mcp` on stdio): an author's AI assistant connects as a customer, holding no keys. It asks for an upload link, the person uploads the books and sees the price, the assistant orders, and the PayPal approval link always goes to the person. Or the person funds an **assistant budget** once through PayPal ($5-$200): the assistant pays for audits and draft checks from it without asking each time, never past the balance; every spend is on the budget's page, a failed audit is credited back, and closing it refunds the unused rest to PayPal. |
 | **What you get** | The report (HTML, prints to PDF); the series bible as an explorer ([an AG Grid of every fact](#the-bible-explorer-ag-grid): sort, filter, search, disputed facts flagged, each fact by book with every change marked, the passage one click away, CSV of whatever is shown), as cards, and as a spreadsheet; and the findings as JSON |
 
-**Try it live: [preflight-kq1o.onrender.com](https://preflight-kq1o.onrender.com)** (PayPal sandbox: test money only). Press *Try it with the
-demo series*, or *See a finished audit*. Assistants connect to the same shop over MCP at
-`https://preflight-kq1o.onrender.com/mcp`.
+### For judges: two minutes
+
+| | Where | What to look at |
+|---|---|---|
+| 1 | [preflight-kq1o.onrender.com](https://preflight-kq1o.onrender.com) | *Try it with the demo series*: the price with its arithmetic, PayPal's own buttons (sandbox: test money only), the audit, the report. Nothing reaches a model before PayPal confirms the capture. |
+| 2 | [/sample](https://preflight-kq1o.onrender.com/sample) and [/sample/bible](https://preflight-kq1o.onrender.com/sample/bible) | The real audit of six Sherlock Holmes books, and its bible in AG Grid: tick *Each fact by book* and search "John Watson". |
+| 3 | `https://preflight-kq1o.onrender.com/mcp` | Add it as a custom connector in an MCP assistant and say "Open a $20 Preflight budget", approve on PayPal, then "Audit the Saltmarsh demo series and pay from the budget". |
+| 4 | [`preflight/payments.py`](src/canonkeeper/preflight/payments.py) | The money paths: one function pays a job, budgets never overdraw, refunds are recorded before PayPal is asked. |
+| 5 | [The benchmark](#does-it-actually-work-the-seeded-defect-benchmark) | Precision and recall measured on planted errors, misses included. |
+
+Built during the PayPal AI Hackathon 2026 (the repository starts on Oct 26, 2026).
 
 **See a finished audit first:** [the six Sherlock Holmes volumes](#what-it-found-in-sherlock-holmes),
 3,963 sourced facts and the canon's two famous slips found with no hints (Watson's war wound in the
