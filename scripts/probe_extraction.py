@@ -26,6 +26,16 @@ from canonkeeper.llm import make_llm
 from canonkeeper.tokens import split_by_tokens
 
 
+def _same_person(a: str, b: str) -> bool:
+    """The benchmark scorer's rule: close spelling, or one surname under compatible names."""
+    from canonkeeper.canon.normalize import name_parts, names_compatible
+
+    if fuzz.token_set_ratio(a.lower(), b.lower()) >= 85:
+        return True
+    sa, sb = name_parts(a)[2], name_parts(b)[2]
+    return bool(sa and sa == sb and names_compatible(a, b))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("manifest", nargs="?", default="evals/corpora/sherlock-holmes/series.json")
@@ -36,9 +46,13 @@ def main() -> None:
         default="two-pass",
         help="two-pass | merged | general | all (runs every variant for a side-by-side)",
     )
+    ap.add_argument(
+        "--hints", action="store_true", help="append salience hints (extract/salience.py)"
+    )
     args = ap.parse_args()
 
     settings = load_settings()
+    settings.extract_hints = args.hints
     manifest = SeriesManifest.load(args.manifest)
     series = load_series(manifest, settings.cache_dir)
     slug = "".join(ch if ch.isalnum() else "-" for ch in manifest.series.lower()).strip("-")
@@ -92,7 +106,7 @@ def main() -> None:
             hit = False
             for c in res.claims:
                 pred, val = normalize_claim(c.predicate, c.object)
-                subj_ok = fuzz.token_set_ratio(c.subject.lower(), inj.subject.lower()) >= 85
+                subj_ok = _same_person(c.subject, inj.subject)
                 if inj.predicate == "dead":
                     ok = subj_ok and pred in {"dead", "died"}
                 else:
@@ -123,7 +137,7 @@ def main() -> None:
     print(
         f"calls {llm.usage.calls} · list-price ${llm.usage.cost_usd:.3f} · retries {llm.usage.retries}"
     )
-    Path("probe_extraction.txt").write_text(
+    Path(f"probe_extraction{'_hints' if args.hints else ''}.txt").write_text(
         "\n".join(f"{k}\t{v}" for k, v in results.items())
         + f"\n\ngeneral {g}/{n} sweep {sw}/{n} either {either}/{n}\n",
         encoding="utf-8",

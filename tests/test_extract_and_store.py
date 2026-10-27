@@ -267,3 +267,26 @@ def test_alias_table_is_order_independent_and_survives_reload(tmp_path):
         back = CanonStore.load(tmp_path / f"b{i}.jsonl")
         assert back.entities() == ["James Mortimer"]
         assert {c.subject for c in back.claims} == {"James Mortimer"}
+
+
+def test_salience_hints_find_fact_sentences_and_stay_off_by_default(series, settings):
+    from canonkeeper.extract.extractor import Extractor
+    from canonkeeper.extract.salience import hints_block, salient_sentences
+
+    text = (
+        "Holmes lit his pipe. I had found her with the brown eyes that had first drawn me to "
+        "her fixed upon the fire. It was raining. He was a man of barely five feet and a half. "
+        '"I was born in Edinburgh," said he. The cab rattled on.'
+    )
+    got = salient_sentences(text)
+    assert len(got) == 3 and "brown eyes" in got[0] and "five feet" in got[1]
+    assert "born in Edinburgh" in got[2]
+    assert hints_block("It was raining. The cab rattled on.") == ""
+
+    book = series.books[0]
+    ch = book.chapters[0]
+    plain = Extractor.messages_for("S", book, ch, text, "", "sys")
+    hinted = Extractor.messages_for("S", book, ch, text, "", "sys", hints=True)
+    assert "biographical fact" not in plain[1]["content"]  # cache keys unchanged when off
+    assert hinted[1]["content"].startswith(plain[1]["content"]) and "- " in hinted[1]["content"]
+    assert settings.extract_hints is False

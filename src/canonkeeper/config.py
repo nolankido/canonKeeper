@@ -128,6 +128,10 @@ class Settings(BaseSettings):
     def extract_sweep(self) -> bool:
         return self.extract_mode == "two-pass"
 
+    extract_hints: bool = False
+    """Append salience hints to each extraction request: the chunk's sentences that look like
+    physical or biographical facts (extract/salience.py). Off until measured on the benchmark."""
+
     extract_reasoning_effort: str = "medium"
     """`reasoning_effort` for the general extraction pass. On the Holmes benchmark, medium
     doubled recall of planted single-sentence facts over low (14/20 vs 7/20) at ~10 s a call

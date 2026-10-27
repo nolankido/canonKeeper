@@ -174,23 +174,29 @@ class Extractor:
 
     @staticmethod
     def messages_for(
-        series_name: str, book: Book, chapter: Chapter, text: str, note: str, system: str
+        series_name: str,
+        book: Book,
+        chapter: Chapter,
+        text: str,
+        note: str,
+        system: str,
+        *,
+        hints: bool = False,
     ) -> list[dict[str, str]]:
-        return [
-            {"role": "system", "content": system},
-            {
-                "role": "user",
-                "content": prompts.USER_TEMPLATE.format(
-                    series=series_name,
-                    book_index=book.index + 1,
-                    book_title=book.title,
-                    chapter_index=chapter.index + 1,
-                    chapter_title=chapter.title,
-                    chunk_note=note,
-                    text=text,
-                ),
-            },
-        ]
+        user = prompts.USER_TEMPLATE.format(
+            series=series_name,
+            book_index=book.index + 1,
+            book_title=book.title,
+            chapter_index=chapter.index + 1,
+            chapter_title=chapter.title,
+            chunk_note=note,
+            text=text,
+        )
+        if hints:
+            from canonkeeper.extract.salience import hints_block
+
+            user += hints_block(text)
+        return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
     def plan(self, series: Series) -> tuple[int, int]:
         """(requests this extraction would make, how many of them are already cached)."""
@@ -203,7 +209,15 @@ class Extractor:
                         total += 1
                         if checker and checker(
                             self.settings.extract_model,
-                            self.messages_for(series.name, book, chapter, text, note, system),
+                            self.messages_for(
+                                series.name,
+                                book,
+                                chapter,
+                                text,
+                                note,
+                                system,
+                                hints=self.settings.extract_hints,
+                            ),
                             json_mode=True,
                             reasoning_effort=effort,
                         ):
@@ -222,7 +236,9 @@ class Extractor:
         system: str = prompts.SYSTEM,
         reasoning_effort: str | None = None,
     ) -> ExtractionResult:
-        messages = self.messages_for(series_name, book, chapter, text, note, system)
+        messages = self.messages_for(
+            series_name, book, chapter, text, note, system, hints=self.settings.extract_hints
+        )
         raw = self.llm.complete(
             self.settings.extract_model,
             messages,

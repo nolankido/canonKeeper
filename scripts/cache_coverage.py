@@ -31,7 +31,9 @@ def main(manifest: str) -> None:
         for ch in b.chapters:
             for text, _off, note in _chunks(ch, s):
                 for system, effort in extraction_passes(s):
-                    msgs = ex.messages_for(series.name, b, ch, text, note, system)
+                    msgs = ex.messages_for(
+                        series.name, b, ch, text, note, system, hints=s.extract_hints
+                    )
                     hit = getattr(llm, "is_cached", lambda *a, **k: False)(
                         s.extract_model, msgs, json_mode=True, reasoning_effort=effort
                     )
