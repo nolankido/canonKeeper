@@ -39,6 +39,8 @@
   .fix { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--accent); border-radius: 8px; }
   .fix b { color: var(--accent); }
   details summary { cursor: pointer; color: var(--muted); }
+  .jump { margin-top: 14px; font-size: 14px; color: var(--muted); }
+  .jump a { color: var(--accent); }
   footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
   code { font-family: var(--mono); font-size: 13px; }
   @media print {
@@ -66,7 +68,11 @@
     {% if r.cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % r.cost_usd }}</b><span>list-price API cost</span></div>{% endif %}
   </div>
 
-  <h2>Contradictions</h2>
+  {% set review = others | selectattr("verdict", "equalto", "ambiguous") | list %}
+  {% set cleared = others | rejectattr("verdict", "equalto", "ambiguous") | list %}
+  <nav class="jump"><a href="#contradictions">{{ errors | length }} contradiction{{ '' if errors | length == 1 else 's' }}</a>{% if review %} · <a href="#review">{{ review | length }} need{{ 's' if review | length == 1 else '' }} your judgement</a>{% endif %}{% if cleared %} · <a href="#cleared">{{ cleared | length }} reviewed and cleared</a>{% endif %}</nav>
+
+  <h2 id="contradictions">Contradictions</h2>
   {% if not errors %}<p>None found. Either the series is clean or the bible needs more extraction coverage.</p>{% endif %}
   {% for f in errors %}
   <div class="f {{ f.severity }}">
@@ -83,10 +89,8 @@
   </div>
   {% endfor %}
 
-  {% set review = others | selectattr("verdict", "equalto", "ambiguous") | list %}
-  {% set cleared = others | rejectattr("verdict", "equalto", "ambiguous") | list %}
   {% if review %}
-  <h2>Needs your judgement</h2>
+  <h2 id="review">Needs your judgement</h2>
   {% for f in review %}
   <div class="f medium">
     <span class="tag medium">ambiguous</span><span class="tag" title="{{ f.candidate.heuristic }}">{{ f.candidate.heuristic | check }}</span>
@@ -103,7 +107,7 @@
   {% endif %}
 
   {% if cleared %}
-  <h2>Reviewed and cleared</h2>
+  <h2 id="cleared">Reviewed and cleared</h2>
   <details><summary>{{ cleared | length }} candidates judged deliberate or not a conflict, each on a quoted passage</summary>
   {% for f in cleared %}
   <div class="f other">
@@ -124,6 +128,9 @@
 <script>
   // printing or saving as PDF: open every collapsed section so nothing is left out
   addEventListener("beforeprint", () => document.querySelectorAll("details").forEach(d => d.open = true));
+  // the "reviewed and cleared" link opens the collapsed list it points at
+  const openCleared = () => { if (location.hash === "#cleared") document.querySelectorAll("#cleared ~ details").forEach(d => d.open = true); };
+  addEventListener("hashchange", openCleared); openCleared();
 </script>
 </body>
 </html>
