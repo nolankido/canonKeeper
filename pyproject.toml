@@ -50,8 +50,8 @@ dev = [
 canonkeeper = "canonkeeper.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/nolankido/canonkeeper"
-Issues = "https://github.com/nolankido/canonkeeper/issues"
+Homepage = "https://github.com/nolankido/canonKeeper"
+Issues = "https://github.com/nolankido/canonKeeper/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/canonkeeper"]

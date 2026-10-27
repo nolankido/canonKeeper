@@ -15,7 +15,7 @@ Built by a working indie publisher with 80+ titles across four imprints. Entered
 [PayPal AI Hackathon 2026](https://paypalaihackathon.devpost.com/) as **Preflight**: pay-per-audit
 continuity checking for series authors (see *Preflight* below).
 
-[![CI](https://github.com/nolankido/canonkeeper/actions/workflows/ci.yml/badge.svg)](https://github.com/nolankido/canonkeeper/actions/workflows/ci.yml)
+[![CI](https://github.com/nolankido/canonKeeper/actions/workflows/ci.yml/badge.svg)](https://github.com/nolankido/canonKeeper/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
