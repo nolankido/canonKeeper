@@ -31,10 +31,11 @@
   input[type=text], input[type=file] { width: 100%; padding: 10px 12px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
   button, .btn { display: inline-block; margin-top: 18px; padding: 12px 20px; font: inherit; font-weight: 600; border: 0; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; text-decoration: none; }
   .steps li.now { font-weight: 700; }
-  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button.secondary, .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
   form.inline { display: inline; margin-left: 8px; }
   .kv { display: grid; grid-template-columns: 180px 1fr; gap: 6px 14px; }
   .kv div:nth-child(odd) { color: var(--muted); font-size: 14px; padding-top: 3px; }
+  @media (max-width: 560px) { .kv { grid-template-columns: 1fr; gap: 2px; } .kv div:nth-child(even) { margin-bottom: 10px; } }
   .big { font-size: 34px; font-family: var(--mono); }
   .status { display: inline-block; font: 13px var(--mono); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); }
   .status.done { color: var(--ok); border-color: var(--ok); } .status.running, .status.paid { color: var(--warn); border-color: var(--warn); }
