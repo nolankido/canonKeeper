@@ -63,7 +63,9 @@ def test_a_customers_report_credits_the_models_plainly_and_shows_no_cost_tile(tm
     r: AuditReport = _report(cost_usd=1.55, read_cost_usd=1.40, judge_cost_usd=0.15)
     r.models = {"extract": "gemini-3.5-flash-lite", "adjudicate": "gemini-3.6-flash",
                 "provider": "gemini", "adjudicated_by": "gemini-3.6-flash ×12, gemini-3.5-flash-lite ×3"}  # fmt: skip
-    html = write_report(r, tmp_path / "c", customer=True, back_url="/jobs/x")[0].read_text()
+    html = write_report(r, tmp_path / "c", customer=True, back_url="/jobs/x")[0].read_text(
+        encoding="utf-8"
+    )
     assert "list-price" not in html and "$1.55" not in html and "Models:" not in html
     assert (
         "Facts read by gemini-3.5-flash-lite; conflicts judged by gemini-3.6-flash and "
@@ -72,7 +74,7 @@ def test_a_customers_report_credits_the_models_plainly_and_shows_no_cost_tile(tm
     assert (
         'href="/jobs/x" data-testid="back-to-job"' in html and "possible conflicts checked" in html
     )
-    cli = write_report(r, tmp_path / "d")[0].read_text()
+    cli = write_report(r, tmp_path / "d")[0].read_text(encoding="utf-8")
     assert "read $1.40 · judge $0.15" in cli and "Models:" in cli  # the CLI keeps both
 
 
