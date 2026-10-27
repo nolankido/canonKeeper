@@ -183,6 +183,14 @@ drive. `PreflightService` is transport-agnostic; both front ends and the tests c
 - **Uploads.** Untrusted: job ids are validated before they touch the filesystem, file names
   are sanitised, text is decoded from whatever a word processor saved (UTF-8/16, Windows-1252),
   sizes are checked before reading, and unpaid quotes share a disk budget, oldest evicted first.
+- **Concurrency.** `serve` and `mcp` share one jobs folder, and a payment can be noticed by
+  several paths at once (PayPal's return, the MCP tool, the button, a cancel in another tab).
+  So no status is ever changed from a copy read earlier: `JobStore.update(expect=..., where=...)`
+  re-reads and writes under a per-job lock file (exclusive create; works on Windows and Linux;
+  a stale lock from a crashed process is taken over). The runner writes only its own progress
+  fields and stops when its job is no longer "running"; a refund first claims the job as
+  "refunding", so a retry cannot start underneath it; a heartbeat keeps a long model call from
+  looking abandoned to another process. Each race found in review has a regression test.
 - **Free hosts.** Jobs persist as JSON and resume after a restart; on Render the runner pings
   its own URL while a job runs, because the free plan sleeps after ~15 idle minutes.
 
