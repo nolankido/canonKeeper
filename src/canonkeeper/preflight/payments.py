@@ -14,10 +14,17 @@ from datetime import UTC, datetime
 import httpx
 
 from canonkeeper.preflight.jobs import Job, JobStore, Runner, order_description
-from canonkeeper.preflight.paypal import UNAPPROVED, PayPal, capture_id_of, capture_problem
+from canonkeeper.preflight.paypal import (
+    UNAPPROVED,
+    PayPal,
+    capture_held,
+    capture_id_of,
+    capture_problem,
+)
 from canonkeeper.preflight.pricing import CURRENCY
 
 PAID = frozenset({"paid", "running", "done", "failed", "refunding", "refunded", "deleted"})
+OPEN = ("ordered", "cancelled", "held")  # an order exists; payment not (yet) complete
 STUCK_REFUND_S = 120.0  # a "refunding" job older than this lost its process mid-call
 
 
@@ -50,7 +57,13 @@ def _order_trouble(e: httpx.HTTPStatusError, store: JobStore, job: Job) -> str:
 
 
 def settle(
-    job: Job, paypal: PayPal, store: JobStore, runner: Runner, *, known_approved: bool = False
+    job: Job,
+    paypal: PayPal,
+    store: JobStore,
+    runner: Runner,
+    *,
+    known_approved: bool = False,
+    order_id_hint: str | None = None,
 ) -> str | None:
     """Capture `job`'s order if the buyer approved it, mark the job paid and start it.
 
@@ -63,7 +76,9 @@ def settle(
     _sync(job, fresh)
     if fresh.status in PAID:
         return None
-    if fresh.status not in ("ordered", "cancelled") or not fresh.order_id:
+    if order_id_hint and order_id_hint in fresh.earlier_orders:
+        fresh.order_id = order_id_hint  # PayPal came back with an order a re-order replaced
+    if fresh.status not in OPEN or not fresh.order_id:
         return f"job is {fresh.status}; nothing to pay for yet"
     order_id = fresh.order_id
     try:
@@ -80,17 +95,36 @@ def settle(
         _sync(job, store.get(job.id))
         return msg
     problem = capture_problem(o, amount=fresh.quote_usd, currency=CURRENCY)
+
+    def ours(j: Job) -> bool:  # this job's order, or one a re-order replaced
+        return order_id == j.order_id or order_id in j.earlier_orders
+
+    if problem and capture_held(o):
+        # captured, but PayPal holds the money until it clears: never "unpaid", never pruned
+        store.update(
+            job.id,
+            expect=OPEN,
+            where=ours,
+            status="held",
+            order_id=order_id,
+            capture_id=capture_id_of(o),
+            hold_reason=problem,
+        )
+        _sync(job, store.get(job.id))
+        return problem
     if problem:
         return problem
     # A cancel can land between the capture and here (back button, second tab): the money
-    # moved, so the job is paid whatever the page said. Only the same order counts.
+    # moved, so the job is paid whatever the page said.
     store.update(
         job.id,
-        expect=("ordered", "cancelled"),
-        where=lambda j: j.order_id == order_id,
+        expect=OPEN,
+        where=ours,
         status="paid",
+        order_id=order_id,
         paid_at=_now(),
         capture_id=capture_id_of(o),
+        hold_reason=None,
     )
     now = store.get(job.id)
     _sync(job, now)
@@ -140,9 +174,11 @@ def refund(job: Job, paypal: PayPal, store: JobStore) -> str | None:
         if not cap:
             return give_back("PayPal has no capture for this order")
         r = paypal.refund_capture(cap)
-    except Exception:
-        give_back("")
-        raise
+    except httpx.HTTPStatusError as e:  # PayPal answered, and said no
+        return give_back(f"PayPal refused the refund ({e.response.status_code})")
+    # Any other failure (a timeout, a dropped connection) propagates and leaves the job
+    # "refunding": PayPal may already have refunded, so a retry must not start. Asking again
+    # is safe (refunds are idempotent per capture), and the job page offers exactly that.
     if r.status not in ("COMPLETED", "PENDING"):
         return give_back(f"PayPal refused the refund ({r.status or 'no status'})")
     store.update(
@@ -200,6 +236,9 @@ def place_order(
     placed = store.update(
         fresh.id,
         expect=("quoted", "cancelled"),
+        earlier_orders=[*fresh.earlier_orders, fresh.order_id]
+        if fresh.order_id
+        else fresh.earlier_orders,
         order_id=o.id,
         approve_url=approve or None,
         status="ordered",

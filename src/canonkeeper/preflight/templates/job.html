@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ job.series_name }} — {{ job.status }}{% endblock %}
-{% block head %}{% if job.status in ('paid', 'running', 'refunding') %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
+{% block head %}{% if job.status in ('paid', 'running', 'refunding', 'held') %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
 {% block body %}
 <h1>{% if job.kind == 'check' %}Check of <code>{{ job.draft }}</code> · {% endif %}{{ job.series_name }} <span class="status {{ job.status }}">{{ job.status }}</span></h1>
 <p class="lede">{{ job.books | length }} books · {{ "{:,}".format(job.tokens) }} tokens · quote ${{ job.quote_usd }}{% if job.order_id %} · order <code>{{ job.order_id }}</code>{% endif %}</p>
@@ -53,8 +53,12 @@
     <button type="submit" class="secondary">Refund my payment</button>
   </form>
   {% endif %}
+{% elif job.status == 'held' %}
+  <p>PayPal has your payment but is holding it until it clears{% if job.hold_reason %} ({{ job.hold_reason }}){% endif %}. The audit starts as soon as it does; nothing more is charged.</p>
+  <form action="/jobs/{{ job.id }}/confirm" method="post"><button type="submit" class="secondary">Check again</button></form>
 {% elif job.status == 'refunding' %}
-  <p>Refund in progress with PayPal. This page will show it once PayPal confirms.</p>
+  <p>Refund in progress with PayPal. If this page has said so for more than a few minutes, ask PayPal again — a refund is never made twice.</p>
+  <form action="/jobs/{{ job.id }}/refund" method="post"><input type="hidden" name="confirm" value="yes"><button type="submit" class="secondary">Check the refund with PayPal</button></form>
 {% elif job.status == 'refunded' %}
   <p>Refunded{% if job.refund_status == 'PENDING' %} (PayPal is still processing it){% endif %}: ${{ job.quote_usd }} went back to your PayPal account{% if job.refunded_at %} on {{ job.refunded_at[:10] }}{% endif %}{% if job.refund_id %} (refund <code>{{ job.refund_id }}</code>){% endif %}.</p>
 {% endif %}

@@ -55,6 +55,14 @@ def capture_id_of(o: Order) -> str | None:
     return str(caps[0]["id"]) if caps and caps[0].get("id") else None
 
 
+def capture_held(o: Order) -> bool:
+    """The order was captured, but PayPal is holding the money (an eCheck clearing, a review):
+    it is ours once it clears, so the job must not look unpaid or be cleaned up."""
+    pu = (o.raw.get("purchase_units") or [{}])[0]
+    caps = (pu.get("payments") or {}).get("captures") or []
+    return bool(caps) and str(caps[0].get("status", "")) == "PENDING"
+
+
 class PayPal(Protocol):
     mode: str
 
@@ -270,17 +278,20 @@ class FakePayPal:
         tmp.replace(self._state_path)
 
     def _get(self, order_id: str) -> Order:
-        self._load()  # another process may have approved it
-        return self._orders[order_id]
+        with self._lock():  # never reload underneath another thread's transaction
+            self._load()  # another process may have approved it
+            return self._orders[order_id]
+
+    def _lock(self) -> contextlib.AbstractContextManager[object]:
+        if self._state_path:
+            return file_lock(self._state_path.with_suffix(".lock"))
+        return self._mem_lock
 
     @contextlib.contextmanager
     def _txn(self) -> Iterator[None]:
         """Read-modify-write of the shared state file under a cross-process lock, so one
         process's change is never overwritten by another's stale copy."""
-        lock = (
-            file_lock(self._state_path.with_suffix(".lock")) if self._state_path else self._mem_lock
-        )
-        with lock:
+        with self._lock():
             self._load()
             yield
             self._save()

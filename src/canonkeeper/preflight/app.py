@@ -18,6 +18,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlencode
 
+import httpx
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -100,6 +101,7 @@ def create_app(
         # running audit or not; a paid job must not die because nobody is watching its page.
         runner.keepalive_url = f"{base}/healthz"
     runner.resume_interrupted()
+    runner.watch()  # and again every few minutes: see Runner.watch
     pp = paypal or make_paypal(state_dir=settings.workdir / "preflight")
 
     app = FastAPI(title="Preflight by canonkeeper", docs_url=None, redoc_url=None)
@@ -186,7 +188,7 @@ def create_app(
         job = store.by_order(token)
         if job is None:
             raise HTTPException(404, "unknown order")
-        problem = settle(job, pp, store, runner, known_approved=True)
+        problem = settle(job, pp, store, runner, known_approved=True, order_id_hint=token)
         if problem:
             return render(
                 request,
@@ -264,16 +266,31 @@ def create_app(
             raise HTTPException(409, str(e)) from None
         return RedirectResponse(f"/jobs/{job_id}", status_code=303)
 
-    @app.post("/jobs/{job_id}/refund")
-    def refund_job(job_id: str, confirm: str = Form("")) -> RedirectResponse:
+    @app.post("/jobs/{job_id}/refund", response_model=None)
+    def refund_job(
+        request: Request, job_id: str, confirm: str = Form("")
+    ) -> RedirectResponse | HTMLResponse:
         if confirm != "yes":
             raise HTTPException(400, "tick the box to confirm")
         job = store.get(job_id)
         if job is None:
             raise HTTPException(404)
-        problem = refund(job, pp, store)
+        try:
+            problem = refund(job, pp, store)
+        except (httpx.HTTPError, TimeoutError):
+            problem = (
+                "PayPal did not answer in time. The refund may already have gone through; "
+                "check again in a few minutes — it is never made twice"
+            )
         if problem:
-            raise HTTPException(409, problem)
+            return render(
+                request,
+                "job.html",
+                status_code=409,
+                job=store.get(job_id) or job,
+                quote=quote(job.tokens, words=job.words, books=len(job.books)),
+                note=problem,
+            )
         return RedirectResponse(f"/jobs/{job_id}", status_code=303)
 
     @app.post("/jobs/{job_id}/retry")

@@ -37,6 +37,7 @@ Status = Literal[
     "done",
     "failed",
     "cancelled",
+    "held",
     "refunding",
     "refunded",
     "deleted",
@@ -57,6 +58,8 @@ class Job:
     approve_url: str | None = None
     paid_at: str | None = None
     capture_id: str | None = None  # PayPal's capture, needed to refund it
+    earlier_orders: list[str] = field(default_factory=list)  # replaced by a re-order
+    hold_reason: str | None = None  # why PayPal is holding a captured payment
     refund_id: str | None = None
     refunded_at: str | None = None
     refund_status: str | None = None  # PayPal's: COMPLETED, or PENDING while it clears
@@ -296,7 +299,7 @@ class JobStore:
     def by_order(self, order_id: str) -> Job | None:
         for p in self.root.glob("*/job.json"):
             data = json.loads(p.read_text(encoding="utf-8"))
-            if data.get("order_id") == order_id:
+            if data.get("order_id") == order_id or order_id in data.get("earlier_orders", []):
                 return Job(**data)
         return None
 
@@ -452,8 +455,25 @@ class Runner:
         batch, a Retry-After wait) never makes it look abandoned to resume_interrupted in this
         or another process."""
         while not stop.wait(self.heartbeat_s):
-            if self.store.update(job_id, expect=("running",)) is None:
-                return
+            try:
+                if self.store.update(job_id, expect=("running",)) is None:
+                    return
+            except (OSError, TimeoutError):
+                continue  # a missed beat is fine; the next one counts
+
+    def watch(self, every_s: float = 300.0) -> threading.Event:
+        """Re-run resume_interrupted every few minutes. At startup a job whose process just
+        died still looks alive (its last heartbeat is recent); checking once is not enough.
+        Returns an event that stops the watcher."""
+        stop = threading.Event()
+
+        def loop() -> None:
+            while not stop.wait(every_s):
+                with contextlib.suppress(Exception):
+                    self.resume_interrupted()
+
+        threading.Thread(target=loop, name="preflight-resume", daemon=True).start()
+        return stop
 
     def _progress_writer(self, job: Job) -> Callable[[str, int, int], None]:
         """Persist (stage, done, total) on the job so its page and audit_status show it; at
@@ -531,11 +551,17 @@ class Runner:
             except _Stopped:
                 pass  # the job's status was changed under us; it is no longer ours to write
             except Exception as e:  # noqa: BLE001 - the job page shows the failure
-                if self.store.update(
-                    job.id, expect=("running",), status="failed", error=f"{type(e).__name__}: {e}"
-                ):
-                    (self.store.dir(job.id) / "error.txt").write_text(
-                        traceback.format_exc(), encoding="utf-8"
-                    )
+                try:
+                    if self.store.update(
+                        job.id,
+                        expect=("running",),
+                        status="failed",
+                        error=f"{type(e).__name__}: {e}",
+                    ):
+                        (self.store.dir(job.id) / "error.txt").write_text(
+                            traceback.format_exc(), encoding="utf-8"
+                        )
+                except Exception:  # noqa: BLE001 - the periodic resume check recovers it
+                    pass
             finally:
                 beat.set()

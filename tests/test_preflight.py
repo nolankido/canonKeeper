@@ -914,3 +914,123 @@ def test_two_processes_sharing_the_fake_never_lose_each_others_orders(tmp_path):
         reference="b",
     )
     assert FakePayPal(state_path=state).get_order(o.id).status == "COMPLETED"
+
+
+def test_a_held_capture_is_never_unpaid_and_starts_when_it_clears(client):
+    from datetime import UTC, datetime, timedelta
+
+    store, runner, pp = client.app.state.store, client.app.state.runner, client.app.state.paypal
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    client.post(f"/jobs/{job_id}/order")
+    order_id = store.get(job_id).order_id
+    pp.approve(order_id)
+    real = pp.capture_order
+
+    def held(oid):
+        import copy
+
+        o = copy.deepcopy(real(oid))  # what PayPal reports; the fake's own record is untouched
+        o.raw["purchase_units"][0]["payments"]["captures"][0]["status"] = "PENDING"
+        return o
+
+    pp.capture_order = held
+    r = client.post(f"/jobs/{job_id}/confirm")
+    job = store.get(job_id)
+    assert job.status == "held" and job.capture_id and "holding" in r.text
+    old = (datetime.now(UTC) - timedelta(days=3)).isoformat()
+    (store.dir(job_id) / "job.json").write_text(
+        (store.dir(job_id) / "job.json").read_text().replace(job.updated_at, old)
+    )
+    store.prune_unpaid()
+    store.make_room(10**8, limit=10**8)
+    assert store.get(job_id).status == "held"  # money is in flight: never cleaned up
+    assert client.post(f"/jobs/{job_id}/order").headers["location"] == f"/jobs/{job_id}"
+
+    pp.capture_order = real  # the eCheck clears
+    client.post(f"/jobs/{job_id}/confirm")
+    runner.wait(job_id, timeout=60)
+    assert store.get(job_id).status == "done"
+
+
+def test_a_lock_left_by_a_dead_process_does_not_block(tmp_path):
+    import os
+    import time as _time
+
+    from canonkeeper.preflight.jobs import JobStore
+
+    store = JobStore(tmp_path / "pf")
+    job, _ = store.create_from_upload("S", [("01.txt", b"One.")])
+    lock = store.root / ".locks" / f"{job.id}.lock"
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.write_text("999999" if os.name == "posix" else "0")
+    if os.name != "posix":
+        os.utime(lock, (_time.time() - 120, _time.time() - 120))
+    t0 = _time.monotonic()
+    assert store.update(job.id, status="cancelled") is not None
+    assert _time.monotonic() - t0 < 2 and not lock.exists()
+
+
+def test_the_watcher_resumes_a_job_whose_process_died(client):
+    from datetime import UTC, datetime, timedelta
+
+    store, runner = client.app.state.store, client.app.state.runner
+    job_id, _ = _paid_job(client)
+    store.update(job_id, status="running")  # its process "died" mid-run
+    stale = (datetime.now(UTC) - timedelta(minutes=30)).isoformat()
+    path = store.dir(job_id) / "job.json"
+    path.write_text(path.read_text().replace(store.get(job_id).updated_at, stale))
+    stop = runner.watch(every_s=0.05)
+    try:
+        deadline = time.time() + 30
+        while store.get(job_id).status != "done" and time.time() < deadline:
+            time.sleep(0.05)
+    finally:
+        stop.set()
+    assert store.get(job_id).status == "done"
+
+
+def test_a_refund_with_no_answer_stays_refunding_and_can_be_checked_again(client):
+    from datetime import UTC, datetime, timedelta
+
+    store, runner, pp = client.app.state.store, client.app.state.runner, client.app.state.paypal
+    job_id, _ = _paid_job(client)
+    store.update(job_id, status="failed", error="quota")
+    real = pp.refund_capture
+
+    def no_answer(cap):
+        real(cap)  # PayPal refunds ...
+        raise httpx.ReadTimeout("no answer")  # ... but the reply is lost
+
+    pp.refund_capture = no_answer
+    r = client.post(f"/jobs/{job_id}/refund", data={"confirm": "yes"})
+    assert r.status_code == 409 and "did not answer" in r.text
+    assert store.get(job_id).status == "refunding"
+    client.post(f"/jobs/{job_id}/retry")
+    runner.wait(job_id, timeout=5)
+    assert store.get(job_id).status == "refunding"  # no free audit on top of a refund
+    assert "Check the refund with PayPal" in client.get(f"/jobs/{job_id}").text
+
+    pp.refund_capture = real
+    stale = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
+    path = store.dir(job_id) / "job.json"
+    path.write_text(path.read_text().replace(store.get(job_id).updated_at, stale))
+    client.post(f"/jobs/{job_id}/refund", data={"confirm": "yes"})
+    assert store.get(job_id).status == "refunded"
+
+
+def test_paypal_returning_with_a_replaced_order_still_pays_the_job(client):
+    store, pp = client.app.state.store, client.app.state.paypal
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    client.post(f"/jobs/{job_id}/order")
+    first = store.get(job_id).order_id
+    client.get(f"/cancel?job={job_id}")
+    client.post(f"/jobs/{job_id}/order")  # a second order replaces the first ...
+    assert store.get(job_id).earlier_orders == [first]
+    pp.approve(first)  # ... while the buyer approves the first in another tab
+    r = client.get(f"/return?token={first}")
+    assert r.status_code == 303
+    client.app.state.runner.wait(job_id, timeout=60)
+    job = store.get(job_id)
+    assert job.status == "done" and job.order_id == first
