@@ -433,3 +433,28 @@ def test_local_provider_turns_thinking_off_unless_asked():
     mine = Settings(provider="openweights", extract_reasoning_effort="low", _env_file=None)
     assert mine.extract_reasoning_effort == "low"
     assert Settings(provider="gemini", _env_file=None).extract_reasoning_effort == "medium"
+
+
+def test_timeouts_count_double_toward_the_ladder(tmp_path):
+    from openai import APITimeoutError
+
+    seen: list[str] = []
+
+    def create(**kwargs):
+        seen.append(kwargs["model"])
+        if kwargs["model"] == "hangs":
+            raise APITimeoutError(request=httpx.Request("POST", "https://example.test"))
+        return _completion('{"ok": true}')
+
+    clk = FakeClock()
+    llm = OpenAICompatibleLLM(
+        "k",
+        "https://example.test/v1",
+        cache_dir=tmp_path / "c",
+        sleep=clk.sleep,
+        model_fallbacks={"hangs": ["fine"]},
+        overload_threshold=3,
+    )
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    assert llm.complete("hangs", [{"role": "user", "content": "a"}]) == '{"ok": true}'
+    assert seen == ["hangs", "hangs", "fine"]  # two timeouts (= 4 >= 3), then the fallback

@@ -404,10 +404,13 @@ class OpenAICompatibleLLM:
                     if self._next_model(model):
                         raise _Overloaded(model) from exc
                     raise DailyQuotaExhausted(model, daily) from exc
-                if status in (429, 503):
-                    # Both mean "not now" on a free tier; after a few in a row, move down
-                    # the ladder rather than burning the whole retry budget on one model.
-                    n = self._consecutive_503.get(model, 0) + 1
+                timed_out = type(exc).__name__ == "APITimeoutError"
+                if status in (429, 500, 502, 503, 504) or timed_out:
+                    # All mean "not now" on a free tier; after a few in a row, move down the
+                    # ladder rather than burning the whole retry budget on one model. A
+                    # timeout counts double: each one has already cost `timeout_s` (observed:
+                    # 3.8-flash hanging for 5 min per attempt mid-audit).
+                    n = self._consecutive_503.get(model, 0) + (2 if timed_out else 1)
                     self._consecutive_503[model] = n
                     if n >= self._overload_threshold and self._next_model(model):
                         self._overloaded.add(model)
