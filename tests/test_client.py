@@ -458,3 +458,18 @@ def test_timeouts_count_double_toward_the_ladder(tmp_path):
     llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
     assert llm.complete("hangs", [{"role": "user", "content": "a"}]) == '{"ok": true}'
     assert seen == ["hangs", "hangs", "fine"]  # two timeouts (= 4 >= 3), then the fallback
+
+
+def test_a_per_call_timeout_reaches_the_api_and_leaves_the_cache_key_alone(tmp_path):
+    seen: list[dict] = []
+
+    def create(**kwargs):
+        seen.append(kwargs)
+        return _completion("{}")
+
+    llm, _ = _llm(tmp_path, create)
+    llm.complete("m", [{"role": "user", "content": "a"}], timeout_s=90)
+    llm.complete("m", [{"role": "user", "content": "b"}])
+    assert seen[0]["timeout"] == 90 and "timeout" not in seen[1]
+    llm.complete("m", [{"role": "user", "content": "a"}])  # same request, no timeout given
+    assert len(seen) == 2  # served from the cache: the timeout is not part of the key

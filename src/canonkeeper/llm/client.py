@@ -93,6 +93,7 @@ class LLM(Protocol):
         *,
         json_mode: bool = False,
         reasoning_effort: str | None = None,
+        timeout_s: float | None = None,
     ) -> str: ...
 
 
@@ -497,6 +498,7 @@ class OpenAICompatibleLLM:
         *,
         json_mode: bool = False,
         reasoning_effort: str | None = None,
+        timeout_s: float | None = None,
     ) -> str:
         hit = self._cache_hit(model, messages, json_mode, reasoning_effort)
         if hit is not None:
@@ -522,6 +524,8 @@ class OpenAICompatibleLLM:
             )
             if effort and self._reasoning_supported is not False:
                 kwargs["reasoning_effort"] = effort
+            if timeout_s:  # a short call need not wait as long as a long-context one
+                kwargs["timeout"] = timeout_s
             try:
                 resp = self._create(kwargs)
                 break
@@ -572,6 +576,7 @@ class MockLLM:
         *,
         json_mode: bool = False,
         reasoning_effort: str | None = None,
+        timeout_s: float | None = None,
     ) -> str:
         self.calls.append((model, messages))
         out = self._handler(model, messages)

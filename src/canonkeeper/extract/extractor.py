@@ -255,6 +255,7 @@ class Extractor:
             messages,
             json_mode=True,
             reasoning_effort=reasoning_effort or self.settings.extract_reasoning_effort,
+            timeout_s=self.settings.extract_timeout_s,
         )
         try:
             data = parse_json(raw)

@@ -83,6 +83,7 @@ class ProviderDefaults:
             "adjudicate_context_tokens": 8_000,
             "adjudicate_batch_size": 4,
             "request_timeout_s": 900,
+            "extract_timeout_s": 900,  # a laptop CPU takes ~90 s per extraction call
         }
     }
     # Free-tier Gemini prompts are "used to improve our products" (pricing page). Public-domain
@@ -179,6 +180,9 @@ class Settings(BaseSettings):
     temperature: float = 0.0
     request_timeout_s: float = 300.0
     """Long-context adjudication calls on a thinking model can take a few minutes."""
+    extract_timeout_s: float = 90.0
+    """Extraction calls answer in ~12 s on the free tier; one that hangs (observed: 300 s,
+    then a timeout) should be retried long before an adjudication call would be."""
     requests_per_minute: int = -1
     """Client-side pacing; -1 means use the provider default, 0 means unlimited."""
     daily_budget: dict[str, int] = Field(default_factory=dict)
