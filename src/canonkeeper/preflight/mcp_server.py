@@ -132,6 +132,7 @@ class PreflightService:
         if job.status == "done":
             out["report_url"] = f"{self.base}/jobs/{job.id}/report"
             out["bible_url"] = f"{self.base}/jobs/{job.id}/bible"
+            out["findings_json_url"] = f"{self.base}/jobs/{job.id}/download/report.json"
         return out
 
     def check_draft(self, job_id: str, name: str, text: str) -> dict[str, Any]:
