@@ -38,7 +38,7 @@ sponsor prize. Target: Best Use of Agentic Commerce; sponsor: AG Grid (Render cr
 | T18 | Nov 7 (after N3) | Record every scene on the hosted instance; splice Nolan's two clips; captions | Presentation | Full cut assembled | open |
 | T19 | Nov 8 | Narration (decision 4), final cut, fresh-agent review against the Presentation criterion | Presentation | Final file under 2:55 handed to Nolan | open |
 | T20 | Nov 9 | Devpost text final: description, AI tools and how each is used (Gemini models; built with Claude Code), testing instructions, gallery images | Presentation | Every rule's requirement checked off | open |
-| T21 | Nov 10 | Judge rehearsal: a fresh agent uses only the Devpost text and the hosted URL; fix what trips it | All | Rehearsal reaches the report | open |
+| T21 | Nov 10 | Judge rehearsal: a fresh agent uses only the Devpost text and the hosted URL; fix what trips it | All | Rehearsal reaches the report | local rehearsal done 10-27 (its findings fixed: 708a11f and before); repeat on the hosted URL Nov 10 |
 | T22 | Nov 10 | Hardening: model IDs, fallbacks, error pages, Windows tests, tag v1.0 | Tech | Linux and Windows green; tagged | open |
 | T23 | Nov 11 | Buffer for whatever slipped | — | — | open |
 | T24 | Nov 11 | Submit with Nolan (N6); license visible in the repo's About box; no code changes after this | All | Devpost shows Submitted | open |
