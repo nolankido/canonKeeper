@@ -236,6 +236,9 @@ class OpenAICompatibleLLM:
         request_log: Path | None = None,
         model_fallbacks: dict[str, list[str]] | None = None,
         overload_threshold: int = 3,
+        daily_budget: dict[str, int] | None = None,
+        day_reset_utc_offset: int = 0,
+        budget_margin: int = 0,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         from openai import OpenAI  # local import keeps the mock path dependency-free
@@ -254,12 +257,71 @@ class OpenAICompatibleLLM:
         self._request_log = request_log
         self._fallbacks = model_fallbacks or {}
         self._overload_threshold = overload_threshold
+        self._budget = {m: max(0, n - budget_margin) for m, n in (daily_budget or {}).items()}
+        self._day_offset = day_reset_utc_offset
+        self._today_count: dict[str, int] = self._count_today() if self._budget else {}
         self._overloaded: set[str] = set()
         """Models that answered 503 `overload_threshold` times in a row this run."""
         self._consecutive_503: dict[str, int] = {}
         self.usage = Usage()
         if cache_dir:
             cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def _today(self) -> str:
+        from datetime import UTC, datetime, timedelta
+
+        return (datetime.now(UTC) + timedelta(hours=self._day_offset)).date().isoformat()
+
+    def _count_today(self) -> dict[str, int]:
+        """Successful requests per model today, from this workdir's request log."""
+        counts: dict[str, int] = {}
+        if not self._request_log or not self._request_log.exists():
+            return counts
+        today = self._today()
+        try:
+            for line in self._request_log.read_text(encoding="utf-8").splitlines():
+                try:
+                    d = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    d.get("ok")
+                    and "latency_s" in d
+                    and self._to_provider_day(d.get("ts", "")) == today
+                ):
+                    counts[d["model"]] = counts.get(d["model"], 0) + 1
+        except OSError:
+            pass
+        return counts
+
+    def _to_provider_day(self, local_ts: str) -> str:
+        """Log timestamps are local wall-clock; map to the provider's day as best we can."""
+        from datetime import datetime, timedelta
+
+        try:
+            local = datetime.fromisoformat(local_ts)
+        except ValueError:
+            return ""
+        # local naive → assume the machine's offset; good enough for a daily counter.
+        utc_offset = datetime.now().astimezone().utcoffset() or timedelta(0)
+        provider = local - utc_offset + timedelta(hours=self._day_offset)
+        return provider.date().isoformat()
+
+    def remaining_today(self, model: str) -> int | None:
+        if model not in self._budget:
+            return None
+        return max(0, self._budget[model] - self._today_count.get(model, 0))
+
+    def _check_budget(self, model: str) -> None:
+        rem = self.remaining_today(model)
+        if rem is not None and rem <= 0:
+            self._overloaded.add(model)
+            self._log(
+                model=model, ok=False, status=None, error="daily budget reached (client-side guard)"
+            )
+            if self._next_model(model):
+                raise _Overloaded(model)
+            raise DailyQuotaExhausted(model, None)
 
     def _log(self, **fields: Any) -> None:
         """One JSON line per attempt: what was sent, what came back, how long it took."""
@@ -295,11 +357,13 @@ class OpenAICompatibleLLM:
         model = kwargs.get("model", "?")
         approx = _approx_tokens(kwargs.get("messages", []))
         while True:
+            self._check_budget(model)
             waited = self._limiter.wait(approx)
             t0 = time.monotonic()
             try:
                 resp = self._client.chat.completions.create(**kwargs)
                 self._consecutive_503[model] = 0
+                self._today_count[model] = self._today_count.get(model, 0) + 1
                 u = getattr(resp, "usage", None)
                 self._log(
                     model=model,
@@ -491,6 +555,9 @@ def make_llm(settings: Settings, *, mock_handler: Callable[..., str] | None = No
         },
         request_log=settings.workdir / "requests.jsonl",
         model_fallbacks=settings.model_fallbacks,
+        daily_budget=settings.daily_budget,
+        day_reset_utc_offset=settings.day_reset_utc_offset,
+        budget_margin=settings.budget_margin,
     )
 
 

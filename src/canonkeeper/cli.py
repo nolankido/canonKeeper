@@ -317,6 +317,31 @@ def demo(
         typer.launch(str(html))
 
 
+def _budget_preflight(settings: Settings, series: Series) -> None:
+    """Say up front how many requests this build needs against today's remaining budget."""
+    from canonkeeper.tokens import split_by_tokens
+
+    chunks = sum(
+        len(split_by_tokens(ch.text, settings.extract_chunk_tokens))
+        for b in series.books
+        for ch in b.chapters
+    )
+    passes = 2 if settings.extract_sweep else 1
+    needed = chunks * passes
+    cap = settings.daily_budget.get(settings.extract_model)
+    used = _today_usage(settings).get(settings.extract_model, 0)
+    line = f"[dim]extraction: {chunks} chunks × {passes} pass(es) = up to {needed} requests"
+    if cap:
+        left = max(0, cap - settings.budget_margin - used)
+        line += f" · {settings.extract_model} today {used}/{cap}, {left} left"
+        if needed > left:
+            line += (
+                f" → [yellow]will stop after ~{left} and resume on the next run "
+                f"(finished chunks are cached)[/yellow]"
+            )
+    console.print(line + "[/dim]")
+
+
 def _select_books(series: Series, books: str | None) -> Series:
     """`--books 1,2` or `--books 01-a-study-in-scarlet` narrows a run to some volumes."""
     if not books:
@@ -346,6 +371,7 @@ def build(
     settings = _settings(provider, workdir)
     m, series = _load(manifest, settings)
     series = _select_books(series, books)
+    _budget_preflight(settings, series)
     bible_path, _ = _paths(settings, m)
     llm = _llm(settings)
     store = _run_or_explain(build_bible, series, llm, settings, bible_path)

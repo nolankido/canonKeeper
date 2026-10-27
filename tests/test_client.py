@@ -350,3 +350,46 @@ def test_daily_quota_switches_model_then_raises_with_reset_time(tmp_path):
     assert clk.slept == []
     assert 7 * 3600 < ei.value.resets_in_s < 8 * 3600
     assert "7h53m" in str(ei.value) and "cached" in str(ei.value)
+
+
+def test_daily_budget_guard_stops_before_the_provider_does(tmp_path):
+    log = tmp_path / "requests.jsonl"
+    # Pretend two successes were already logged today for "lite".
+    import time as _t
+
+    ts = _t.strftime("%Y-%m-%dT%H:%M:%S")
+    log.write_text(
+        "\n".join(
+            json.dumps({"ts": ts, "model": "lite", "attempt": 0, "ok": True, "latency_s": 1.0})
+            for _ in range(2)
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    seen: list[str] = []
+
+    def create(**kwargs):
+        seen.append(kwargs["model"])
+        return _completion("{}")
+
+    clk = FakeClock()
+    llm = OpenAICompatibleLLM(
+        "k",
+        "https://e.test/v1",
+        cache_dir=tmp_path / "c",
+        sleep=clk.sleep,
+        request_log=log,
+        daily_budget={"lite": 3, "flash": 1},
+        model_fallbacks={"lite": ["flash"]},
+    )
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    assert llm.remaining_today("lite") == 1
+    llm.complete("lite", [{"role": "user", "content": "a"}])  # 3rd of 3
+    assert llm.remaining_today("lite") == 0
+    llm.complete("lite", [{"role": "user", "content": "b"}])  # guard → flash
+    assert seen == ["lite", "flash"]
+    from canonkeeper.llm.client import DailyQuotaExhausted
+
+    with pytest.raises(DailyQuotaExhausted):
+        llm.complete("lite", [{"role": "user", "content": "c"}])  # both spent, no call made
+    assert seen == ["lite", "flash"]

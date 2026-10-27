@@ -47,6 +47,20 @@ class ProviderDefaults:
             "gemini-3.1-flash-lite": ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
         }
     }
+    # Free-tier requests-per-day caps observed on 2026-10-26 (per project, per model). The
+    # client stops a run cleanly when today's count reaches the cap instead of discovering it
+    # mid-run with a 429. Override with CANONKEEPER_DAILY_BUDGET='{"model": n}'.
+    daily_budget: dict[str, dict[str, int]] = {
+        "gemini": {
+            "gemini-3.5-flash-lite": 500,
+            "gemini-3.1-flash-lite": 500,
+            "gemini-3.6-flash": 20,
+            "gemini-3.8-flash": 20,
+        }
+    }
+    # Hour offset from UTC at which the provider's daily counters reset (Gemini: midnight
+    # Pacific; -8 is the conservative choice across DST).
+    day_reset_utc_offset: dict[str, int] = {"gemini": -8}
     # Client-side request pacing. Gemini's free tier is roughly 10 RPM on the Flash models
     # (not published per model; see AI Studio → rate limits), so we stay just under it.
     requests_per_minute: dict[str, int] = {"gemini": 9, "meta": 0, "openweights": 0, "mock": 0}
@@ -119,6 +133,12 @@ class Settings(BaseSettings):
     """Long-context adjudication calls on a thinking model can take a few minutes."""
     requests_per_minute: int = -1
     """Client-side pacing; -1 means use the provider default, 0 means unlimited."""
+    daily_budget: dict[str, int] = Field(default_factory=dict)
+    """Requests per model per day the client may spend; empty = provider default, {} after
+    resolution means no guard. The count comes from the request log, so it only sees this
+    workdir's runs."""
+    budget_margin: int = 0
+    """Requests to keep in reserve under each daily cap (e.g. for a `check` later today)."""
     tokens_per_minute: int = -1
     """Client-side token pacing (input tokens); -1 provider default, 0 unlimited."""
     max_retries: int = 6
@@ -141,7 +161,13 @@ class Settings(BaseSettings):
             self.requests_per_minute = ProviderDefaults.requests_per_minute[p]
         if self.tokens_per_minute < 0:
             self.tokens_per_minute = ProviderDefaults.tokens_per_minute[p]
+        if not self.daily_budget:
+            self.daily_budget = dict(ProviderDefaults.daily_budget.get(p, {}))
         return self
+
+    @property
+    def day_reset_utc_offset(self) -> int:
+        return ProviderDefaults.day_reset_utc_offset.get(self.provider, 0)
 
     @property
     def model_fallbacks(self) -> dict[str, list[str]]:
