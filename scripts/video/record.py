@@ -1,10 +1,13 @@
 """Record the demo video's scenes from the running app, with captions drawn into the page.
 
     canonkeeper serve --provider mock --port 8787          # demo mode (rule-based, fake PayPal)
-    python scripts/mcp_flow_demo.py --auto-approve demo/books/*.txt > mcp.txt   # transcript
-    python scripts/video/record.py --out build/video --mcp mcp.txt --books demo/books \\
-        --draft demo/draft-04-the-ledger.txt
+    canonkeeper demo --dest build/demo                     # the demo series and its next draft
+    python scripts/video/record.py --out build/video --draft build/demo/draft-04-the-ledger.txt
     python scripts/video/assemble.py build/video                # -> build/video/preflight.mp4
+
+The scenes follow docs/DEMO_SCRIPT.md (v2). The assistant scene drives the server's own MCP
+endpoint (/mcp, JSON-RPC over HTTP) the way Claude Desktop would, and films the person's side:
+the PayPal approval and the budget page.
 
 Needs Playwright (`pip install playwright`); the server must be in demo mode so the checkout
 can be clicked through without a PayPal login. The Holmes scene uses /sample, the packaged
@@ -18,6 +21,7 @@ import argparse
 import asyncio
 import html
 import json
+import urllib.request
 from pathlib import Path
 
 from playwright.async_api import Page, async_playwright
@@ -118,6 +122,13 @@ async def scene_holmes(page: Page) -> None:
         4.5,
     )
     await caption(page, "Every cleared conflict must quote the passage that clears it.", 3.5)
+    await page.goto(f"{BASE}/sample/bible")
+    await page.wait_for_timeout(1500)
+    await caption(page, "Underneath: the series bible, every fact tied to its sentence.", 3)
+    await page.check("#disputed")
+    await page.wait_for_timeout(600)
+    await page.click(".ag-row[row-index=\"0\"] >> nth=-1")
+    await caption(page, "Filter to where the books disagree; open any passage.", 3.5)
 
 
 async def scene_buy(page: Page) -> str:
@@ -153,83 +164,150 @@ async def scene_buy(page: Page) -> str:
     return job_url
 
 
-async def scene_check(page: Page, job_url: str, draft: Path) -> None:
-    await page.goto(job_url)
-    await smooth_scroll_to(page, "document.querySelector(\"form[action$='/check']\")", offset=60)
-    await caption(
-        page, "Writing the next book? Check the draft against the bible you already have.", 4
+_rpc_id = 0
+
+
+def mcp_call(tool: str, **arguments: object) -> dict:
+    """One MCP tool call over the server's streamable HTTP endpoint (stateless, JSON replies)."""
+    global _rpc_id
+    _rpc_id += 1
+    body = {"jsonrpc": "2.0", "id": _rpc_id, "method": "tools/call",
+            "params": {"name": tool, "arguments": arguments}}  # fmt: skip
+    req = urllib.request.Request(
+        f"{BASE}/mcp",
+        data=json.dumps(body).encode(),
+        headers={
+            "content-type": "application/json",
+            "accept": "application/json, text/event-stream",
+        },
     )
-    await page.set_input_files("#draft", str(draft))
-    await page.click("form[action$='/check'] button")
-    await page.wait_for_load_state("networkidle")
-    await caption(page, "Priced on the draft alone: $2 base + $4 per 100k draft tokens.", 3.5)
-    await page.click("form[action$='/order'] button")
-    await page.wait_for_load_state("networkidle")
+    with urllib.request.urlopen(req, timeout=60) as r:
+        reply = json.loads(r.read())
+    result = reply["result"]
+    if result.get("isError"):
+        raise RuntimeError(result["content"][0]["text"])
+    return result.get("structuredContent") or json.loads(result["content"][0]["text"])
+
+
+CHAT_HTML = """<!doctype html><meta charset="utf-8"><style>
+body{margin:0;background:#f4f1ea;font:20px/1.45 "DejaVu Sans",system-ui,sans-serif;color:#1d1b18}
+.top{background:#1d1b18;color:#f4f1ea;padding:14px 28px;font-weight:600}
+.top span{opacity:.6;font-weight:400;margin-left:10px}
+#log{padding:22px 60px 140px;max-width:1100px;margin:0 auto}
+.m{margin:12px 0;padding:12px 18px;border-radius:14px;max-width:860px;white-space:pre-wrap}
+.you{background:#3b4f8a;color:#fff;margin-left:auto;width:fit-content}
+.ai{background:#fff;border:1px solid #e3ddd0}
+.tool{font:15px/1.4 "DejaVu Sans Mono",monospace;color:#6b655c;margin:4px 0 4px 6px}
+.tool b{color:#3b4f8a}
+</style><body><div class="top">Claude Desktop<span>connector: Preflight · __BASE__/mcp</span></div>
+<div id="log"></div></body>"""
+
+ADD_JS = """([cls, text]) => {
+  const d = document.createElement('div'); d.className = cls; d.innerHTML = text;
+  document.getElementById('log').appendChild(d); d.scrollIntoView({block: 'end'});
+}"""
+
+
+async def say(page: Page, cls: str, text: str, hold: float = 1.6) -> None:
+    await page.evaluate(ADD_JS, [cls, text])
+    await page.wait_for_timeout(int(hold * 1000))
+
+
+async def tool(page: Page, name: str, args: str, result: str, hold: float = 1.4) -> None:
+    await say(page, "tool", f"→ <b>{name}</b>({html.escape(args)})", 0.7)
+    await say(page, "tool", f"← {html.escape(result)}", hold)
+
+
+async def scene_agent(page: Page, out: Path, job_url: str, draft: Path) -> str:
+    """Claude Desktop with the hosted connector: a budget the person funds once, then a draft
+    check it buys on its own. Returns the budget page's URL."""
+    chat = out / "chat.html"
+    chat.write_text(CHAT_HTML.replace("__BASE__", BASE), encoding="utf-8")
+    await page.goto(chat.as_uri())
+    await caption(page, "The same shop serves AI assistants over MCP.", 2.5)
+    await caption(page, "", 0.1)
+    await say(page, "m you", "Open a $20 Preflight budget for checking my drafts.", 1.2)
+    b = mcp_call("open_budget", amount_usd="20")
+    await tool(
+        page, "open_budget", 'amount_usd="20"', f"budget {b['budget_id']} · waiting for approval"
+    )
+    await say(page, "m ai", "I've opened it. Only you can approve the payment: "
+              "<u>Approve $20.00 on PayPal</u>. I never see your PayPal login.", 2.2)  # fmt: skip
+    await caption(page, "The assistant can open the order. Only the person can approve it.", 3)
+
+    # the person, on PayPal
+    await page.goto(b["approve_url"])
+    await caption(
+        page, "The person approves on PayPal (simulated here; the sandbox in the live demo).", 3
+    )
     await page.click("form button")
     await page.wait_for_load_state("networkidle")
-    await page.wait_for_timeout(1500)
-    await page.reload()
-    await page.click("a.btn[href$='/report']")
+    budget_url = page.url.split("/return")[0]
+    await page.goto(budget_url)
+    await caption(
+        page, "Funded once. From here the assistant works on its own, inside the limit.", 3.5
+    )
+
+    await page.goto(chat.as_uri())
+    await say(page, "m you", "Open a $20 Preflight budget for checking my drafts.", 0.1)
+    await say(page, "m ai", "Budget approved and active: $20.00.", 0.4)
+    await say(page, "m you", f"Check my new draft, {draft.name}, against the series.", 1.2)
+    job_id = job_url.rstrip("/").split("/")[-1]
+    q = mcp_call(
+        "check_draft", job_id=job_id, name=draft.name, text=draft.read_text(encoding="utf-8")
+    )
+    await tool(page, "check_draft", f'job_id="{job_id}", name="{draft.name}"',
+               f"price ${q['price']['amount']} · {q['price']['explanation']}"[:110])  # fmt: skip
+    paid = mcp_call("pay_with_budget", job_id=q["job_id"], budget_key=b["budget_key"])
+    await tool(page, "pay_with_budget", f'job_id="{q["job_id"]}"',
+               f"paid from the budget · ${paid['budget_left']} left")  # fmt: skip
+    for _ in range(60):
+        st = mcp_call("audit_status", job_id=q["job_id"])
+        if st["status"] in ("done", "failed"):
+            break
+        await page.wait_for_timeout(500)
+    await tool(page, "audit_status", f'job_id="{q["job_id"]}"', st["status"], 0.6)
+    found = mcp_call("get_findings", job_id=q["job_id"])["findings"]
+    await tool(page, "get_findings", f'job_id="{q["job_id"]}"', f"{len(found)} contradictions")
+    lines = "".join(f"\n• {html.escape(f['summary'])}" for f in found[:3])
+    await say(page, "m ai", f"Your draft disagrees with the published books in {len(found)} "
+              f"places:{lines}\nEach has the published passage and a fix to the draft.", 3.5)  # fmt: skip
+    await caption(page, "It never spends past the balance, and every spend is on a receipt.", 3.5)
+    await page.goto(budget_url)
+    await page.wait_for_timeout(2500)
+    return budget_url
+
+
+async def scene_in_charge(page: Page, job_url: str, budget_url: str) -> None:
+    """The author stays in charge: mark a finding wrong (money back through PayPal), then close
+    the budget (the unused rest refunded)."""
+    await page.goto(job_url)
+    await smooth_scroll_to(page, "document.getElementById('guarantee')", offset=20)
+    await caption(page, "If a finding is wrong, the author says so...", 2.5)
+    await page.click("details.mark summary")
+    await page.fill("details.mark[open] input[name=note]", "a nickname, not a new name")
+    await page.click("details.mark[open] button")
     await page.wait_for_load_state("networkidle")
-    await page.evaluate("document.body.style.zoom = '0.8'")
-    await caption(
-        page, "Two slips in the draft, each with the published passage it contradicts.", 4
-    )
-    await page.evaluate(
-        "document.querySelector('details') && (document.querySelector('details').open = true)"
-    )
-    await smooth_scroll_to(
-        page,
-        "[...document.querySelectorAll('div.f')].find(d => d.innerText.includes('deliberate'))",
-        offset=40,
-    )
-    await caption(
-        page,
-        "And the change the draft explains on the page — tinted glasses — is marked deliberate.",
-        4.5,
-    )
-
-
-async def scene_mcp(page: Page, out: Path, transcript: str) -> None:
-    lines = [ln for ln in transcript.splitlines() if ln.strip()][:60]
-    body = "".join(f"<div class='l'>{html.escape(ln)}</div>" for ln in lines)
-    doc = (
-        "<!doctype html><meta charset='utf-8'><style>body{margin:0;background:#16161a;color:#e8e6e1;"
-        "font:18px/1.5 'DejaVu Sans Mono',monospace;padding:36px 44px}"
-        ".l{white-space:pre-wrap;word-break:break-all;opacity:0;margin:3px 0}.l.on{opacity:1}"
-        ".l:has(+.l){}</style><body>"
-        "<div style='color:#8ab4f8;margin-bottom:12px'>$ python scripts/mcp_flow_demo.py books/*.txt"
-        "</div>" + body + "</body>"
-    )
-    f = out / "mcp.html"
-    f.write_text(doc, encoding="utf-8")
-    await page.goto(f.as_uri())
-    await page.evaluate(CAPTION_JS, "An assistant can buy the same audit over MCP.")
-    await page.evaluate(
-        """async () => {
-            const ls = [...document.querySelectorAll('.l')];
-            for (const l of ls) { l.classList.add('on'); l.scrollIntoView({block: 'end'});
-              await new Promise(r => setTimeout(r, 450)); }
-        }"""
-    )
-    await caption(page, "It prices the job and creates the order...", 2.5)
-    await caption(
-        page,
-        "...but confirm_payment refuses to run anything until the person approves on PayPal.",
-        4.5,
-    )
-    await caption(page, "Agent-initiated, human-approved: the approval link goes to the person.", 4)
+    await smooth_scroll_to(page, "document.getElementById('guarantee')", offset=20)
+    await caption(page, "...and $0.50 comes back through PayPal, up to half the price.", 3.5)
+    await page.goto(budget_url)
+    await page.check("form[data-testid=budget-close] input[name=confirm]")
+    await caption(page, "Closing the budget refunds the rest to PayPal.", 2.5)
+    await page.click("form[data-testid=budget-close] button")
+    await page.wait_for_load_state("networkidle")
+    await caption(page, "The unused balance is back in the person's PayPal account.", 3)
+    await smooth_scroll_to(page, "document.querySelector('[data-testid=budget-ledger]')", offset=20)
+    await page.wait_for_timeout(2500)
 
 
 async def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, default=Path("build/video"))
-    ap.add_argument(
-        "--mcp", type=Path, required=True, help="transcript of scripts/mcp_flow_demo.py"
-    )
     ap.add_argument("--draft", type=Path, required=True)
     ap.add_argument("--bench", default="", help="one line of benchmark numbers for the close card")
+    ap.add_argument("--base", default=BASE, help="the running server (demo mode)")
     a = ap.parse_args()
+    globals()["BASE"] = a.base.rstrip("/")
     a.out.mkdir(parents=True, exist_ok=True)
     order: list[str] = []
 
@@ -253,27 +331,20 @@ async def main() -> None:
             return result
 
         await record(
-            "title",
-            scene_card,
-            a.out,
-            "title",
-            "<h1>Preflight</h1><p>Pay-per-audit continuity checking for series authors.</p>"
-            "<p class='k'>canonkeeper · PayPal AI Hackathon 2026</p>",
-            4,
-        )
-        await record(
             "problem",
             scene_card,
             a.out,
             "problem",
-            "<p class='big'>Book six has to agree with book one,<br>written three years earlier.</p>"
-            "<p>Readers notice every slip. Today the only tool is a spreadsheet and memory.</p>",
+            "<p class='big'>Book six has to agree with book one.</p>"
+            "<p>Preflight reads a whole series and shows every contradiction: both passages, "
+            "and a fix for the newer book.</p><p>For series authors and editors. "
+            "Paid per audit with PayPal.</p>",
             6,
         )
         await record("holmes", scene_holmes)
         job_url = await record("buy", scene_buy)
-        await record("check", scene_check, job_url, a.draft)
-        await record("mcp", scene_mcp, a.out, a.mcp.read_text(encoding="utf-8"))
+        budget_url = await record("agent", scene_agent, a.out, job_url, a.draft)
+        await record("in-charge", scene_in_charge, job_url, budget_url)
         await record(
             "honest",
             scene_card,

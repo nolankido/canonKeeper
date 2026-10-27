@@ -31,7 +31,7 @@
   <p>Closing: the unused balance is on its way back to your PayPal account. Nothing more can be spent.</p>
   <form action="/budget/{{ budget.id }}/close" method="post" class="inline"><input type="hidden" name="confirm" value="yes"><button type="submit" class="secondary">Check the refund</button></form>
   {% elif budget.status == 'closed' %}
-  <p>Closed. Nothing more can be spent.</p>
+  <p data-testid="budget-closed">Closed. {% if budget.refunded > 0 %}<strong>${{ '%.2f' % budget.refunded }} went back to your PayPal account</strong>; nothing more can be spent.{% else %}Nothing more can be spent.{% endif %}</p>
   {% elif budget.status == 'cancelled' %}
   <p>Cancelled before it was funded. Nothing was charged.</p>
   {% endif %}

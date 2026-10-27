@@ -84,17 +84,19 @@ Repo URL and hosted URL on screen.
 
 ## A draft cut, generated
 
-`scripts/video/record.py` drives the running app in demo mode with Playwright and records each
-beat above with captions drawn into the page; `scripts/video/assemble.py` trims, fades and joins
-them into `build/video/preflight.mp4` (~2:15, silent, 1280×720). It is a starting point: replace
-the simulated checkout with a screen recording of the real PayPal sandbox, add a voiceover if
-you like, and keep it under three minutes.
+`scripts/video/record.py` drives the running app in demo mode with Playwright and films each
+beat of v2 with captions drawn into the page, including the assistant scene: it calls the
+server's own MCP endpoint the way Claude Desktop would (open a budget, check the draft, pay from
+the budget, read the findings) and films the person's side, the PayPal approval and the budget
+page. `scripts/video/assemble.py` trims, fades and joins the scenes into
+`build/video/preflight.mp4` (about 2:30, silent, 1280×720). It is a starting point: replace the
+simulated checkout and chat with screen recordings of the real sandbox and Claude Desktop, add
+the voiceover, and keep it under three minutes.
 
 ```bash
 canonkeeper serve --provider mock --port 8787 &
 canonkeeper demo --dest build/demo
-python scripts/mcp_flow_demo.py --brief --auto-approve --provider mock build/demo/books/*.txt > build/mcp.txt
-python scripts/video/record.py --out build/video --mcp build/mcp.txt --draft build/demo/draft-04-the-ledger.txt
+python scripts/video/record.py --out build/video --draft build/demo/draft-04-the-ledger.txt
 python scripts/video/assemble.py build/video
 ```
 

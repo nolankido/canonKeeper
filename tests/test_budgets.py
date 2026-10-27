@@ -161,7 +161,8 @@ def test_the_budget_page_shows_every_movement_and_closes(tmp_path):
     assert b["budget_key"] not in page  # the page shows the budget, never the spending key
     assert web.post(f"/budget/{b['budget_id']}/close", data={}).status_code == 400  # unconfirmed
     web.post(f"/budget/{b['budget_id']}/close", data={"confirm": "yes"})
-    assert "Refunded to PayPal" in web.get(f"/budget/{b['budget_id']}").text
+    closed = web.get(f"/budget/{b['budget_id']}").text
+    assert "Refunded to PayPal" in closed and "$4.95 went back to your PayPal account" in closed
     assert web.get("/budget/not-a-budget-id-at-all").status_code == 404
 
 
