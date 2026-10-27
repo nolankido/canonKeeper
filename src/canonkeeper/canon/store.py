@@ -14,7 +14,13 @@ from pathlib import Path
 
 from rapidfuzz import fuzz, process
 
-from canonkeeper.canon.normalize import is_generic_name, normalize_claim
+from canonkeeper.canon.normalize import (
+    is_generic_name,
+    looks_like_victim,
+    names_compatible,
+    normalize_claim,
+    same_person_variant,
+)
 from canonkeeper.models import Claim, ExtractionResult
 
 
@@ -82,9 +88,18 @@ class CanonStore:
             return cached
         hit = self._alias_to_canon.get(key)
         if hit is None and self._alias_to_canon:
-            best = process.extractOne(key, list(self._alias_to_canon), scorer=fuzz.WRatio)
-            if best and best[1] >= 92:
-                hit = self._alias_to_canon[best[0]]
+            # Best fuzzy match that could be the same person: "Mrs. Turner" scores 95 against
+            # "Mr. Turner", and that merge once erased the canon's best-known landlady slip.
+            for cand, score, _ in process.extract(
+                key, list(self._alias_to_canon), scorer=fuzz.WRatio, limit=5
+            ):
+                if score < 92:
+                    break
+                if names_compatible(name, cand) and names_compatible(
+                    name, self._alias_to_canon[cand]
+                ):
+                    hit = self._alias_to_canon[cand]
+                    break
         result = hit or name
         self._canon_cache[key] = result
         return result
@@ -121,13 +136,14 @@ class CanonStore:
                 self.dropped_generic += 1  # "he has grey eyes" with no name is not a fact
                 continue
             predicate, value = normalize_claim(c.predicate, c.object)
-            if (
-                predicate == "died"
-                and self.is_known(value)
-                and (self.canonical(value).lower() != self.canonical(c.subject).lower())
-            ):
-                # "X died Y" with Y a character is the model's way of saying X killed Y.
-                predicate, value = "killed", self.canonical(value)
+            if predicate == "died":
+                known_other = self.is_known(value) and (
+                    self.canonical(value).lower() != self.canonical(c.subject).lower()
+                )
+                if known_other or looks_like_victim(value):
+                    # "X died Y" naming a person or creature is the model saying X killed Y.
+                    predicate = "killed"
+                    value = self.canonical(value) if known_other else value
             c = c.model_copy(
                 update={
                     "subject": self.canonical(c.subject),
@@ -136,7 +152,42 @@ class CanonStore:
                 }
             )
             added += int(self.add(c))
+        self.merge_variants()
         return added
+
+    def merge_variants(self) -> list[tuple[str, str]]:
+        """Fold entities whose names differ only by middle names or initials into the one with
+        more claims ("Enoch Drebber" → "Enoch J. Drebber"). Returns (merged, into) pairs."""
+        counts: dict[str, int] = {}
+        for c in self.claims:
+            counts[c.subject] = counts.get(c.subject, 0) + 1
+        names = sorted(counts, key=lambda n: (-counts[n], -len(n), n))
+        target_of: dict[str, str] = {}
+        by_surname: dict[str, list[str]] = {}
+        for n in names:
+            parts = n.split()
+            if len(parts) < 2:
+                continue
+            key = parts[-1].strip(".,").lower()
+            for t in by_surname.get(key, []):
+                if same_person_variant(n, t):
+                    target_of[n] = t
+                    break
+            else:
+                by_surname.setdefault(key, []).append(n)
+        if not target_of:
+            return []
+        for src, dst in target_of.items():
+            moved = [src, *self.aliases.pop(src, [])]
+            self.register_aliases({dst: moved})
+        self.claims = [
+            c.model_copy(update={"subject": target_of[c.subject]}) if c.subject in target_of else c
+            for c in self.claims
+        ]
+        self._ids = {c.id for c in self.claims}
+        self._canon_cache.clear()
+        self._indexed_count = -1
+        return sorted(target_of.items())
 
     def _slot(self, claim: Claim) -> tuple[str, str]:
         return (self.canonical(claim.subject).lower(), claim.predicate.lower())

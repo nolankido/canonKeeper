@@ -219,3 +219,150 @@ def test_died_with_a_victim_is_killed_not_death(tmp_path):
     assert [c.reason for c in dead_speaks(store)]  # unknown object: counts as death for now
     store.add(claim("Moriarty", ClaimKind.ATTRIBUTE, "occupation", "professor", "q5"))
     assert dead_speaks(store) == []
+
+
+def test_rebuild_replaces_claims_instead_of_appending(series, settings, mock_llm, tmp_path):
+    """A second build must not duplicate claims, even when the ingest rules changed between
+    runs, and a partial build keeps the other books' claims."""
+    import json
+
+    from canonkeeper.corpus import Series
+
+    path = tmp_path / "bible.jsonl"
+    first = build_bible(series, mock_llm, settings, path, progress=False)
+    n = len(first)
+    # Simulate a bible written under older ingest rules: a stale, differently-normalised claim
+    # for book 1 that today's ingest would never produce.
+    rows = path.read_text(encoding="utf-8").splitlines()
+    stale = json.loads(rows[1])
+    stale["object"] = stale["object"] + " (old normalisation)"
+    path.write_text("\n".join([*rows, json.dumps(stale)]) + "\n", encoding="utf-8")
+
+    again = build_bible(series, mock_llm, settings, path, progress=False)
+    assert len(again) == n
+    assert not any("(old normalisation)" in c.object for c in again.claims)
+
+    only_last = Series(series.name, [series.books[-1]])
+    partial = build_bible(only_last, mock_llm, settings, path, progress=False)
+    assert len(partial) == n
+    assert {c.provenance.book for c in partial.claims} == {b.key for b in series.books}
+
+
+def _claim(subj, pred, obj, *, book=0, chapter=0, q="q", kind=None):
+    from canonkeeper.models import Claim, ClaimKind, Provenance
+
+    return Claim(
+        kind=kind or ClaimKind.ATTRIBUTE,
+        subject=subj,
+        predicate=pred,
+        object=obj,
+        provenance=Provenance(
+            book=f"0{book + 1}",
+            book_index=book,
+            chapter=f"c{chapter}",
+            chapter_index=chapter,
+            quote=q,
+        ),
+    )
+
+
+def test_landlady_collision_without_any_employment_link(tmp_path):
+    """The real Holmes shape: nobody is 'employed_by' Holmes. Mrs. Hudson is the landlady in
+    several chapters (an anchor), Mrs. Turner once, both in scenes with Holmes. One-scene
+    butlers in houses the detective visits must not collide with anything."""
+    from canonkeeper.audit.candidates import role_collision
+    from canonkeeper.canon import CanonStore
+
+    st = CanonStore(tmp_path / "b.jsonl")
+    for ch in range(6):  # Holmes and Watson are the protagonists: facts everywhere
+        st.add(_claim("Sherlock Holmes", "habit", f"pipe {ch}", book=1, chapter=ch, q=f"h{ch}"))
+        st.add(_claim("John Watson", "habit", f"notes {ch}", book=1, chapter=ch, q=f"w{ch}"))
+    st.add(_claim("Mrs. Hudson", "occupation", "landlady", book=1, chapter=0, q="our landlady"))
+    st.add(_claim("Mrs. Hudson", "occupation", "landlady", book=1, chapter=2, q="Mrs. Hudson"))
+    st.add(_claim("Mrs. Turner", "occupation", "landlady", book=1, chapter=4, q="Mrs. Turner"))
+    st.add(_claim("Brunton", "occupation", "butler", book=1, chapter=1, q="Brunton the butler"))
+    st.add(_claim("Barrymore", "occupation", "butler", book=1, chapter=3, q="Barrymore"))
+    st.add(_claim("Barrymore", "occupation", "butler", book=1, chapter=5, q="Barrymore 2"))
+    st.add(_claim("Steiler", "occupation", "landlord", book=1, chapter=1, q="the landlord"))
+    st.add(_claim("Hayes", "occupation", "landlord", book=1, chapter=3, q="Reuben Hayes"))
+    hits = role_collision(st)
+    assert len(hits) == 1, [h.reason for h in hits]
+    assert {c.subject for c in hits[0].claims} == {"Mrs. Hudson", "Mrs. Turner"}
+
+
+def test_died_naming_a_person_or_creature_is_a_killing(tmp_path):
+    from canonkeeper.audit.candidates import dead_speaks
+    from canonkeeper.canon import CanonStore
+    from canonkeeper.canon.normalize import looks_like_victim
+    from canonkeeper.models import ClaimKind, ExtractionResult
+
+    for v in ["islander", "two warders", "the hound", "henry staunton", "husband of mary fraser"]:
+        assert looks_like_victim(v), v
+    for v in ["reichenbach falls", "utrecht", "1876", "fright", "in a fit", "hanged", "cell"]:
+        assert not looks_like_victim(v), v
+
+    st = CanonStore(tmp_path / "b.jsonl")
+    ev = ClaimKind.EVENT
+    st.ingest(
+        ExtractionResult(
+            claims=[
+                _claim("John Watson", "died", "islander", book=1, chapter=11, q="pistols", kind=ev),
+                _claim(
+                    "John Watson",
+                    "location",
+                    "Baker Street",
+                    book=2,
+                    chapter=0,
+                    q="w",
+                    kind=ClaimKind.STATE,
+                ),
+                _claim(
+                    "Sherlock Holmes",
+                    "died",
+                    "reichenbach falls",
+                    book=3,
+                    chapter=11,
+                    q="r",
+                    kind=ev,
+                ),
+                _claim(
+                    "Sherlock Holmes",
+                    "location",
+                    "Dartmoor",
+                    book=4,
+                    chapter=0,
+                    q="d",
+                    kind=ClaimKind.STATE,
+                ),
+            ],
+            aliases={},
+        )
+    )
+    assert any(c.predicate == "killed" and c.subject == "John Watson" for c in st.claims)
+    hits = dead_speaks(st)
+    assert [h.claims[0].subject for h in hits] == ["Sherlock Holmes"]
+
+
+def test_names_never_fuzzy_merge_across_gender_and_variants_do_merge(tmp_path):
+    from canonkeeper.canon import CanonStore
+    from canonkeeper.models import ExtractionResult
+
+    st = CanonStore(tmp_path / "b.jsonl")
+    st.ingest(
+        ExtractionResult(
+            claims=[
+                _claim("Mr. Turner", "occupation", "landowner", q="a"),
+                _claim("Mrs. Turner", "occupation", "landlady", q="b"),
+                _claim("Enoch J. Drebber", "nationality", "american", q="c"),
+                _claim("Enoch J. Drebber", "occupation", "traveller", q="d"),
+                _claim("Enoch Drebber", "dead", "true", q="e"),
+                _claim("Young Drebber", "occupation", "elder", q="f"),
+            ],
+            aliases={"Mr. Turner": ["Turner"]},
+        )
+    )
+    assert {"Mr. Turner", "Mrs. Turner"} <= set(st.entities())
+    assert "Enoch Drebber" not in st.entities()
+    assert len(st.for_entity("Enoch J. Drebber")) == 3
+    assert st.canonical("Enoch Drebber") == "Enoch J. Drebber"
+    assert "Young Drebber" in st.entities()

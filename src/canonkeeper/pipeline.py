@@ -16,7 +16,19 @@ from canonkeeper.models import AuditReport
 def build_bible(
     series: Series, llm: LLM, settings: Settings, store_path: Path, *, progress: bool = True
 ) -> CanonStore:
-    store = CanonStore.load(store_path)
+    """Extract `series` into the bible at `store_path`.
+
+    The books in `series` are re-ingested from scratch (extraction is cached, so this costs no
+    requests) and replace whatever the bible held for them; claims for books *not* in this run
+    (`build --books`) are kept. Appending instead would duplicate every claim whose
+    normalisation changed between runs — claim ids hash the normalised fact."""
+    old = CanonStore.load(store_path)
+    rebuilt = {b.key for b in series.books}
+    store = CanonStore(store_path)
+    store.register_aliases(old.aliases)
+    for c in old.claims:
+        if c.provenance.book not in rebuilt:
+            store.add(c)
     ext = Extractor(llm, settings)
     result = ext.extract_series(series, progress=progress)
     store.ingest(result)

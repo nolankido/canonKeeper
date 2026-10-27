@@ -114,8 +114,12 @@ def _is_death(c: Claim, store: CanonStore, entities: set[str]) -> bool:
     if c.predicate == "dead":
         return _norm(c.object) in {"true", "yes", "dead"}
     if c.kind == ClaimKind.EVENT and c.predicate == "died":
+        from canonkeeper.canon.normalize import looks_like_victim
+
         other = store.canonical(c.object).lower()
-        return not (other in entities and other != store.canonical(c.subject).lower())
+        if other in entities and other != store.canonical(c.subject).lower():
+            return False
+        return not looks_like_victim(c.object)
     return False
 
 
@@ -260,6 +264,7 @@ UNIQUE_HOUSEHOLD_ROLES = {
     "secretary",
     "orderly",
 }
+_LODGING_ROLES = {"landlady", "landlord"}
 _HOUSEHOLD_LINKS = {"employed_by", "servant_of", "landlady_of", "landlord_of", "household_of"}
 
 
@@ -268,10 +273,15 @@ def role_collision(store: CanonStore) -> list[Candidate]:
     (Mrs. Hudson and Mrs. Turner are both 'the landlady' at Baker Street).
 
     A holder is tied to a household by an `employed_by`/`servant_of`-style link. A holder
-    with *no* link gets a weak tie instead: any household head already known for that role
-    who has claims in the same chapter as the unlinked role claim. That is over-generation
-    on purpose (the adjudicator reads the scene); without it the classic Turner/Hudson slip
-    is invisible, because nobody writes "Mrs. Turner, Holmes's landlady"."""
+    with *no* link gets a weak tie instead, to a household head already known for that role
+    when the head has facts in the same chapter as the role claim.
+
+    Lodging roles (landlady, landlord) can also attach to a protagonist (the two entities with
+    the most facts): series heroes lodge, and nobody writes "Mrs. Hudson, employed by Holmes"
+    — she is just "our landlady". That tie needs an anchor, someone holding the role in at
+    least two chapters, so a one-scene innkeeper the hero passes through does not count. On
+    the Holmes bible this raises Hudson/Turner and nothing else; extending protagonist ties to
+    butlers and housekeepers raised a dozen households the detective merely visits."""
     role_claims: dict[str, list[tuple[str, Claim]]] = {}
     links_of: dict[str, list[Claim]] = {}
     for entity in store.entities():
@@ -294,7 +304,14 @@ def role_collision(store: CanonStore) -> list[Candidate]:
             store.canonical(c.subject).lower()
         )
 
+    counts: dict[str, int] = {}
+    for c in store.claims:
+        k = store.canonical(c.subject)
+        counts[k] = counts.get(k, 0) + 1
+    protagonists = sorted(counts, key=lambda n: -counts[n])[:2]
+
     out: list[Candidate] = []
+    emitted: set[frozenset[str]] = set()
     for role, entries in role_claims.items():
         # Strong ties first: (household head) -> {entity: (role claim, link, strong?)}
         heads: dict[str, dict[str, tuple[Claim, bool]]] = {}
@@ -304,6 +321,19 @@ def role_collision(store: CanonStore) -> list[Candidate]:
                 head = store.canonical(link.object).lower()
                 display.setdefault(head, store.canonical(link.object))
                 heads.setdefault(head, {}).setdefault(entity, (r, True))
+        if role in _LODGING_ROLES:
+            chapters: dict[str, set[tuple[int, int]]] = {}
+            for entity, r in entries:
+                chapters.setdefault(entity, set()).add(
+                    (r.provenance.book_index, r.provenance.chapter_index)
+                )
+            anchors = {e for e, ch in chapters.items() if len(ch) >= 2}
+            for p in protagonists:
+                for entity, r in entries:
+                    scene = (r.provenance.book_index, r.provenance.chapter_index)
+                    if entity in anchors and p.lower() in present.get(scene, set()):
+                        heads.setdefault(p.lower(), {}).setdefault(entity, (r, False))
+                        display.setdefault(p.lower(), p)
         if not heads:
             continue
         for entity, r in entries:
@@ -316,6 +346,10 @@ def role_collision(store: CanonStore) -> list[Candidate]:
         for head, people in heads.items():
             if len(people) < 2:
                 continue
+            ids = frozenset(r.id for r, _ in people.values())
+            if ids in emitted:
+                continue  # Holmes's and Watson's households are the same rooms
+            emitted.add(ids)
             weak = [e for e, (_, strong) in people.items() if not strong]
             names = ", ".join(f"{e} ({r.provenance.locator})" for e, (r, _) in people.items())
             reason = f"the {role} of {display[head]}'s household is {names}"

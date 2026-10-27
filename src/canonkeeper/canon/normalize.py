@@ -192,6 +192,303 @@ def is_generic_name(name: str) -> bool:
     return not n or n in _PRONOUNS or bool(_GENERIC.match(n))
 
 
+# --- personal names ------------------------------------------------------------------------
+_MALE = {
+    "mr",
+    "mister",
+    "sir",
+    "lord",
+    "master",
+    "monsieur",
+    "m",
+    "herr",
+    "signor",
+    "senor",
+    "señor",
+    "father",
+    "brother",
+    "uncle",
+    "king",
+    "prince",
+    "duke",
+    "count",
+    "baron",
+    "earl",
+}
+_FEMALE = {
+    "mrs",
+    "miss",
+    "ms",
+    "madam",
+    "madame",
+    "mme",
+    "mademoiselle",
+    "mlle",
+    "lady",
+    "dame",
+    "frau",
+    "fraulein",
+    "fräulein",
+    "signora",
+    "senora",
+    "señora",
+    "sister",
+    "aunt",
+    "mother",
+    "queen",
+    "princess",
+    "duchess",
+    "countess",
+    "baroness",
+}
+_NEUTRAL = {
+    "dr",
+    "doctor",
+    "professor",
+    "prof",
+    "rev",
+    "reverend",
+    "captain",
+    "capt",
+    "colonel",
+    "col",
+    "major",
+    "inspector",
+    "sergeant",
+    "sgt",
+    "lieutenant",
+    "lt",
+    "general",
+    "gen",
+    "admiral",
+    "constable",
+    "judge",
+    "elder",
+    "young",
+    "old",
+    "the",
+    "st",
+    "saint",
+}
+_SUFFIX = {"jr", "sr", "junior", "senior", "esq", "ii", "iii"}
+
+
+def name_parts(name: str) -> tuple[str | None, str | None, str | None, tuple[str, ...]]:
+    """(gender from honorific: "m"/"f"/None, given name, surname, middle tokens).
+    "Mrs. Hudson" → ("f", None, "hudson", ()); "Dr. John H. Watson" → (None, "john",
+    "watson", ("h",)). Leading honorifics and trailing suffixes are not part of the name."""
+    toks = [t.strip(".,'\"()").lower() for t in name.replace("-", " ").split()]
+    toks = [t for t in toks if t]
+    gender: str | None = None
+    while toks and (toks[0] in _MALE or toks[0] in _FEMALE or toks[0] in _NEUTRAL):
+        t = toks.pop(0)
+        if t in _MALE:
+            gender = gender or "m"
+        elif t in _FEMALE:
+            gender = gender or "f"
+    while toks and toks[-1] in _SUFFIX:
+        toks.pop()
+    if not toks:
+        return gender, None, None, ()
+    if len(toks) == 1:
+        return gender, None, toks[0], ()
+    return gender, toks[0], toks[-1], tuple(toks[1:-1])
+
+
+def names_compatible(a: str, b: str) -> bool:
+    """False when two names cannot be one person: honorifics of different gender
+    (Mr./Mrs. Turner), or two different spelled-out given names (John/Joan Turner)."""
+    ga, fa, sa, _ = name_parts(a)
+    gb, fb, sb, _ = name_parts(b)
+    if ga and gb and ga != gb:
+        return False
+    if fa and fb and fa != fb and len(fa) > 1 and len(fb) > 1:
+        return False
+    return not (sa and sb and sa != sb and fa is None and fb is None)
+
+
+def same_person_variant(a: str, b: str) -> bool:
+    """Two full names that differ only by middle names/initials or honorifics:
+    "Enoch J. Drebber" ~ "Enoch Drebber", "Dr. John H. Watson" ~ "John Watson". Both need a
+    spelled-out given name and the same surname; a bare surname never merges ("Mr. Turner"
+    is not "John Turner" — there are two Turners in the canon)."""
+    ga, fa, sa, ma = name_parts(a)
+    gb, fb, sb, mb = name_parts(b)
+    if not (fa and fb and sa and sb) or fa != fb or sa != sb or len(fa) < 2:
+        return False
+    if ga and gb and ga != gb:
+        return False
+    # middles must agree where both are present: "Enoch J." vs "Enoch K." stays apart
+    return all(x[0] == y[0] for x, y in zip(ma, mb, strict=False))
+
+
+# --- "died: <victim>" -----------------------------------------------------------------------
+# Models write `X died Y` for "X shot Y" despite the prompt. A legitimate `died` object is a
+# place, a time or a cause ("utrecht", "1876", "fright"); a misuse names a person or creature
+# ("islander", "two warders", "henry staunton"). Values are lowercased by then, so a small
+# vocabulary decides.
+_AGENT_NOUNS = {
+    "man",
+    "men",
+    "woman",
+    "women",
+    "boy",
+    "girl",
+    "child",
+    "baby",
+    "father",
+    "mother",
+    "husband",
+    "wife",
+    "son",
+    "daughter",
+    "brother",
+    "sister",
+    "uncle",
+    "aunt",
+    "cousin",
+    "guard",
+    "guards",
+    "warder",
+    "warders",
+    "watchman",
+    "surgeon",
+    "mate",
+    "sailor",
+    "seaman",
+    "servant",
+    "coachman",
+    "groom",
+    "keeper",
+    "constable",
+    "officer",
+    "policeman",
+    "soldier",
+    "sepoy",
+    "islander",
+    "savage",
+    "native",
+    "hound",
+    "dog",
+    "beast",
+    "creature",
+    "horse",
+    "prisoner",
+    "convict",
+    "stranger",
+    "victim",
+    "gentleman",
+    "clerk",
+    "partner",
+    "rival",
+    "enemy",
+    "companion",
+    "assailant",
+    "attacker",
+    "him",
+    "her",
+    "them",
+    "lover",
+    "butler",
+}
+_GIVEN_NAMES = {
+    "john",
+    "james",
+    "william",
+    "henry",
+    "george",
+    "charles",
+    "thomas",
+    "edward",
+    "arthur",
+    "robert",
+    "richard",
+    "joseph",
+    "francis",
+    "frederick",
+    "albert",
+    "alfred",
+    "walter",
+    "harry",
+    "samuel",
+    "peter",
+    "michael",
+    "patrick",
+    "hugh",
+    "ralph",
+    "victor",
+    "jack",
+    "jim",
+    "joe",
+    "tom",
+    "bill",
+    "dick",
+    "ned",
+    "jonathan",
+    "jacob",
+    "isaac",
+    "abe",
+    "abraham",
+    "enoch",
+    "elias",
+    "hilton",
+    "ronald",
+    "reginald",
+    "percy",
+    "neville",
+    "godfrey",
+    "lucas",
+    "eduardo",
+    "mary",
+    "elizabeth",
+    "sarah",
+    "anne",
+    "ann",
+    "jane",
+    "margaret",
+    "emily",
+    "alice",
+    "helen",
+    "julia",
+    "lucy",
+    "violet",
+    "agnes",
+    "edith",
+    "ellen",
+    "emma",
+    "kate",
+    "irene",
+    "hattie",
+    "hatty",
+    "effie",
+    "maud",
+    "laura",
+    "rachel",
+    "susan",
+    "martha",
+    "catherine",
+    "isabel",
+    "beatrice",
+    "eva",
+    "flora",
+    "grace",
+    "louisa",
+    "nancy",
+    "rose",
+}
+
+
+def looks_like_victim(value: str) -> bool:
+    """True when a `died` object names a person or creature rather than a place/time/cause."""
+    toks = [t.strip(".,'\"()") for t in value.lower().replace("'s", " ").split()]
+    toks = [t for t in toks if t and t not in {"the", "a", "an", "two", "three", "his", "her"}]
+    if not toks:
+        return False
+    if any(t in _AGENT_NOUNS for t in toks):
+        return True
+    return toks[0] in _GIVEN_NAMES and len(toks) <= 3 and not any(ch.isdigit() for ch in value)
+
+
 # Demonym → country/region, for comparing `nationality` against `birthplace`. Small on purpose:
 # a conflict is only raised when both sides map to a known place and the places differ.
 DEMONYMS: dict[str, str] = {
