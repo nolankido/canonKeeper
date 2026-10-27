@@ -18,7 +18,7 @@
   <p>Checkout was cancelled. Nothing was charged.</p>
   <form action="/jobs/{{ job.id }}/order" method="post"><button type="submit">Try again</button></form>
 {% elif job.status in ('paid', 'running') %}
-  <p>Paid {{ job.paid_at[:19] if job.paid_at else '' }}. The audit is {{ 'queued' if job.status == 'paid' else 'running' }} — extracting every chapter, then judging each candidate conflict against the series text. This page refreshes every 10 seconds.</p>
+  <p>Paid{% if job.paid_at %} {{ job.paid_at[:16] | replace('T', ' ') }} UTC{% endif %}. The audit is {{ 'queued' if job.status == 'paid' else 'running' }} — extracting every chapter, then judging each candidate conflict against the series text. This page refreshes every 10 seconds.</p>
   {% if job.stage and job.progress_total %}
   <p><strong>{{ 'Extracting facts' if job.stage == 'extracting' else 'Judging candidate conflicts' }}:</strong>
     {{ job.progress_done }} of {{ job.progress_total }} {{ 'chapters' if job.stage == 'extracting' else 'candidates' }}</p>
@@ -54,13 +54,13 @@
   </form>
   {% endif %}
 {% elif job.status == 'held' %}
-  <p>PayPal has your payment but is holding it until it clears{% if job.hold_reason %} ({{ job.hold_reason }}){% endif %}. The audit starts within a few minutes of it clearing (this page checks for you), and nothing more is charged.</p>
+  <p>PayPal has your payment but is holding it until it clears (some payment methods, such as eChecks, take a few days). The audit starts within a few minutes of it clearing (this page checks for you), and nothing more is charged.</p>
   <form action="/jobs/{{ job.id }}/confirm" method="post"><button type="submit" class="secondary">Check again</button></form>
 {% elif job.status == 'refunding' %}
   <p>Refund in progress with PayPal. If this page has said so for more than a few minutes, ask PayPal again — a refund is never made twice.</p>
   <form action="/jobs/{{ job.id }}/refund" method="post"><input type="hidden" name="confirm" value="yes"><button type="submit" class="secondary">Check the refund with PayPal</button></form>
 {% elif job.status == 'refunded' %}
-  <p>Refunded{% if job.refund_status == 'PENDING' %} (PayPal is still processing it){% endif %}: ${{ job.quote_usd }} went back to your PayPal account{% if job.refunded_at %} on {{ job.refunded_at[:10] }}{% endif %}{% if job.refund_id %} (refund <code>{{ job.refund_id }}</code>){% endif %}.</p>
+  <p>{% if job.refund_status == 'PENDING' %}Refund issued: ${{ job.quote_usd }} is on its way back to your PayPal account (PayPal is still processing it){% else %}Refunded: ${{ job.quote_usd }} went back to your PayPal account{% endif %}{% if job.refunded_at %} on {{ job.refunded_at[:10] }}{% endif %}{% if job.refund_id %} (refund <code>{{ job.refund_id }}</code>){% endif %}.</p>
 {% endif %}
 </div>
 
