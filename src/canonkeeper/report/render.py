@@ -5,11 +5,13 @@ from pathlib import Path
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from canonkeeper.models import AuditReport
+from canonkeeper.report.display import check, fact, headline, where
 
 _env = Environment(
     loader=PackageLoader("canonkeeper.report", "templates"),
     autoescape=select_autoescape(["html"]),
 )
+_env.filters.update(headline=headline, where=where, fact=fact, check=check)
 
 
 def write_report(report: AuditReport, out_dir: Path) -> tuple[Path, Path]:
