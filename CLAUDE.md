@@ -49,6 +49,7 @@ pytest                      # offline, mock provider
 ruff check src tests && ruff format src tests && mypy
 canonkeeper doctor          # verify provider/key/pacing with one tiny call
 canonkeeper doctor --round-trip   # sandbox money path: approve as buyer → capture → refund
+canonkeeper quota                 # today's requests per model vs the daily caps, and the reset time
 canonkeeper compare before/report.json after/report.json   # which verdicts a change moved
 canonkeeper demo            # offline, end to end
 canonkeeper fetch|estimate|build|bible|audit|check|eval evals/corpora/sherlock-holmes/series.json

@@ -215,3 +215,10 @@ def test_build_estimates_time_from_todays_latency(tmp_path):
     three = s.model_copy(update={"extract_concurrency": 3, "requests_per_minute": 9})
     assert _eta_minutes(one, m, 90) == 18  # 5/min: latency-bound
     assert _eta_minutes(three, m, 90) == 10  # 9/min: the rate limit binds
+
+
+def test_quota_reports_usage_against_caps(tmp_path, monkeypatch):
+    monkeypatch.setenv("CANONKEEPER_PROVIDER", "gemini")
+    r = runner.invoke(app, ["quota", "--workdir", str(tmp_path)])
+    assert r.exit_code == 0, r.output
+    assert "gemini-3.6-flash" in r.output and "resets at" in r.output

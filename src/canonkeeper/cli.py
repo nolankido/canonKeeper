@@ -730,6 +730,36 @@ def rescore(
 
 
 @app.command()
+def quota(provider: str | None = None, workdir: Path | None = None) -> None:
+    """Today's requests per model against the provider's daily caps, and when they reset."""
+    from datetime import UTC, datetime, timedelta
+
+    settings = _settings(provider, workdir)
+    used = _today_usage(settings)
+    caps = settings.daily_budget
+    t = Table(title=f"{settings.provider} · today's quota (from {settings.request_log})")
+    t.add_column("model")
+    t.add_column("used", justify="right")
+    t.add_column("cap", justify="right")
+    t.add_column("left", justify="right")
+    for m in sorted(set(caps) | set(used)):
+        cap = caps.get(m)
+        left = "" if cap is None else str(max(0, cap - settings.budget_margin - used.get(m, 0)))
+        t.add_row(m, str(used.get(m, 0)), "" if cap is None else str(cap), left)
+    console.print(t)
+    if settings.provider == "gemini":
+        off = timedelta(hours=settings.day_reset_utc_offset)
+        provider_now = datetime.now(UTC) + off
+        nxt = (provider_now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        local = (nxt - off).astimezone()
+        console.print(
+            f"resets at {local:%H:%M} local ({local:%a}), in "
+            f"{(nxt - provider_now).total_seconds() / 3600:.1f} h · the budget margin "
+            f"({settings.budget_margin}) is held back from each cap"
+        )
+
+
+@app.command()
 def compare(
     before: Annotated[Path, typer.Argument(help="report.json of the earlier run")],
     after: Annotated[Path, typer.Argument(help="report.json of the later run")],
