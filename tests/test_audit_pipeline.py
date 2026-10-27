@@ -136,12 +136,86 @@ def test_role_collision_needs_two_people_in_one_household_role(tmp_path):
     add("Mrs. Hudson", "occupation", "landlady", "our landlady, Mrs. Hudson")
     add("Mrs. Hudson", "employed_by", "Sherlock Holmes", "q2")
     add("Mrs. Turner", "occupation", "landlady", "Mrs. Turner has brought in the tray")
-    assert role_collision(store) == []  # Turner has no household link yet
+    assert role_collision(store) == []  # Turner has no household link, Holmes not in scene
+    # Weak tie: the known household head has claims in the same chapter as Turner's role.
+    add("Sherlock Holmes", "habit", "pipe", "q3")
+    hits = role_collision(store)
+    assert len(hits) == 1 and "only that Sherlock Holmes is in the scene" in hits[0].reason
     add("Mrs. Turner", "employed_by", "Sherlock Holmes", "q4")
     hits = role_collision(store)
     assert len(hits) == 1 and hits[0].heuristic == "role_collision"
+    assert "only that" not in hits[0].reason
     assert {c.subject for c in hits[0].claims} == {"Mrs. Hudson", "Mrs. Turner"}
     # A different household's landlady is not a collision.
     add("Mrs. Warren", "occupation", "landlady", "q5")
     add("Mrs. Warren", "employed_by", "Mr. Warren", "q6")
     assert len(role_collision(store)) == 1
+
+
+def test_two_parents_are_not_a_contradiction(tmp_path):
+    from canonkeeper.audit.candidates import slot_mismatch
+    from canonkeeper.canon import CanonStore
+    from canonkeeper.models import Claim, ClaimKind, Provenance
+
+    store = CanonStore(tmp_path / "b.jsonl")
+    prov = Provenance(book="01", book_index=0, chapter="I", chapter_index=0, quote="q")
+    for i, parent in enumerate(["Grimesby Roylott", "Mrs. Stoner"]):
+        store.add(
+            Claim(
+                kind=ClaimKind.RELATION,
+                subject="Helen Stoner",
+                predicate="child_of",
+                object=parent,
+                provenance=prov.model_copy(update={"quote": f"q{i}"}),
+            )
+        )
+    assert slot_mismatch(store) == []
+    store.add(
+        Claim(
+            kind=ClaimKind.RELATION,
+            subject="Helen Stoner",
+            predicate="child_of",
+            object="Dr. Watson",
+            provenance=prov.model_copy(update={"quote": "q9"}),
+        )
+    )
+    assert len(slot_mismatch(store)) == 1
+
+
+def test_died_with_a_victim_is_killed_not_death(tmp_path):
+    from canonkeeper.audit.candidates import dead_speaks
+    from canonkeeper.canon import CanonStore
+    from canonkeeper.models import Claim, ClaimKind, ExtractionResult, Provenance
+
+    store = CanonStore(tmp_path / "b.jsonl")
+    prov = Provenance(book="01", book_index=0, chapter="I", chapter_index=0, quote="q")
+
+    def claim(subj, kind, pred, obj, q, chapter=0):
+        return Claim(
+            kind=kind,
+            subject=subj,
+            predicate=pred,
+            object=obj,
+            provenance=prov.model_copy(update={"quote": q, "chapter_index": chapter}),
+        )
+
+    store.ingest(
+        ExtractionResult(
+            claims=[
+                claim("Tonga", ClaimKind.ATTRIBUTE, "nationality", "Andaman", "q0"),
+                claim("Sherlock Holmes", ClaimKind.EVENT, "died", "Tonga", "q1", 5),
+                claim("Sherlock Holmes", ClaimKind.STATE, "location", "Baker Street", "q2", 7),
+            ],
+            aliases={},
+        )
+    )
+    # Known victim at ingest time: rewritten to `killed`.
+    preds = {(c.subject, c.predicate, c.object) for c in store.claims}
+    assert ("Sherlock Holmes", "killed", "Tonga") in preds
+    assert dead_speaks(store) == []
+    # Victim only learned later: the read-time guard still refuses to call it a death.
+    store.add(claim("John Watson", ClaimKind.EVENT, "died", "Moriarty", "q3", 5))
+    store.add(claim("John Watson", ClaimKind.STATE, "location", "Baker Street", "q4", 7))
+    assert [c.reason for c in dead_speaks(store)]  # unknown object: counts as death for now
+    store.add(claim("Moriarty", ClaimKind.ATTRIBUTE, "occupation", "professor", "q5"))
+    assert dead_speaks(store) == []

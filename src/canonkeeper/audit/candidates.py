@@ -36,6 +36,8 @@ SINGLE_VALUED = {
     "father",
     "child_of",
 }
+# Single-valued slots that legitimately hold more than one value (two parents).
+MAX_DISTINCT = {"child_of": 2}
 MULTI_VALUED_OK = {
     "alias",
     "nickname",
@@ -93,7 +95,7 @@ def slot_mismatch(store: CanonStore) -> list[Candidate]:
                     break
             else:
                 groups.append([c])
-        if len(groups) < 2:
+        if len(groups) <= MAX_DISTINCT.get(predicate, 1):
             continue
         reps = [g[0] for g in groups][:6]
         values = ", ".join(f"'{r.object}' ({r.provenance.locator})" for r in reps)
@@ -105,19 +107,27 @@ def slot_mismatch(store: CanonStore) -> list[Candidate]:
     return out
 
 
+def _is_death(c: Claim, store: CanonStore, entities: set[str]) -> bool:
+    """`dead=true`, or a `died` event whose object is not another character. Models sometimes
+    emit `X died Y` for "X shot Y"; the ingest normaliser rewrites those to `killed` when Y
+    is already known, and this guard catches the ones learned later."""
+    if c.predicate == "dead":
+        return _norm(c.object) in {"true", "yes", "dead"}
+    if c.kind == ClaimKind.EVENT and c.predicate == "died":
+        other = store.canonical(c.object).lower()
+        return not (other in entities and other != store.canonical(c.subject).lower())
+    return False
+
+
 def dead_speaks(store: CanonStore) -> list[Candidate]:
     out: list[Candidate] = []
+    entities = {e.lower() for e in store.entities()}
     for entity in store.entities():
         claims = sorted(
             store.for_entity(entity),
             key=lambda c: (c.provenance.book_index, c.provenance.chapter_index),
         )
-        deaths = [
-            c
-            for c in claims
-            if (c.predicate == "dead" and _norm(c.object) in {"true", "yes", "dead"})
-            or (c.kind == ClaimKind.EVENT and c.predicate == "died")
-        ]
+        deaths = [c for c in claims if _is_death(c, store, entities)]
         if not deaths:
             continue
         death = deaths[0]
@@ -255,9 +265,15 @@ _HOUSEHOLD_LINKS = {"employed_by", "servant_of", "landlady_of", "landlord_of", "
 
 def role_collision(store: CanonStore) -> list[Candidate]:
     """Two different people hold the same one-per-household role for the same household
-    (Mrs. Hudson and Mrs. Turner are both 'the landlady' at Baker Street). Needs an
-    `employed_by`/`servant_of`-style link to the household on both; without it, no claim."""
-    holders: dict[tuple[str, str], list[tuple[str, Claim, Claim]]] = {}
+    (Mrs. Hudson and Mrs. Turner are both 'the landlady' at Baker Street).
+
+    A holder is tied to a household by an `employed_by`/`servant_of`-style link. A holder
+    with *no* link gets a weak tie instead: any household head already known for that role
+    who has claims in the same chapter as the unlinked role claim. That is over-generation
+    on purpose (the adjudicator reads the scene); without it the classic Turner/Hudson slip
+    is invisible, because nobody writes "Mrs. Turner, Holmes's landlady"."""
+    role_claims: dict[str, list[tuple[str, Claim]]] = {}
+    links_of: dict[str, list[Claim]] = {}
     for entity in store.entities():
         claims = store.for_entity(entity)
         roles = [
@@ -265,30 +281,55 @@ def role_collision(store: CanonStore) -> list[Candidate]:
             for c in claims
             if c.predicate == "occupation" and _norm(c.object) in UNIQUE_HOUSEHOLD_ROLES
         ]
-        links = [c for c in claims if c.predicate in _HOUSEHOLD_LINKS]
-        if not roles or not links:
+        if not roles:
             continue
+        links_of[entity] = [c for c in claims if c.predicate in _HOUSEHOLD_LINKS]
         for r in roles:
-            for link in links:
-                key = (_norm(r.object), store.canonical(link.object).lower())
-                holders.setdefault(key, []).append((entity, r, link))
-    out: list[Candidate] = []
-    for (role, household), entries in holders.items():
-        people = {e for e, _, _ in entries}
-        if len(people) < 2:
-            continue
-        reps: dict[str, tuple[Claim, Claim]] = {}
-        for e, r, link in entries:
-            reps.setdefault(e, (r, link))
-        claims = [r for r, _ in reps.values()]
-        names = ", ".join(f"{e} ({r.provenance.locator})" for e, (r, _) in reps.items())
-        out.append(
-            Candidate(
-                claims=claims,
-                reason=f"the {role} of {household}'s household is {names}",
-                heuristic="role_collision",
-            )
+            role_claims.setdefault(_norm(r.object), []).append((entity, r))
+
+    # Who is a subject in which chapter — the evidence for a weak tie.
+    present: dict[tuple[int, int], set[str]] = {}
+    for c in store.claims:
+        present.setdefault((c.provenance.book_index, c.provenance.chapter_index), set()).add(
+            store.canonical(c.subject).lower()
         )
+
+    out: list[Candidate] = []
+    for role, entries in role_claims.items():
+        # Strong ties first: (household head) -> {entity: (role claim, link, strong?)}
+        heads: dict[str, dict[str, tuple[Claim, bool]]] = {}
+        display: dict[str, str] = {}
+        for entity, r in entries:
+            for link in links_of[entity]:
+                head = store.canonical(link.object).lower()
+                display.setdefault(head, store.canonical(link.object))
+                heads.setdefault(head, {}).setdefault(entity, (r, True))
+        if not heads:
+            continue
+        for entity, r in entries:
+            if links_of[entity]:
+                continue
+            scene = (r.provenance.book_index, r.provenance.chapter_index)
+            for head in heads:
+                if head in present.get(scene, set()):
+                    heads[head].setdefault(entity, (r, False))
+        for head, people in heads.items():
+            if len(people) < 2:
+                continue
+            weak = [e for e, (_, strong) in people.items() if not strong]
+            names = ", ".join(f"{e} ({r.provenance.locator})" for e, (r, _) in people.items())
+            reason = f"the {role} of {display[head]}'s household is {names}"
+            if weak:
+                reason += (
+                    f" (tie for {', '.join(weak)} is only that {display[head]} is in the scene)"
+                )
+            out.append(
+                Candidate(
+                    claims=[r for r, _ in people.values()],
+                    reason=reason,
+                    heuristic="role_collision",
+                )
+            )
     return out
 
 

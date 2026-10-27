@@ -84,6 +84,14 @@ class CanonStore:
         self._canon_cache[key] = result
         return result
 
+    def is_known(self, name: str) -> bool:
+        """True when `name` is an alias or a canonical entity we already hold (no fuzzy)."""
+        key = name.lower()
+        if key in self._alias_to_canon:
+            return True
+        self._reindex()
+        return key in self._by_entity
+
     # --- claims ----------------------------------------------------------------------------
     def add(self, claim: Claim, *, _rebuild: bool = True) -> bool:
         if claim.id in self._ids:
@@ -105,6 +113,13 @@ class CanonStore:
         added = 0
         for c in result.claims:
             predicate, value = normalize_claim(c.predicate, c.object)
+            if (
+                predicate == "died"
+                and self.is_known(value)
+                and (self.canonical(value).lower() != self.canonical(c.subject).lower())
+            ):
+                # "X died Y" with Y a character is the model's way of saying X killed Y.
+                predicate, value = "killed", self.canonical(value)
             c = c.model_copy(
                 update={
                     "subject": self.canonical(c.subject),
