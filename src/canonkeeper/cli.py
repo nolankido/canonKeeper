@@ -486,8 +486,36 @@ def _budget_preflight(settings: Settings, series: Series, llm: object) -> int:
                 f" → [yellow]will stop after ~{left} and resume on the next run "
                 f"(finished chunks are cached)[/yellow]"
             )
+    eta = _eta_minutes(settings, settings.extract_model, needed)
+    if eta is not None and needed:
+        line += f" · about {eta} min at today's pace"
     console.print(line + "[/dim]")
     return needed
+
+
+def _eta_minutes(settings: Settings, model: str, requests: int) -> int | None:
+    """How long `requests` will take: the median latency of this model's recent successful
+    requests (from the request log), times the requests kept in flight, capped by the
+    configured requests per minute. None when there is no history to go on."""
+    import statistics
+
+    log = settings.request_log
+    if not log.exists():
+        return None
+    lat: list[float] = []
+    for line in log.read_text(encoding="utf-8").splitlines()[-400:]:
+        try:
+            d = json.loads(line)
+        except ValueError:
+            continue
+        if d.get("model") == model and d.get("ok") and d.get("latency_s"):
+            lat.append(float(d["latency_s"]))
+    if len(lat) < 5:
+        return None
+    per_min = max(1, settings.extract_concurrency) * 60.0 / max(0.5, statistics.median(lat))
+    if settings.requests_per_minute > 0:
+        per_min = min(per_min, float(settings.requests_per_minute))
+    return max(1, round(requests / per_min))
 
 
 def _select_books(series: Series, books: str | None) -> Series:

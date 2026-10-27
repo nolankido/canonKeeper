@@ -200,3 +200,18 @@ def test_compare_shows_only_the_verdicts_that_moved(tmp_path):
     assert r.exit_code == 0, r.output
     assert f"before: {old}" in r.output and f"after: {flipped['verdict']}" in r.output
     assert r.output.count("before:") == 2  # the counts line and the one changed finding
+
+
+def test_build_estimates_time_from_todays_latency(tmp_path):
+    from canonkeeper.cli import _eta_minutes
+    from canonkeeper.config import Settings
+
+    s = Settings(provider="gemini", workdir=tmp_path, _env_file=None)
+    m = s.extract_model
+    assert _eta_minutes(s, m, 90) is None  # no history: no guess
+    lines = [json.dumps({"model": m, "ok": True, "latency_s": 12.0}) for _ in range(10)]
+    (tmp_path / "requests.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    one = s.model_copy(update={"extract_concurrency": 1, "requests_per_minute": 9})
+    three = s.model_copy(update={"extract_concurrency": 3, "requests_per_minute": 9})
+    assert _eta_minutes(one, m, 90) == 18  # 5/min: latency-bound
+    assert _eta_minutes(three, m, 90) == 10  # 9/min: the rate limit binds
