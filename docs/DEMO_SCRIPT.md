@@ -18,9 +18,9 @@ Paraphrase (do not screenshot) a reader complaint about a continuity slip.
 ## 0:15 — What it finds (Impact, Technological Implementation)
 Open the finished Holmes report (`docs/img/report.png` is the frame). Read the finding:
 
-> **John Watson · wound_location** — "struck on the shoulder by a Jezail bullet" (*A Study in
-> Scarlet*) · "sat nursing my wounded leg" (*The Sign of the Four*). Fix, to the later book:
-> "wounded leg" → "wounded arm".
+> **John Watson's wound: shoulder / left arm in A Study in Scarlet, leg in The Sign of the
+> Four** — "struck on the shoulder by a Jezail bullet" · "I had a Jezail bullet through it some
+> time before". Fix, to the later book: "wounded leg" → "wounded arm".
 
 Say: "Six novels, nearly four thousand sourced facts, and it reports the two errors readers have
 argued about for a century — Watson's wandering wound, and the landlady who is Mrs. Hudson in
@@ -36,8 +36,9 @@ Browser, `canonkeeper serve` against the PayPal **sandbox**. Upload the three Sa
 Quote page: price with the arithmetic shown — "$5 + $4 per 100k tokens; the token count is
 known the moment the files land, so the price is known before anything runs."
 Click **Pay with PayPal** → sandbox checkout → approve as the sandbox buyer → land on the job
-page. Say over it: "Orders v2: create with PAY_NOW, the buyer approves, we capture on return.
-No model is called until the capture succeeds." Job page ticks to *done*; open the report:
+page. Say over it: "Orders v2: create with PAY_NOW, the buyer approves, we capture on return,
+and the capture has to be complete and for exactly the quoted amount before any model is
+called. If an audit ever fails, one button refunds it through PayPal." Job page ticks to *done*; open the report:
 five planted contradictions, each with its two quotes.
 
 ## 1:35 — The same thing through an assistant (Agentic Commerce)
@@ -88,3 +89,27 @@ python scripts/mcp_flow_demo.py --brief --auto-approve --provider mock build/dem
 python scripts/video/record.py --out build/video --mcp build/mcp.txt --draft build/demo/draft-04-the-ledger.txt
 python scripts/video/assemble.py build/video
 ```
+
+## Recording the real sandbox checkout (about 10 minutes, Windows)
+
+The generated cut simulates the checkout; the video should show the real PayPal sandbox. Do
+this once, on the laptop, in the repo folder:
+
+1. **Prove the money path first.** `.venv\Scripts\canonkeeper doctor --round-trip`. It prints
+   a sandbox approval link: open it, log in as the sandbox **personal (buyer)** account (from
+   developer.paypal.com → Testing Tools → Sandbox Accounts → the `personal` account → View/edit
+   account, which shows its email and password), approve. The terminal then shows capture →
+   verify → refund. If any step is red, stop and send me the output.
+2. **Warm the run.** `.venv\Scripts\canonkeeper serve` (sandbox credentials come from `.env`),
+   open http://127.0.0.1:8787, press *Try the demo series*, pay with the sandbox buyer, wait for
+   *done*. This fills the cache so the recorded run finishes in seconds. Leave the browser
+   logged in to the sandbox buyer.
+3. **Record.** Press `Win + Alt + R` (Xbox Game Bar starts recording the active window; the
+   same keys stop it). Go to http://127.0.0.1:8787 → *Try the demo series* → *Pay with
+   PayPal* → approve on the sandbox page → wait on the job page until *done* → *Open the
+   report* → scroll to the first card. Stop recording. Aim for 30–40 seconds.
+4. **Hand it back.** The clip lands in `Videos\Captures`. Copy it to
+   `build\video\checkout.mp4` in the repo and tell me; I will cut it into the draft in place
+   of the simulated checkout and keep the total under three minutes.
+5. **Devpost testing notes.** If judges should try the hosted sandbox checkout, put the sandbox
+   buyer's email and password in Devpost's private testing instructions, never in the repo.
