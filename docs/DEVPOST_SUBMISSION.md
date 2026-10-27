@@ -58,7 +58,7 @@ injects contradictions into public-domain novels and scores precision/recall.
   the canon's two best-known slips unassisted: Watson's war wound — "struck on the shoulder by
   a Jezail bullet" (*A Study in Scarlet*) vs "sat nursing my wounded leg" (*The Sign of the
   Four*) — and the landlady who is Mrs. Hudson in one story and Mrs. Turner in *A Scandal in
-  Bohemia*. Fixes aimed at the later book. Free tier; about $1.60 at list price.
+  Bohemia*. Fixes aimed at the later book. Free tier; about $1.55 at list price ($1.40 to read the books, $0.15 to judge).
 - Cleared 18 candidates, each by quoting the passage that clears it — e.g. Holmes "dying" at
   the Reichenbach Falls and then acting in *The Hound* ("aided by the diary which I kept at the
   time": it is set earlier). Two of its four contradictions were wrong (a disguise; a maiden
