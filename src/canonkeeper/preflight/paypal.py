@@ -14,7 +14,7 @@ import json
 import secrets
 import threading
 import time
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -241,6 +241,32 @@ class PayPalClient:
         except (httpx.HTTPError, ValueError):
             return False
         return str(r.json().get("verification_status", "")) == "SUCCESS"
+
+    def ensure_webhook(self, url: str, events: Sequence[str]) -> str:
+        """The id of this app's webhook for `url`, created if it does not exist and given any
+        of `events` it lacks: the deployment registers itself, no dashboard step."""
+        r = self._http.get("/v1/notifications/webhooks", headers=self._headers())
+        r.raise_for_status()
+        wanted = [{"name": e} for e in events]
+        for hook in r.json().get("webhooks", []):
+            if str(hook.get("url", "")).rstrip("/") != url.rstrip("/"):
+                continue
+            have = {str(e.get("name")) for e in hook.get("event_types", [])}
+            if not set(events) <= have and "*" not in have:
+                p = self._http.patch(
+                    f"/v1/notifications/webhooks/{hook['id']}",
+                    json=[{"op": "replace", "path": "/event_types", "value": wanted}],
+                    headers=self._headers(),
+                )
+                p.raise_for_status()
+            return str(hook["id"])
+        c = self._http.post(
+            "/v1/notifications/webhooks",
+            json={"url": url, "event_types": wanted},
+            headers=self._headers(),
+        )
+        c.raise_for_status()
+        return str(c.json()["id"])
 
     def get_order(self, order_id: str) -> Order:
         r = self._http.get(f"/v2/checkout/orders/{order_id}", headers=self._headers())

@@ -17,6 +17,7 @@ import contextlib
 import json
 import os
 import re
+import threading
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -167,6 +168,37 @@ def status_label(status: str) -> str:
     return STATUS_LABELS.get(status, status)
 
 
+WEBHOOK_EVENTS = ("CHECKOUT.ORDER.APPROVED", "PAYMENT.CAPTURE.COMPLETED")
+
+
+class WebhookId:
+    """The PayPal webhook id this deployment verifies notices against: PAYPAL_WEBHOOK_ID if
+    set, otherwise found or created through PayPal's API at startup for <public url>/paypal/
+    webhook. PayPal only delivers to a public https address, so a local run skips it."""
+
+    def __init__(self, configured: str) -> None:
+        self.value = configured.strip()
+        self.note = "PAYPAL_WEBHOOK_ID" if not self.value else "configured"
+
+    def register_in_background(self, pp: PayPal, base: str) -> None:
+        if self.value or pp.mode == "fake" or not hasattr(pp, "ensure_webhook"):
+            return
+        host = urlparse(base).hostname or ""
+        if not base.startswith("https://") or host in ("localhost", "127.0.0.1", "::1"):
+            self.note = "webhooks need a public https address"
+            return
+        self.note = "registering with PayPal"
+
+        def register() -> None:
+            try:
+                self.value = pp.ensure_webhook(f"{base}/paypal/webhook", WEBHOOK_EVENTS)
+                self.note = "registered"
+            except Exception as e:  # PayPal down, or the app lacks webhook permission
+                self.note = f"PayPal did not register the webhook ({type(e).__name__})"
+
+        threading.Thread(target=register, name="paypal-webhook", daemon=True).start()
+
+
 def create_app(
     *,
     settings: Settings | None = None,
@@ -198,6 +230,8 @@ def create_app(
     runner.resume_interrupted()
     runner.watch(on_held=lambda job: settle(job, pp, store, runner))  # see Runner.watch
     pp = paypal or make_paypal(state_dir=settings.workdir / "preflight")
+    webhook = WebhookId(os.environ.get("PAYPAL_WEBHOOK_ID", ""))
+    webhook.register_in_background(pp, base)
 
     # The same service over MCP (streamable HTTP at /mcp), on this app's own jobs and PayPal:
     # an author's assistant connects to the public URL as a customer and holds no keys.
@@ -258,6 +292,7 @@ def create_app(
             "paypal": pp.mode,
             "provider": settings.provider,
             "model": "ready" if settings.can_run_models else "no key",
+            "webhook": "ready" if webhook.value or pp.mode == "fake" else webhook.note,
         }
 
     def mine(request: Request) -> list[str]:
@@ -483,9 +518,9 @@ def create_app(
         prompt to ask PayPal: `settle` reads the order from PayPal and pays the job only on a
         completed capture of the quoted amount, so even a forged notice could not mark a job
         paid. Notices are still verified with PayPal first (PAYPAL_WEBHOOK_ID)."""
-        webhook_id = os.environ.get("PAYPAL_WEBHOOK_ID", "")
+        webhook_id = webhook.value
         if pp.mode != "fake" and not webhook_id:
-            raise HTTPException(503, "webhooks are not configured (PAYPAL_WEBHOOK_ID)")
+            raise HTTPException(503, f"webhooks are not configured ({webhook.note})")
         body = await request.body()
         ok = await run_in_threadpool(pp.verify_webhook, dict(request.headers), body, webhook_id)
         if not ok:
