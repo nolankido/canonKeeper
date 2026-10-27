@@ -92,6 +92,13 @@ Check your next manuscript against the bible without touching it. The repo ships
 canonkeeper check evals/corpora/sherlock-holmes/series.json evals/demo/holmes-book-07-draft.md
 ```
 
+On the free tier (2026-10-27) it caught **Holmes's height** ("barely five feet and a half"
+against "rather over six feet") and missed the other two slips: Mary Morstan's brown eyes were
+never extracted from a relative clause ("the brown eyes that had first drawn me to her"), and a
+living Jefferson Hope ("He is still in Pentonville") was extracted as an *attribute*, which the
+dead-character screen ignored — fixed since. The white hair raised no false alarm: the extractor
+recorded the hair under the wig. Only conflicts that involve the draft are judged.
+
 `--provider mock` works on any command and is what the test suite and `demo` use.
 `--provider openweights` points the same pipeline at Ollama, LM Studio, or any OpenAI-compatible
 host — the right choice for manuscripts that must not leave your machine.
