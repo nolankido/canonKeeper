@@ -172,6 +172,18 @@ def create_app(
             quote=quote(job.tokens, words=job.words, books=len(job.books)),
         )
 
+    @app.post("/jobs/{job_id}/delete")
+    def delete(job_id: str, confirm: str = Form("")) -> RedirectResponse:
+        if confirm != "yes":
+            raise HTTPException(400, "tick the box to confirm")
+        try:
+            store.purge(job_id)
+        except KeyError:
+            raise HTTPException(404) from None
+        except ValueError as e:
+            raise HTTPException(409, str(e)) from None
+        return RedirectResponse(f"/jobs/{job_id}", status_code=303)
+
     @app.post("/jobs/{job_id}/retry")
     def retry(job_id: str) -> RedirectResponse:
         job = store.get(job_id)

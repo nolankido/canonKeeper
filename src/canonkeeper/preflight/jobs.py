@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import secrets
+import shutil
 import threading
 import traceback
 from dataclasses import asdict, dataclass, field
@@ -23,7 +24,8 @@ from canonkeeper.corpus.loaders import Book, Series
 from canonkeeper.preflight.pricing import Quote, quote
 from canonkeeper.tokens import count_tokens
 
-Status = Literal["quoted", "ordered", "paid", "running", "done", "failed", "cancelled"]
+Status = Literal["quoted", "ordered", "paid", "running", "done", "failed", "cancelled", "deleted"]
+DELETABLE: frozenset[str] = frozenset({"quoted", "cancelled", "done", "failed"})
 
 
 @dataclass
@@ -76,6 +78,33 @@ class JobStore:
         if not p.exists():
             return None
         return Job(**json.loads(p.read_text(encoding="utf-8")))
+
+    def purge(self, job_id: str) -> Job:
+        """Delete everything the customer uploaded or that was derived from it — manuscripts,
+        bible, reports, the model-response cache — keeping only job.json as a receipt (id,
+        price, order id, timestamps). Not allowed while a payment or a run is in flight."""
+        job = self.get(job_id)
+        if job is None:
+            raise KeyError(job_id)
+        if job.status == "deleted":
+            return job
+        if job.status not in DELETABLE:
+            raise ValueError(f"cannot delete while the job is {job.status}")
+        d = self.dir(job_id)
+        with self._lock:
+            for child in d.iterdir():
+                if child.name == "job.json":
+                    continue
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+        job.status = "deleted"
+        job.series_name = "(deleted)"
+        job.books = []
+        job.error = None
+        self.save(job)
+        return job
 
     def by_order(self, order_id: str) -> Job | None:
         for p in self.root.glob("*/job.json"):

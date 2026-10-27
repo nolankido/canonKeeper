@@ -139,6 +139,17 @@ class PreflightService:
             out["bible_url"] = f"{self.base}/jobs/{job.id}/bible"
         return out
 
+    def delete_job(self, job_id: str) -> dict[str, Any]:
+        try:
+            job = self.store.purge(job_id)
+        except KeyError:
+            raise ValueError("unknown job") from None
+        return {
+            "job_id": job.id,
+            "status": job.status,
+            "receipt": {"order_id": job.order_id, "amount": job.quote_usd},
+        }
+
     def get_findings(self, job_id: str, *, include_cleared: bool = False) -> dict[str, Any]:
         job = self.store.get(job_id)
         if job is None:
@@ -233,6 +244,15 @@ def build_server(service: PreflightService):  # noqa: ANN201 - MCPServer type va
     )
     def get_findings(job_id: str, include_cleared: bool = False) -> dict[str, Any]:
         return service.get_findings(job_id, include_cleared=include_cleared)
+
+    @server.tool(
+        description=(
+            "Delete the job's manuscripts, bible, reports and cached model responses, keeping "
+            "only a receipt. Only when the person asks for it; it cannot be undone."
+        )
+    )
+    def delete_job(job_id: str) -> dict[str, Any]:
+        return service.delete_job(job_id)
 
     @server.tool(description="List jobs with status and price.")
     def list_jobs() -> list[dict[str, Any]]:

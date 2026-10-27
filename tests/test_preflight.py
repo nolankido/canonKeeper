@@ -105,6 +105,18 @@ def test_full_flow_with_fake_paypal(client):
     r = client.get(f"/return?token={job.order_id}")
     assert r.status_code == 303
 
+    # The customer deletes their files: everything goes but the receipt.
+    assert "Delete my files" in page.text
+    assert client.post(f"/jobs/{job_id}/delete").status_code == 400  # box not ticked
+    r = client.post(f"/jobs/{job_id}/delete", data={"confirm": "yes"})
+    assert r.status_code == 303
+    assert [p.name for p in store.dir(job_id).iterdir()] == ["job.json"]
+    job = store.get(job_id)
+    assert job.status == "deleted" and job.books == [] and job.order_id
+    assert "Ivy Marlowe" not in store._path(job_id).read_text()
+    assert client.get(f"/jobs/{job_id}/report").status_code == 404
+    assert "have been deleted" in client.get(f"/jobs/{job_id}").text
+
 
 def test_cancel_and_reorder(client):
     r = _upload(client)
@@ -115,6 +127,8 @@ def test_cancel_and_reorder(client):
     assert client.app.state.store.get(job_id).status == "cancelled"
     r = client.post(f"/jobs/{job_id}/order")  # allowed again
     assert r.status_code == 303
+    # Not while a payment is in flight: the return would capture and run on missing files.
+    assert client.post(f"/jobs/{job_id}/delete", data={"confirm": "yes"}).status_code == 409
 
 
 def test_upload_requires_files(client):

@@ -25,10 +25,20 @@
   </div>
   <a class="btn" href="/jobs/{{ job.id }}/report">Open the report</a>
   <a class="btn secondary" href="/jobs/{{ job.id }}/bible">Browse the bible</a>
+{% elif job.status == 'deleted' %}
+  <p>Your manuscripts, the series bible, the reports and every cached model response for this job have been deleted from this server. Only a receipt remains: order <code>{{ job.order_id or '—' }}</code>, ${{ job.quote_usd }}.</p>
 {% elif job.status == 'failed' %}
   <p>The audit failed: <code>{{ job.error }}</code></p>
   <p class="note">You were charged; the run can be retried at no extra cost (responses are cached, so a retry resumes where it stopped).</p>
   <form action="/jobs/{{ job.id }}/retry" method="post"><button type="submit">Retry</button></form>
 {% endif %}
 </div>
+
+{% if job.status in ('quoted', 'cancelled', 'done', 'failed') %}
+<form class="card" action="/jobs/{{ job.id }}/delete" method="post">
+  <p class="note">Delete your files: the manuscripts, the bible, the reports and the cached model responses. Download the report first if you want to keep it. This cannot be undone.</p>
+  <label><input type="checkbox" name="confirm" value="yes" required> Delete everything for this job</label>
+  <button type="submit" class="secondary">Delete my files</button>
+</form>
+{% endif %}
 {% endblock %}
