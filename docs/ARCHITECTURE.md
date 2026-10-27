@@ -49,8 +49,11 @@ chapter, so a title page never becomes canon.
 Per chapter (split at ~3.5k tokens on paragraph boundaries; two passes, a general one and a narrow sweep for descriptive facts). The prompt pins a predicate
 vocabulary so the same fact lands in the same slot across books, and asks for normalised values.
 A Flash-class model is used because extraction is wide and shallow: hundreds of calls, each
-needing care but not deep reasoning. On the Gemini free tier that is $0 and about half an hour
-at the paced rate; at list price a six-novel series is under a dollar.
+needing care but not deep reasoning. On the Gemini free tier that is $0; at list price a
+six-novel series is under a dollar. Time is set by the free tier's pace: the six Holmes volumes
+are 444 requests, and at ~12 s per reply one at a time managed about 5 a minute (~90 minutes).
+Three requests are kept in flight, so the limiter's 9/minute is the bound (~50 minutes);
+results are merged in order, so the bible does not depend on which reply came back first.
 
 Alias resolution happens at ingest: the extractor returns `{"Sherlock Holmes": ["Holmes", ...]}`
 per chunk, the store merges them, and subjects are canonicalised (exact alias table, then fuzzy
