@@ -2,7 +2,7 @@
 {% block title %}Upload your series{% endblock %}
 {% block body %}
 <h1>Upload your series</h1>
-<p class="lede">Your AI assistant asked Preflight for this page so that you can upload the books yourself. You will see the price before anything runs; your assistant then asks you to approve the payment on PayPal. It can never approve a payment for you.</p>
+<p class="lede">Your AI assistant asked Preflight for this page so that you can upload the books yourself. You will see the price before anything runs. Your assistant then pays from a Preflight budget you funded through PayPal, or asks you to approve the payment on PayPal; it can never approve a payment for you.</p>
 
 {% if job %}
 <div class="card" data-testid="upload-used">
@@ -26,6 +26,10 @@
   <input id="files" name="files" type="file" multiple accept=".txt,.md,text/plain,text/markdown" required>
   <button type="submit">Upload and see the price</button>
   <p class="note">This link works once and expires 24 hours after your assistant asked for it.</p>
+</form>
+<form class="card" action="/upload/{{ token }}/demo" method="post" data-testid="upload-demo">
+  <p style="margin:0">No series to hand? <button type="submit" class="secondary">Use the demo series instead</button></p>
+  <p class="note">The Saltmarsh Chronicles: three invented books with five planted continuity errors.</p>
 </form>
 {% endif %}
 {% endblock %}

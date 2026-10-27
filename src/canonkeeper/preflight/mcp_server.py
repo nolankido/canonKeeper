@@ -48,6 +48,7 @@ from canonkeeper.preflight.payments import (
     open_budget,
     place_order,
     refund,
+    release_unapproved_order,
     settle,
     settle_budget,
     spend_budget,
@@ -56,6 +57,25 @@ from canonkeeper.preflight.paypal import FakePayPal, PayPal
 from canonkeeper.preflight.pricing import CURRENCY
 from canonkeeper.preflight.uploads import UploadLinks
 from canonkeeper.report.display import headline
+
+PAY_NEXT = (
+    "pay it: pay_with_budget(job_id, budget_key) if the person has given you a Preflight "
+    "budget; otherwise order_audit(job_id), and the PERSON approves the PayPal payment. "
+    "Nothing runs until it is paid."
+)
+
+
+def _status_next(status: str) -> str:
+    return {
+        "ordered": "waiting for the person to approve the PayPal payment; then "
+        "confirm_payment(job_id). Or pay_with_budget(job_id, budget_key) instead.",
+        "cancelled": "the checkout was cancelled; pay_with_budget or order_audit again.",
+        "held": "PayPal holds the payment until it clears; ask audit_status again later.",
+        "paid": "queued; poll audit_status(job_id).",
+        "running": "running; poll audit_status(job_id) (progress_done of progress_total).",
+        "done": "get_findings(job_id); report_url is the full report.",
+        "failed": "retry from the job page, or refund_failed_audit(job_id).",
+    }.get(status, "")
 
 
 class PreflightService:
@@ -97,7 +117,7 @@ class PreflightService:
 
     # -- agent budgets ------------------------------------------------------------------------
 
-    def open_budget(self, amount_usd: str) -> dict[str, Any]:
+    def open_budget(self, amount_usd: str | float) -> dict[str, Any]:
         try:
             amount = Decimal(str(amount_usd))
         except InvalidOperation:
@@ -139,6 +159,7 @@ class PreflightService:
         job = self.store.get(job_id)
         if job is None:
             raise ValueError("unknown job")
+        released = release_unapproved_order(job, self.paypal, self.store)
         try:
             problem = spend_budget(budget_key, job, self.store, self.budgets, self.runner)
         except QuotaShort as short:
@@ -151,6 +172,14 @@ class PreflightService:
             "paid": True,
             "amount": f"{job.quote_usd} {CURRENCY}",
             "budget_left": f"{budget.balance:.2f}" if budget else None,
+            **(
+                {
+                    "replaced_order": "the PayPal order the person had not approved is void; "
+                    "approving it now charges nothing"
+                }
+                if released
+                else {}
+            ),
             "next": "poll audit_status(job_id), then get_findings(job_id)",
         }
 
@@ -202,7 +231,7 @@ class PreflightService:
             "series": job.series_name,
             "books": job.books,
             "price": {"amount": job.quote_usd, "currency": CURRENCY},
-            "next": "order_audit(job_id) to create the PayPal order; the person approves it",
+            "next": PAY_NEXT if job.status == "quoted" else _status_next(job.status),
         }
 
     def quote_series(self, series_name: str, books: list[dict[str, str]]) -> dict[str, Any]:
@@ -211,7 +240,20 @@ class PreflightService:
             raise ValueError("this service has no model key configured; it cannot run audits")
         if not books:
             raise ValueError("at least one book is required")
-        files = [(str(b["name"]), str(b["text"]).encode("utf-8")) for b in books]
+        files = []
+        for i, b in enumerate(books, 1):
+            name = (
+                (b.get("name") or b.get("title") or b.get("filename"))
+                if isinstance(b, dict)
+                else None
+            )
+            if not name or "text" not in b:
+                raise ValueError(
+                    f'book {i} needs "name" (a file name such as "01-first.txt"; books are '
+                    'read in name order) and "text" (the whole book), e.g. '
+                    '{"name": "01-first.txt", "text": "..."}'
+                )
+            files.append((str(name), str(b["text"]).encode("utf-8")))
         job, q = self.store.create_from_upload(series_name, files)
         return {
             "job_id": job.id,
@@ -220,8 +262,28 @@ class PreflightService:
             "tokens": job.tokens,
             "words": job.words,
             "price": {"amount": q.total_str, "currency": CURRENCY, "explanation": q.explanation},
-            "next": "order_audit(job_id) to create a PayPal order; nothing runs until it is paid",
+            "next": PAY_NEXT,
         }
+
+    def quote_demo_series(self) -> dict[str, Any]:
+        """The invented three-book Saltmarsh Chronicles (five planted continuity errors), so the
+        whole flow can be tried without a series of one's own."""
+        from canonkeeper.demo import BOOK1, BOOK2, BOOK3, SERIES_NAME
+
+        return self.quote_series(
+            SERIES_NAME,
+            [
+                {"name": "01-the-harbour.txt", "text": BOOK1},
+                {"name": "02-the-wreck.txt", "text": BOOK2},
+                {"name": "03-the-return.txt", "text": BOOK3},
+            ],
+        )
+
+    def demo_draft(self) -> dict[str, Any]:
+        """The demo series' next book, a draft with planted slips, for check_draft."""
+        from canonkeeper.demo import DRAFT4
+
+        return {"name": "04-the-ledger.txt", "text": DRAFT4}
 
     def order_audit(self, job_id: str) -> dict[str, Any]:
         job = self.store.get(job_id)
@@ -258,7 +320,14 @@ class PreflightService:
                 "approve_url": job.approve_url,
             }
         if problem and job.status not in OPEN:
-            raise ValueError(f"job is {job.status}; call order_audit first")
+            raise ValueError(
+                f"job is {job.status}: there is no PayPal order to confirm. "
+                + (
+                    "Pay with pay_with_budget(job_id, budget_key), or order_audit(job_id) first."
+                    if job.status == "quoted"
+                    else ""
+                )
+            )
         if problem:  # e.g. "held": captured, PayPal still clearing it; ask again later
             return {"job_id": job.id, "status": job.status, "paid": False, "detail": problem}
         if job.status != "paid":  # captured earlier, maybe by the web app's /return
@@ -274,9 +343,16 @@ class PreflightService:
         job = self.store.get(job_id)
         if job is None:
             raise ValueError("unknown job")
-        out = {
-            k: v for k, v in asdict(job).items() if k != "approve_url" or job.status == "ordered"
-        }
+        shown = ("id", "kind", "series_name", "books", "draft", "parent_id", "status", "quote_usd",
+                 "tokens", "words", "created_at", "paid_at", "stage", "progress_done",
+                 "progress_total", "claims", "contradictions", "error", "order_id", "budget_id",
+                 "refund_id")  # fmt: skip
+        data = asdict(job)
+        out = {k: data[k] for k in shown if k in data}
+        out["job_id"] = job.id
+        if job.status == "ordered":
+            out["approve_url"] = job.approve_url
+        out["next"] = PAY_NEXT if job.status == "quoted" else _status_next(job.status)
         if job.status == "done":
             out["report_url"] = f"{self.base}/jobs/{job.id}/report"
             out["bible_url"] = f"{self.base}/jobs/{job.id}/bible"
@@ -297,7 +373,7 @@ class PreflightService:
             "draft": job.draft,
             "tokens": job.tokens,
             "price": {"amount": q.total_str, "currency": CURRENCY, "explanation": q.explanation},
-            "next": "order_audit(job_id) to create a PayPal order; nothing runs until it is paid",
+            "next": PAY_NEXT,
         }
 
     def refund_failed_audit(self, job_id: str) -> dict[str, Any]:
@@ -329,8 +405,14 @@ class PreflightService:
         if job is None:
             raise ValueError("unknown job")
         p = self.store.dir(job_id) / "reports" / "report.json"
-        if not p.exists():
-            return {"job_id": job_id, "status": job.status, "findings": []}
+        if job.status != "done" or not p.exists():
+            return {
+                "job_id": job_id,
+                "status": job.status,
+                "finished": False,
+                "findings": None,
+                "note": f"no findings yet: the job is {job.status}. " + _status_next(job.status),
+            }
         report = json.loads(p.read_text(encoding="utf-8"))
         rows = []
         for index, f in enumerate(report["findings"]):
@@ -384,49 +466,80 @@ class PreflightService:
 def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: ANN201 - MCPServer type varies by SDK version
     """`hosted`: served over HTTP by the public web service. Then nothing lists other people's
     jobs; every job is reached only by its unguessable id, as on the website."""
-    from mcp.server.mcpserver import MCPServer
+    import functools
 
+    from mcp.server.mcpserver import MCPServer
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    training = (
+        " This instance runs on a free model tier that may use submitted text for training: "
+        "send only public-domain text or the demo series, unless the person says otherwise."
+        if service.settings.trains_on_prompts
+        else ""
+    )
     server = MCPServer(
         name="preflight",
         instructions=(
-            "Preflight audits a fiction series for continuity errors and charges per audit via "
-            "PayPal. Get the books in either way: request_upload_link → give the person the "
-            "upload_url → upload_status(token) for the job and price; or quote_series with the "
-            "texts for a short series. Then order_audit → the PERSON approves the payment at "
-            "the approve_url (never approve on their behalf) → confirm_payment → poll "
-            "audit_status → get_findings. Nothing is sent to a model before payment is captured."
+            "Preflight audits a fiction series for continuity errors (every contradiction with "
+            "both passages and a fix to the later book) and is paid per audit through PayPal. "
+            "1. Books: request_upload_link (the person uploads; then upload_status(token)), or "
+            "quote_series with the texts, or quote_demo_series to try it on an invented series. "
+            "2. Pay, one of two ways. A budget (best when you will buy more than once): "
+            "open_budget → the PERSON approves its PayPal payment at approve_url → "
+            "confirm_budget → pay_with_budget(job_id, budget_key) for each audit or draft check, "
+            "never past the balance; close_budget refunds the rest. Or per job: order_audit → "
+            "the PERSON approves at approve_url → confirm_payment. Never approve a payment on "
+            "the person's behalf. 3. Poll audit_status, then get_findings. 4. For the next "
+            "book: check_draft(job_id, name, text), then pay as above. Nothing is sent to a "
+            "model before payment is captured." + training
         ),
     )
 
-    @server.tool(
+    def tool(**kw: Any):  # noqa: ANN202
+        """Register a tool whose expected failures reach the assistant with their reason (the
+        SDK shows only "Error executing tool" for any other exception)."""
+
+        def register(fn):  # noqa: ANN001, ANN202
+            @functools.wraps(fn)
+            def explained(*a: Any, **k: Any) -> Any:
+                try:
+                    return fn(*a, **k)
+                except (ValueError, KeyError, LookupError) as e:
+                    raise ToolError(str(e.args[0]) if e.args else type(e).__name__) from e
+
+            return server.tool(**kw)(explained)
+
+        return register
+
+    @tool(
         description="Get a link where the person uploads their books (one file per book) and "
         "sees the price. Use this for a whole series; then call upload_status(token)."
     )
     def request_upload_link(series_name: str | None = None) -> dict[str, Any]:
         return service.request_upload_link(series_name)
 
-    @server.tool(
+    @tool(
         description="Whether the person has uploaded the books yet; the job id and price once they have."
     )
     def upload_status(token: str) -> dict[str, Any]:
         return service.upload_status(token)
 
-    @server.tool(
+    @tool(
         description="Ask the person to fund a budget (5 to 200 USD) you may spend on audits and "
         "draft checks without asking each time. Returns a PayPal approval URL for the PERSON, "
         "their budget page, and a private budget_key for you."
     )
-    def open_budget(amount_usd: str) -> dict[str, Any]:
+    def open_budget(amount_usd: str | float) -> dict[str, Any]:
         return service.open_budget(amount_usd)
 
-    @server.tool(
+    @tool(
         description="After the person approved the budget's payment: capture it and make the "
         "budget spendable."
     )
     def confirm_budget(budget_id: str) -> dict[str, Any]:
         return service.confirm_budget(budget_id)
 
-    @server.tool(
+    @tool(
         description="When the person says a reported contradiction is wrong: note it on the "
         "report and give part of the price back (0.50 each, at most half the price). "
         "finding_index is the finding's `index` from get_findings."
@@ -434,7 +547,7 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
     def mark_finding_wrong(job_id: str, finding_index: int, note: str = "") -> dict[str, Any]:
         return service.mark_finding_wrong(job_id, finding_index, note)
 
-    @server.tool(
+    @tool(
         description="Record the author's ruling on an item the audit left to them ('needs your "
         "judgement': get_findings with include_cleared, verdict 'ambiguous'). ruling: 'error' (a "
         "real slip to fix) or 'fine' (not a problem). Free; shown on the report; can be changed. "
@@ -445,64 +558,85 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
     ) -> dict[str, Any]:
         return service.rule_on_finding(job_id, finding_index, ruling, note)
 
-    @server.tool(description="A budget's balance and every spend, credit and refund.")
+    @tool(description="A budget's balance and every spend, credit and refund.")
     def budget_status(budget_key: str) -> dict[str, Any]:
         return service.budget_status(budget_key)
 
-    @server.tool(
-        description="Pay a quoted job from the budget and start it. Refused if the balance does "
-        "not cover the quote, or if the job has a PayPal order of its own."
+    @tool(
+        description="Pay a quoted job (an audit or a draft check) from the budget and start it. "
+        "Refused if the balance does not cover the price. A PayPal order the person has not "
+        "approved yet is voided and replaced by the budget payment; an approved one is not."
     )
     def pay_with_budget(job_id: str, budget_key: str) -> dict[str, Any]:
         return service.pay_with_budget(job_id, budget_key)
 
-    @server.tool(
+    @tool(
         description="Close the budget: no more spending; the unused balance is refunded to the "
         "person's PayPal."
     )
     def close_budget(budget_key: str) -> dict[str, Any]:
         return service.close_budget(budget_key)
 
-    @server.tool(
-        description="Price an audit from the book texts. Returns a job id and the quote with its arithmetic."
+    @tool(
+        description="Quote an audit of the Saltmarsh Chronicles, an invented three-book demo "
+        "series with five planted continuity errors, to try the whole flow (pay, findings, "
+        "draft check) without a series of the person's own."
+    )
+    def quote_demo_series() -> dict[str, Any]:
+        return service.quote_demo_series()
+
+    @tool(
+        description="The demo series' next book, a draft with planted slips: pass its name and "
+        "text to check_draft with the finished demo audit's job_id."
+    )
+    def get_demo_draft() -> dict[str, Any]:
+        return service.demo_draft()
+
+    @tool(
+        description='Price an audit from the book texts. books: a list of {"name": "01-first.txt", '
+        '"text": "<the whole book>"} read in name order. Returns a job id and the price with '
+        "its arithmetic. For a whole series the person has as files, request_upload_link is "
+        "easier." + training
     )
     def quote_series(series_name: str, books: list[dict[str, str]]) -> dict[str, Any]:
         return service.quote_series(series_name, books)
 
-    @server.tool(
+    @tool(
         description="Create the PayPal order for a quoted job. Returns the approval URL the person must open."
     )
     def order_audit(job_id: str) -> dict[str, Any]:
         return service.order_audit(job_id)
 
-    @server.tool(
+    @tool(
         description="After the person approved on PayPal, capture the payment and start the audit."
     )
     def confirm_payment(job_id: str) -> dict[str, Any]:
         return service.confirm_payment(job_id)
 
-    @server.tool(
+    @tool(
         description="Current status of a job (quoted/ordered/paid/running/done/failed) and report links when done."
     )
     def audit_status(job_id: str) -> dict[str, Any]:
         return service.audit_status(job_id)
 
-    @server.tool(
+    @tool(
         description="The audit's findings as data: each contradiction with its quotes, explanation and suggested fix."
     )
     def get_findings(job_id: str, include_cleared: bool = False) -> dict[str, Any]:
         return service.get_findings(job_id, include_cleared=include_cleared)
 
-    @server.tool(
+    @tool(
         description=(
-            "Quote a check of the author's next draft against a finished series audit: only the "
-            "places where the draft disagrees with the published books. Pay with order_audit."
+            "Quote a check of the author's next draft against a finished series audit (job_id): "
+            "only the places where the draft disagrees with the published books, each with a fix "
+            "to the draft. Pay with pay_with_budget, or order_audit and the person approves."
         )
+        + training
     )
     def check_draft(job_id: str, name: str, text: str) -> dict[str, Any]:
         return service.check_draft(job_id, name, text)
 
-    @server.tool(
+    @tool(
         description=(
             "Delete the job's manuscripts, bible, reports and cached model responses, keeping "
             "only a receipt. Only when the person asks for it; it cannot be undone."
@@ -511,7 +645,7 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
     def delete_job(job_id: str) -> dict[str, Any]:
         return service.delete_job(job_id)
 
-    @server.tool(
+    @tool(
         description=(
             "Refund the full payment for an audit that failed (status 'failed'), back to the "
             "person's PayPal account. Only when the person asks for it instead of a retry."
@@ -522,7 +656,7 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
 
     if not hosted:
 
-        @server.tool(description="List jobs with status and price.")
+        @tool(description="List jobs with status and price.")
         def list_jobs() -> list[dict[str, Any]]:
             return service.list_jobs()
 

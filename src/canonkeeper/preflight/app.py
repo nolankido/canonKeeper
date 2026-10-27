@@ -372,6 +372,30 @@ def create_app(
         page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY, via_agent=True)
         return remember(request, page, job.id)
 
+    @app.post("/upload/{token}/demo")
+    def upload_demo(request: Request, token: str) -> HTMLResponse:
+        """The upload link, used for the demo series instead of the person's own books: the
+        same way a judge without a series to hand can see the agent flow through."""
+        if upload_link(token).get("job_id"):
+            raise HTTPException(409, "this upload link has already been used")
+        require_model()
+        from canonkeeper.demo import BOOK1, BOOK2, BOOK3, SERIES_NAME
+
+        job, q = store.create_from_upload(
+            SERIES_NAME,
+            [
+                ("01-the-harbour.txt", BOOK1.encode()),
+                ("02-the-wreck.txt", BOOK2.encode()),
+                ("03-the-return.txt", BOOK3.encode()),
+            ],
+        )
+        try:
+            service.uploads.attach(token, job.id)
+        except ValueError as e:
+            raise HTTPException(409, str(e)) from None
+        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY, via_agent=True)
+        return remember(request, page, job.id)
+
     def wants_json(request: Request) -> bool:
         """PayPal's JS SDK buttons call the same routes with fetch and want JSON back."""
         return "application/json" in request.headers.get("accept", "")

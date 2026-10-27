@@ -134,3 +134,77 @@ def test_mcp_accepts_its_public_host_and_guards_localhost() -> None:
     assert public.allowed_origins == ["https://preflight-abc.onrender.com"]
     local = _mcp_security("http://127.0.0.1:8787")
     assert local.enable_dns_rebinding_protection and "127.0.0.1:*" in local.allowed_hosts
+
+
+def test_the_devpost_assistant_prompt_works_as_written(hosted) -> None:
+    """Judge rehearsal: "Open a $20 budget", then "Audit the Saltmarsh demo series and pay from
+    the budget", then check the next draft, with nothing but the tools. Every failure an
+    assistant can cause explains itself, and every hint points at the budget."""
+    base, app, pp = hosted
+
+    async def flow() -> None:
+        async with streamable_http_client(f"{base}/mcp") as (read, write, *_):  # noqa: SIM117
+            async with ClientSession(read, write) as mcp:
+                init = await mcp.initialize()
+                assert "pay_with_budget" in (init.instructions or "")
+
+                async def call(tool: str, **args: Any) -> Any:
+                    return await mcp.call_tool(tool, args)
+
+                b = _data(await call("open_budget", amount_usd=20))  # a number is fine
+                pp.approve(app.state.mcp_service.budgets.get(b["budget_id"]).order_id)
+                assert _data(await call("confirm_budget", budget_id=b["budget_id"]))["status"] == (
+                    "active"
+                )
+                demo = _data(await call("quote_demo_series"))
+                assert "pay_with_budget" in demo["next"]
+                job = demo["job_id"]
+                early = _data(await call("get_findings", job_id=job))
+                assert early["finished"] is False and early["findings"] is None
+                paid = _data(await call("pay_with_budget", job_id=job, budget_key=b["budget_key"]))
+                assert paid["paid"] is True
+                for _ in range(200):
+                    st = _data(await call("audit_status", job_id=job))
+                    if st["status"] in ("done", "failed"):
+                        break
+                    await anyio.sleep(0.1)
+                assert (
+                    st["status"] == "done"
+                    and "capturing" not in st
+                    and "get_findings" in st["next"]
+                )
+                assert len(_data(await call("get_findings", job_id=job))["findings"]) == 5
+
+                draft = _data(await call("get_demo_draft"))
+                check = _data(await call("check_draft", job_id=job, **draft))
+                assert "pay_with_budget" in check["next"]
+
+                # failures say why
+                bad = await call("quote_series", series_name="x", books=[{"title": "a"}])
+                assert (
+                    bad.is_error
+                    and '"name"' in bad.content[0].text
+                    and '"text"' in bad.content[0].text
+                )
+                unknown = await call("audit_status", job_id="no-such-job")
+                assert unknown.is_error and "unknown job" in unknown.content[0].text
+                unpaid = await call("confirm_payment", job_id=check["job_id"])
+                assert unpaid.is_error and "pay_with_budget" in unpaid.content[0].text
+                titled = _data(await call("quote_series", series_name="T",
+                                          books=[{"title": "01-a.txt", "text": "Ann has green eyes."}]))  # fmt: skip
+                assert titled["job_id"]
+
+    anyio.run(flow)
+
+
+def test_the_person_can_use_the_demo_series_on_an_assistants_upload_link(hosted) -> None:
+    base, app, _pp = hosted
+    svc = app.state.mcp_service
+    link = svc.request_upload_link("Saltmarsh")
+    page = httpx.get(link["upload_url"]).text
+    assert 'data-testid="upload-demo"' in page and "budget" in page
+    r = httpx.post(f"{link['upload_url']}/demo")
+    assert r.status_code == 200 and "tell it to go ahead" in r.text
+    st = svc.upload_status(link["token"])
+    assert st["status"] == "quoted" and "pay_with_budget" in st["next"]
+    assert httpx.post(f"{link['upload_url']}/demo").status_code == 409  # one link, one job

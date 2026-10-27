@@ -91,10 +91,30 @@ def test_two_spends_at_once_cannot_both_take_the_last_money(svc):
         svc.runner.wait(j, timeout=60)
 
 
-def test_a_job_with_its_own_paypal_order_cannot_also_be_paid_from_a_budget(svc):
+def test_a_budget_replaces_an_unapproved_paypal_order_and_that_order_never_charges(svc):
+    """One payment per job, whichever way it comes. The person clicked "Pay with PayPal" and
+    left; the assistant pays from the budget instead: the unapproved order is voided, and if
+    the person approves it later, nothing is captured."""
+    from canonkeeper.preflight.payments import settle
+
     b = _funded(svc, "20")
     job = _quoted(svc)
-    svc.order_audit(job)  # a PayPal order now exists for it
+    first = svc.order_audit(job)["order_id"]  # a PayPal order exists, never approved
+    paid = svc.pay_with_budget(job, b["budget_key"])
+    assert paid["paid"] is True and "replaced_order" in paid
+    assert svc.budget_status(b["budget_key"])["balance_usd"] == "14.95"
+    svc.paypal.approve(first)  # the person approves the old order in another tab, too late
+    assert settle(svc.store.get(job), svc.paypal, svc.store, svc.runner, known_approved=True,
+                  order_id_hint=first) is None  # fmt: skip
+    assert svc.paypal.get_order(first).status != "COMPLETED"  # never captured
+    svc.runner.wait(job, timeout=60)
+
+
+def test_a_job_whose_paypal_order_is_approved_is_not_paid_from_a_budget(svc):
+    b = _funded(svc, "20")
+    job = _quoted(svc)
+    order = svc.order_audit(job)["order_id"]
+    svc.paypal.approve(order)  # approved: PayPal's payment is the one that counts
     refused = svc.pay_with_budget(job, b["budget_key"])
     assert refused["paid"] is False and "PayPal order of its own" in refused["reason"]
     assert svc.budget_status(b["budget_key"])["balance_usd"] == "20.00"

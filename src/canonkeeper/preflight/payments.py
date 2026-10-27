@@ -408,6 +408,38 @@ def _finish_close_if_asked(b: Budget, paypal: PayPal, budgets: BudgetStore) -> s
     return None
 
 
+def release_unapproved_order(job: Job, paypal: PayPal, store: JobStore) -> bool:
+    """Put a job whose PayPal order the person never approved back to "quoted", so it can be
+    paid another way (an assistant's budget). True if released.
+
+    Safe against paying twice: the released order is kept in `earlier_orders`, and `settle`
+    returns before capturing anything for a job that is already paid, so if the person approves
+    that order later, PayPal never captures it and it expires. An order that is approved,
+    being captured, or held is never released."""
+    fresh = store.get(job.id) or job
+    order_id = fresh.order_id
+    if fresh.status not in ("ordered", "cancelled") or not order_id or fresh.capturing:
+        return False
+    try:
+        o = paypal.get_order(order_id)
+    except (httpx.HTTPError, KeyError):
+        return False
+    if o.status not in UNAPPROVED | {"VOIDED"}:
+        return False
+    earlier = [*fresh.earlier_orders, order_id]
+    released = store.update(
+        job.id,
+        expect=("ordered", "cancelled"),
+        where=lambda j: j.order_id == order_id and not j.capturing,
+        status="quoted",
+        order_id=None,
+        approve_url=None,
+        earlier_orders=earlier,
+    )
+    _sync(job, store.get(job.id))
+    return released is not None
+
+
 def spend_budget(
     key: str, job: Job, store: JobStore, budgets: BudgetStore, runner: Runner
 ) -> str | None:
