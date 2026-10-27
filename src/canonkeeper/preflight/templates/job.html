@@ -17,7 +17,12 @@
   <form action="/jobs/{{ job.id }}/order" method="post"><button type="submit">Try again</button></form>
 {% elif job.status in ('paid', 'running') %}
   <p>Paid {{ job.paid_at[:19] if job.paid_at else '' }}. The audit is {{ 'queued' if job.status == 'paid' else 'running' }} — extracting every chapter, then judging each candidate conflict against the series text. This page refreshes every 10 seconds.</p>
-  <ol class="steps"><li>Chapterize {{ job.books | length }} books</li><li>Extract facts with verbatim quotes</li><li>Screen for conflicts (no model calls)</li><li>Adjudicate against the series text</li><li>Render the report</li></ol>
+  {% if job.stage and job.progress_total %}
+  <p><strong>{{ 'Extracting facts' if job.stage == 'extracting' else 'Judging candidate conflicts' }}:</strong>
+    {{ job.progress_done }} of {{ job.progress_total }} {{ 'chapters' if job.stage == 'extracting' else 'candidates' }}</p>
+  <progress max="{{ job.progress_total }}" value="{{ job.progress_done }}" style="width:100%"></progress>
+  {% endif %}
+  <ol class="steps"><li>Chapterize {{ job.books | length }} books</li><li{% if job.stage == 'extracting' %} class="now"{% endif %}>Extract facts with verbatim quotes</li><li>Screen for conflicts (no model calls)</li><li{% if job.stage == 'judging' %} class="now"{% endif %}>Adjudicate against the series text</li><li>Render the report</li></ol>
 {% elif job.status == 'done' %}
   <div class="kv">
     <div>Facts in bible</div><div class="big">{{ job.claims }}</div>

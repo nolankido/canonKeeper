@@ -365,3 +365,23 @@ def test_free_tier_privacy_banner(tmp_path):
     local = Settings(provider="openweights", workdir=tmp_path / "w2", _env_file=None)
     app2 = create_app(settings=local, paypal=FakePayPal(), workdir=tmp_path / "pf2")
     assert "never an unpublished manuscript" not in TestClient(app2).get("/").text
+
+
+def test_job_progress_is_recorded_while_running(client):
+    """The runner records stage and progress so the job page and audit_status show it."""
+    r = _upload(client)
+    job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
+    store, runner = client.app.state.store, client.app.state.runner
+    job = store.get(job_id)
+    seen: list[tuple[str, int, int]] = []
+    tick = runner._progress_writer(job)
+    for args in [("extracting", 0, 3), ("extracting", 3, 3), ("judging", 0, 5), ("judging", 5, 5)]:
+        tick(*args)
+        j = store.get(job_id)
+        seen.append((j.stage, j.progress_done, j.progress_total))
+    assert seen[1] == ("extracting", 3, 3) and seen[-1] == ("judging", 5, 5)
+    job = store.get(job_id)
+    job.status = "running"
+    store.save(job)
+    page = client.get(f"/jobs/{job_id}").text
+    assert "Judging candidate conflicts" in page and "5 of 5 candidates" in page

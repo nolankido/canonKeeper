@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from rich.progress import Progress
@@ -250,16 +251,21 @@ class Adjudicator:
         series_name: str,
         *,
         progress: bool = True,
+        on_progress: Callable[[str, int, int], None] | None = None,
     ) -> list[Finding]:
         findings: list[Finding] = []
         cands = candidates[: self.settings.max_candidates_per_run]
         size = max(1, self.settings.adjudicate_batch_size)
         batches = [cands[i : i + size] for i in range(0, len(cands), size)]
+        if on_progress:
+            on_progress("judging", 0, len(cands))
         with Progress(disable=not progress) as bar:
             task = bar.add_task("adjudicating", total=len(cands))
             for batch in batches:
                 findings.extend(self.judge_batch(batch, store, series_name))
                 bar.advance(task, len(batch))
+                if on_progress:
+                    on_progress("judging", len(findings), len(cands))
         order: dict[Verdict, int] = {
             "contradiction": 0,
             "ambiguous": 1,

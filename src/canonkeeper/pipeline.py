@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from canonkeeper.audit import Adjudicator, find_candidates
@@ -14,7 +15,13 @@ from canonkeeper.models import AuditReport
 
 
 def build_bible(
-    series: Series, llm: LLM, settings: Settings, store_path: Path, *, progress: bool = True
+    series: Series,
+    llm: LLM,
+    settings: Settings,
+    store_path: Path,
+    *,
+    progress: bool = True,
+    on_progress: Callable[[str, int, int], None] | None = None,
 ) -> CanonStore:
     """Extract `series` into the bible at `store_path`.
 
@@ -30,7 +37,7 @@ def build_bible(
         if c.provenance.book not in rebuilt:
             store.add(c)
     ext = Extractor(llm, settings)
-    result = ext.extract_series(series, progress=progress)
+    result = ext.extract_series(series, progress=progress, on_progress=on_progress)
     store.ingest(result)
     store.save()
     store.last_extract_stats = ext.stats
@@ -38,11 +45,19 @@ def build_bible(
 
 
 def audit(
-    series: Series, store: CanonStore, llm: LLM, settings: Settings, *, progress: bool = True
+    series: Series,
+    store: CanonStore,
+    llm: LLM,
+    settings: Settings,
+    *,
+    progress: bool = True,
+    on_progress: Callable[[str, int, int], None] | None = None,
 ) -> AuditReport:
     candidates = find_candidates(store)
     adj = Adjudicator(llm, settings, series)
-    findings = adj.judge_all(candidates, store, series.name, progress=progress)
+    findings = adj.judge_all(
+        candidates, store, series.name, progress=progress, on_progress=on_progress
+    )
     return AuditReport(
         series=series.name,
         books=[b.key for b in series.books],

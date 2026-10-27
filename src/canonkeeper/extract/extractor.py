@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
 from rapidfuzz import fuzz
@@ -287,10 +287,20 @@ class Extractor:
         aliases = {str(k): [str(a) for a in v] for k, v in (data.get("aliases") or {}).items()}
         return ExtractionResult(claims=claims, aliases=aliases)
 
-    def extract_series(self, series: Series, *, progress: bool = True) -> ExtractionResult:
+    def extract_series(
+        self,
+        series: Series,
+        *,
+        progress: bool = True,
+        on_progress: Callable[[str, int, int], None] | None = None,
+    ) -> ExtractionResult:
+        """`on_progress(stage, done, total)` is called after each chapter (a job page uses it)."""
         all_claims: list[Claim] = []
         aliases: dict[str, list[str]] = {}
         total = sum(len(b.chapters) for b in series.books)
+        done = 0
+        if on_progress:
+            on_progress("extracting", 0, total)
         with Progress(disable=not progress) as bar:
             task = bar.add_task("extracting", total=total)
             for book in series.books:
@@ -313,6 +323,9 @@ class Extractor:
                                 aliases.setdefault(k, [])
                                 aliases[k].extend(a for a in v if a not in aliases[k])
                     bar.advance(task)
+                    done += 1
+                    if on_progress:
+                        on_progress("extracting", done, total)
         return ExtractionResult(claims=all_claims, aliases=aliases)
 
 

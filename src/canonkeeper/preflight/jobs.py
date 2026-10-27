@@ -12,7 +12,9 @@ import re
 import secrets
 import shutil
 import threading
+import time
 import traceback
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -43,6 +45,9 @@ class Job:
     error: str | None = None
     claims: int | None = None
     contradictions: int | None = None
+    stage: str | None = None  # "extracting" | "judging" while running
+    progress_done: int = 0
+    progress_total: int = 0
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
@@ -211,6 +216,22 @@ class Runner:
         if t:
             t.join(timeout)
 
+    def _progress_writer(self, job: Job) -> Callable[[str, int, int], None]:
+        """Persist (stage, done, total) on the job so its page and audit_status show it; at
+        most every 2 s, plus every stage change and the last step."""
+        state = {"at": 0.0}
+        stage_seen = {"stage": ""}
+
+        def tick(stage: str, done: int, total: int) -> None:
+            now = time.monotonic()
+            if stage == stage_seen["stage"] and done < total and now - state["at"] < 2.0:
+                return
+            state["at"], stage_seen["stage"] = now, stage
+            job.stage, job.progress_done, job.progress_total = stage, done, total
+            self.store.save(job)
+
+        return tick
+
     def _run(self, job_id: str) -> None:
         from canonkeeper.llm import make_llm
         from canonkeeper.pipeline import audit, build_bible
@@ -229,13 +250,17 @@ class Runner:
                 d = self.store.dir(job.id)
                 settings = self.settings.model_copy(update={"cache_dir": d / "cache"})
                 llm = make_llm(settings)
-                store = build_bible(series, llm, settings, d / "bible.jsonl", progress=False)
+                tick = self._progress_writer(job)
+                store = build_bible(
+                    series, llm, settings, d / "bible.jsonl", progress=False, on_progress=tick
+                )
                 write_bible(store, series.name, d / "reports" / "bible.html")
-                report = audit(series, store, llm, settings, progress=False)
+                report = audit(series, store, llm, settings, progress=False, on_progress=tick)
                 write_report(report, d / "reports")
                 job.claims = report.claims_total
                 job.contradictions = len(report.errors)
                 job.status = "done"
+                job.stage = None
             except Exception as e:  # noqa: BLE001 - the job page shows the failure
                 job.status = "failed"
                 job.error = f"{type(e).__name__}: {e}"
