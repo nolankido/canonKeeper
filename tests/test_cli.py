@@ -236,3 +236,26 @@ def test_archive_eval_copies_the_run_and_prints_its_row(tmp_path):
     assert "| 3 · test | 20 | 11 | 8 | 2 | 12 | 0.80 | 0.40 | 0.53 |" in r.output.replace("\n", "")
     readme = (dest / "README.md").read_text(encoding="utf-8")
     assert "precision 0.80, recall 0.40" in readme and "Misses by stage" in readme
+
+
+def test_audit_can_write_an_ab_report_beside_the_current_one(tmp_path):
+    m = _write_series(tmp_path)
+    wd = tmp_path / "wd"
+    assert (
+        runner.invoke(app, ["build", str(m), "--provider", "mock", "--workdir", str(wd)]).exit_code
+        == 0
+    )
+    assert (
+        runner.invoke(app, ["audit", str(m), "--provider", "mock", "--workdir", str(wd)]).exit_code
+        == 0
+    )
+    ab = tmp_path / "ab"
+    r = runner.invoke(
+        app, ["audit", str(m), "--provider", "mock", "--workdir", str(wd), "--report-dir", str(ab)]
+    )
+    assert r.exit_code == 0, r.output
+    assert (ab / "report.json").exists() and list(wd.rglob("reports/report.json"))
+    r = runner.invoke(
+        app, ["compare", str(next(wd.rglob("reports/report.json"))), str(ab / "report.json")]
+    )
+    assert "no verdict changed" in r.output  # the mock judges deterministically

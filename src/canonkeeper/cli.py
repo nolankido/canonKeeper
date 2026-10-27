@@ -565,6 +565,10 @@ def audit(
     provider: str | None = None,
     workdir: Path | None = None,
     open_report: bool = False,
+    report_dir: Annotated[
+        Path | None,
+        typer.Option(help="Write the report here instead of over the series' current one (A/B)"),
+    ] = None,
 ) -> None:
     """Screen the bible for conflicts and adjudicate them against the source text."""
     from canonkeeper.canon import CanonStore
@@ -573,7 +577,8 @@ def audit(
 
     settings = _settings(provider, workdir)
     m, series = _load(manifest, settings)
-    bible_path, report_dir = _paths(settings, m)
+    bible_path, default_reports = _paths(settings, m)
+    report_dir = report_dir or default_reports
     if not bible_path.exists():
         console.print("[red]no bible yet — run `canonkeeper build` first[/red]")
         raise typer.Exit(2)
