@@ -1,59 +1,71 @@
-# Demo script (target: 2:30–3:00 video + live-runnable)
+# Demo script — Preflight (PayPal AI Hackathon 2026)
 
-Judging weights: Impact 30 · Use of Meta AI tooling 25 · Demo 25 · Technical depth 20.
-Every beat below maps to one of those.
+Target 2:40, hard limit 3:00, public on YouTube. Record by **Nov 9**; submit by **Nov 12, 12:00 PT**.
+
+Judging criteria (unweighted): Technological Implementation · Design · Potential Impact ·
+Innovation · Presentation. Special awards we are aiming at: **Best Use of PayPal + AI**,
+**Best Use of Agentic Commerce**, **Best Demo Delivery**. Every beat below names what it is for.
+
+The video must show the project working end-to-end, on the machine it was built for, with no
+third-party music or copyrighted material. Everything shown is public-domain text or our own
+invented series. Warm every cache first: nothing on screen should wait on a model.
 
 ## 0:00 — The problem (Impact)
-On camera or voiceover, one sentence: "I publish series fiction. Book six has to agree with book
-one, written three years earlier, and the only tool for that is a spreadsheet and memory."
-Show a one-star review complaining about a continuity slip. (Use a real but anonymised one, or
-a paraphrase.)
+Voiceover, one sentence: "I publish series fiction. Book six has to agree with book one,
+written three years earlier, and the only tool for that is a spreadsheet and memory."
+Paraphrase (do not screenshot) a reader complaint about a continuity slip.
 
-## 0:20 — The famous one (Demo)
-Terminal. `canonkeeper audit evals/corpora/sherlock-holmes/series.json` on the built bible with
-cache warm, so it finishes in seconds. Open the report. The only contradiction, severity high:
+## 0:15 — What it finds (Impact, Technological Implementation)
+Open the finished Holmes report (`docs/img/report.png` is the frame). Read the finding:
 
 > **John Watson · wound_location** — "struck on the shoulder by a Jezail bullet" (*A Study in
-> Scarlet*) · "His left arm has been injured" (*A Study in Scarlet*) · "sat nursing my wounded
-> leg" (*The Sign of the Four*) · "the jezail bullet which I had brought back in one of my
-> limbs" (*The Noble Bachelor*). Fix: in *The Sign of the Four*, "wounded leg" → "wounded arm".
+> Scarlet*) · "sat nursing my wounded leg" (*The Sign of the Four*). Fix, to the later book:
+> "wounded leg" → "wounded arm".
 
-Say: "Readers have argued about this since 1890. Out of 2,331 facts and 26 suspects it found
-exactly this one, and it quotes all four lines." Then scroll to the *deliberate* verdicts: Holmes's
-dark eyes — "he is in disguise as an old master mariner; his true eye colour is grey." That is
-the judgement a spreadsheet can't make.
+Say: "Six novels, 2,331 sourced facts, and it reports the one error readers have argued about
+since 1890 — with the four passages on the page and the fix aimed at the later book, because
+the earlier one is already in print." Scroll to a *deliberate* verdict (Holmes's dark eyes:
+"he is in disguise"). "That judgement is the part a spreadsheet cannot do." If the resumed run
+confirms it, add the landlady: "It also noticed Mrs. Hudson became Mrs. Turner for one story."
 
-## 0:55 — How it works (Meta tooling, Technical depth)
-Architecture slide for 10 seconds: Spark extracts with mandatory quotes → local screen →
-Wonder adjudicates with the whole series in context. Show the `estimate` output: "$2.10 to read
-six novels, $X to judge." Then show one adjudication prompt in the cache folder with the token
-count — make the 1M context visible, not just claimed.
+## 0:50 — Buying an audit (Design, PayPal + AI)
+Browser, `canonkeeper serve` against the PayPal **sandbox**. Upload the three Saltmarsh books.
+Quote page: price with the arithmetic shown — "$5 + $4 per 100k tokens; the token count is
+known the moment the files land, so the price is known before anything runs."
+Click **Pay with PayPal** → sandbox checkout → approve as the sandbox buyer → land on the job
+page. Say over it: "Orders v2: create with PAY_NOW, the buyer approves, we capture on return.
+No model is called until the capture succeeds." Job page ticks to *done*; open the report:
+five planted contradictions, each with its two quotes.
 
-## 1:25 — The author's workflow (Impact, Demo)
-`canonkeeper check evals/corpora/sherlock-holmes/series.json evals/demo/holmes-book-07-draft.md`
-— an original Holmes pastiche with three slips (Holmes's height, Mary Morstan's eyes,
-Jefferson Hope alive) and one explained change (white hair = wig and powder for a disguise).
-Report shows two contradictions with suggested fixes **to the new book**, and the reveal
-classified as `deliberate` with Wonder's explanation. That classification is the whole point;
-linger on it.
+## 1:35 — The same thing through an assistant (Agentic Commerce)
+Terminal, `python scripts/mcp_flow_demo.py books/*.txt` (server already running). Show the
+tool calls scrolling: `quote_series` → `order_audit` → `confirm_payment` **refuses** ("not
+approved yet") → the approval link is printed for the person → approve in the browser →
+`confirm_payment` → `audit_status` → `get_findings` as data. Say: "The agent prices the job and
+creates the order. It never holds a credential and cannot approve the payment; the approval
+goes to the person. That is the shape agentic commerce should have." Mention it is a standard
+MCP server — any assistant that speaks MCP can drive it.
 
-## 1:55 — Does it work? (Technical depth)
-Show the README benchmark table and the `eval` command. One sentence on seeded-defect injection
-and the baseline exclusion. If numbers are good, read them; if mixed, say what was missed and
-why — honesty reads better than polish to technical judges.
+## 2:10 — The next book (Impact)
+`canonkeeper check … evals/demo/holmes-book-07-draft.md`: an original pastiche with three
+planted slips and one explained change (white hair = wig and powder). Two contradictions with
+fixes to the new draft; the disguise classified *deliberate*. "This is the author's loop:
+every new manuscript is checked against everything already published."
 
-## 2:20 — Bonus beats (Meta tooling)
-- Toggle `--provider openweights` and run `build` on one chapter against a hosted Muse Spark
-  Open endpoint: same output, your own hardware.
-- If built: character reference cards from the bible via Muse Image.
+## 2:30 — Is it honest? (Technological Implementation)
+README benchmark table for five seconds. "We seed contradictions into public-domain novels and
+score precision and recall; the numbers in the README come from that command, not from us."
+Read the current row, including what it misses.
 
-## 2:40 — Close
-"Open source, MIT, works on your manuscript today. Built in ten days with Meta's models."
-Repo URL on screen.
+## 2:45 — Close
+"Open source, MIT. Runs on a free tier with no card, or on your own machine for private
+manuscripts. Preflight: pay for the audit, get the proof." Repo URL on screen.
 
 ## Production notes
-- Record by **Nov 2**. Two days of slack for a re-take.
-- Warm every cache before recording; nothing live should take more than 10 seconds on screen.
-- Terminal font ≥ 18pt, light theme for the report, dark for the terminal.
-- Do not show any real manuscript, pen name, or private file. `drafts/` is git-ignored; the fake
-  book seven should be written for the demo and committed under `evals/demo/` if it is clean.
+- Caches warm: `audit`, `check` and the Saltmarsh job must complete in seconds on camera. Run
+  each once the day before; a re-run replays from `.canonkeeper/cache`.
+- Sandbox buyer: log in once in the recording browser before starting so checkout is two clicks.
+- Terminal font ≥ 18pt; report pages at 110% zoom; 1920×1080.
+- Never show `.env`, a real manuscript, a pen name, or anything under `drafts/`.
+- Keep the PayPal checkout on screen only as long as the approval takes; the product is the
+  report, not the payment page.

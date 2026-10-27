@@ -3,6 +3,10 @@
 Deadline: Thu Nov 12 2026, 12:00 PM PT (10:00 AM HST). Video < 3 min on YouTube, public repo
 with LICENSE visible, functional demo (hosted URL or clear run instructions).
 
+Judging criteria (unweighted): Technological Implementation · Design · Potential Impact ·
+Innovation · Presentation. Special awards: Most Creative, Most Impactful, Best Demo Delivery,
+Best Use of PayPal + AI, Best Use of Agentic Commerce ($5,000 each); overall $12k/$8k/$5k.
+
 ## Project name
 Preflight — pay-per-audit continuity checking for series authors (built on canonkeeper)
 
@@ -51,9 +55,8 @@ injects contradictions into public-domain novels and scores precision/recall.
 (fill in)
 
 ## What's next
-Heuristics for the two name slips the bible already holds as facts (Mrs. Hudson / Mrs. Turner
-both recorded as the landlady; Mary Watson calling her husband James); subscriptions for
-ongoing series via PayPal Subscriptions; a hosted instance.
+Vocative names in dialogue as `first_name` claims (Mary Watson calling her husband "James" is
+still missed); subscriptions for ongoing series via PayPal Subscriptions; a hosted instance.
 
 ## Built with
 python, fastapi, paypal-orders-v2, gemini-api, pydantic, jinja2, rapidfuzz, tiktoken
@@ -61,19 +64,20 @@ python, fastapi, paypal-orders-v2, gemini-api, pydantic, jinja2, rapidfuzz, tikt
 ## PayPal tools used
 PayPal REST Orders v2 (sandbox): create order with `payment_source.paypal.experience_context`
 (`PAY_NOW`, return/cancel URLs), capture on return, idempotency via `PayPal-Request-Id`.
-Two surfaces: the web app (`canonkeeper serve`) and an MCP server (`canonkeeper mcp`) through
-which an author's AI assistant quotes and orders the audit while the person approves the
-payment on PayPal — agent-initiated, human-approved commerce.
+Verified against the sandbox (`canonkeeper doctor --paypal`): orders come back
+`PAYER_ACTION_REQUIRED` with a `payer-action` link; early captures answer `ORDER_NOT_APPROVED`
+and are handled. Two surfaces: the web app (`canonkeeper serve`) and an MCP server
+(`canonkeeper mcp`) through which an author's AI assistant quotes and orders the audit while
+the person approves the payment on PayPal — agent-initiated, human-approved commerce.
+`scripts/mcp_flow_demo.py` shows the whole exchange from the client side.
 
 ## AI tools used
-Gemini API (`gemini-3.8-flash`) through its OpenAI-compatible endpoint for extraction and
-adjudication; provider-agnostic, also runs on Ollama / LM Studio for private manuscripts.
+Gemini API through its OpenAI-compatible endpoint: `gemini-3.5-flash-lite` for extraction
+(two passes per chunk, medium reasoning effort) and `gemini-3.6-flash` for adjudication, both
+on the free tier with a fallback ladder for overloaded models; provider-agnostic, also runs on
+Ollama / LM Studio for private manuscripts.
 
 ## Video beats (< 3:00)
-0:00 the problem (one sentence, one one-star review)
-0:20 upload the six Holmes volumes → quote with the arithmetic on screen
-0:40 PayPal sandbox checkout → capture → job page ticking
-1:05 the report: Watson's wound, John/James, Mrs Hudson/Turner — with quotes
-1:35 `check` a draft: two slips flagged, one explained change marked deliberate
-2:05 the benchmark table, one sentence on how it's measured
-2:30 repo, MIT, "runs on a free tier, no card"
+See docs/DEMO_SCRIPT.md: problem → the Holmes finding → buy an audit (sandbox checkout) →
+the same through an assistant over MCP (agent cannot approve) → `check` a draft → benchmark →
+close.
