@@ -165,3 +165,20 @@ def test_eval_then_rescore_from_saved_files(tmp_path, monkeypatch):
     r = runner.invoke(app, ["rescore", str(eval_dir)])
     assert r.exit_code == 0, r.output
     assert (eval_dir / "result.md").read_text().split("\n")[2] == first
+
+
+def test_doctor_round_trip_runs_the_money_path_in_fake_mode(monkeypatch):
+    """The same create → approve → capture → verify → refund code that a person runs against
+    the sandbox with `doctor --round-trip`; offline, the approval is simulated."""
+    monkeypatch.setattr("canonkeeper.preflight.app.paypal_env", lambda: {"PAYPAL_MODE": "fake"})
+    r = runner.invoke(app, ["doctor", "--round-trip"])
+    assert r.exit_code == 0, r.output
+    assert "captured 1.00 USD" in r.output and "refunded" in r.output
+    assert "round trip: create → approve → capture → verify → refund OK" in r.output
+
+    monkeypatch.setattr(
+        "canonkeeper.preflight.app.paypal_env",
+        lambda: {"PAYPAL_MODE": "live", "PAYPAL_CLIENT_ID": "x", "PAYPAL_CLIENT_SECRET": "y"},
+    )
+    r = runner.invoke(app, ["doctor", "--round-trip"])
+    assert r.exit_code == 1 and "only runs on the sandbox" in r.output

@@ -273,6 +273,7 @@ writing the next book? ──▶ upload the draft on the finished audit's page
 canonkeeper serve                      # demo mode: payments simulated in-process, mock provider works too
 PAYPAL_CLIENT_ID=… PAYPAL_CLIENT_SECRET=… canonkeeper serve   # real PayPal sandbox (or put them in .env)
 canonkeeper doctor --paypal            # proves the credentials: OAuth + a sandbox order, never captured
+canonkeeper doctor --round-trip        # sandbox: $1 order you approve as the buyer → capture → verify → refund
 ```
 
 `render.yaml` deploys the same service as a free Render web service (set the three keys in the

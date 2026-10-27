@@ -147,8 +147,17 @@ def doctor(
     paypal: bool = typer.Option(
         False, "--paypal", help="Also check PayPal: OAuth token and a test order (never captured)"
     ),
+    round_trip: bool = typer.Option(
+        False,
+        "--round-trip",
+        help="Sandbox only: a $1.00 order you approve as the sandbox buyer, then capture, "
+        "verify and refund it — the whole money path against the real API",
+    ),
 ) -> None:
     """Check the configured provider: key present, endpoint reachable, model answers, pacing."""
+    if round_trip:
+        _doctor_round_trip()
+        return
     settings = _settings(provider, workdir)
     if paypal:
         _doctor_paypal()
@@ -259,6 +268,74 @@ def _doctor_paypal() -> None:
         f"for {o.currency} {o.amount} in {ms:.0f} ms"
     )
     console.print(f"[dim]approve link (unused, expires): {o.approve_url}[/dim]")
+
+
+def _doctor_round_trip(*, wait_s: float = 900.0, poll_s: float = 3.0) -> None:
+    """Create a $1.00 sandbox order, wait for the person to approve it as the sandbox buyer,
+    capture it, check the capture the way Preflight does, refund it. Never runs against live.
+    In fake mode the approval is simulated, which makes this an offline test of the same code."""
+    import time
+
+    from canonkeeper.preflight.app import make_paypal
+    from canonkeeper.preflight.paypal import (
+        UNAPPROVED,
+        FakePayPal,
+        capture_id_of,
+        capture_problem,
+    )
+    from canonkeeper.preflight.pricing import CURRENCY
+
+    try:
+        pp = make_paypal()
+    except RuntimeError as e:
+        console.print(f"[red]paypal:[/red] {e}")
+        raise typer.Exit(1) from None
+    if pp.mode == "live":
+        console.print("[red]paypal:[/red] live mode — the round trip only runs on the sandbox")
+        raise typer.Exit(1)
+    amount = "1.00"
+    o = pp.create_order(
+        amount=amount,
+        currency=CURRENCY,
+        description="Preflight doctor round trip (refunded)",
+        return_url="http://127.0.0.1:8787/return",
+        cancel_url="http://127.0.0.1:8787/cancel?job=doctor",
+        reference=f"doctor-rt-{int(time.time())}",
+    )
+    console.print(f"1. order {o.id} created: {o.status}, {o.amount or amount} {CURRENCY}")
+    if isinstance(pp, FakePayPal):
+        console.print("2. [dim](fake mode: approving in-process)[/dim]")
+        pp.approve(o.id)
+    else:
+        console.print(
+            "2. open this link and approve as the [bold]sandbox personal (buyer)[/bold] account. "
+            "Afterwards PayPal sends the browser to 127.0.0.1:8787, which may not load — "
+            f"that is fine, come back here.\n   {o.approve_url}"
+        )
+    deadline = time.monotonic() + wait_s
+    while (status := pp.get_order(o.id).status) in UNAPPROVED:
+        if time.monotonic() > deadline:
+            console.print(f"[red]not approved within {wait_s / 60:.0f} minutes ({status})[/red]")
+            raise typer.Exit(1)
+        time.sleep(poll_s)
+    console.print(f"   approved: {status}")
+    c = pp.capture_order(o.id)
+    problem = capture_problem(c, amount=amount, currency=CURRENCY)
+    cap = capture_id_of(c)
+    if problem or not cap:
+        console.print(f"[red]3. capture rejected:[/red] {problem or 'no capture id'}")
+        raise typer.Exit(1)
+    console.print(f"3. captured {c.amount or amount} {CURRENCY}: capture {cap}, COMPLETED")
+    r = pp.refund_capture(cap)
+    if r.status not in ("COMPLETED", "PENDING"):
+        console.print(f"[red]4. refund {r.status or 'failed'}[/red]")
+        raise typer.Exit(1)
+    console.print(f"4. refunded: {r.id or '(already refunded)'} {r.status}")
+    again = pp.refund_capture(cap)
+    console.print(f"5. refunding again is harmless: {again.status}")
+    console.print(
+        "[green]paypal round trip: create → approve → capture → verify → refund OK[/green]"
+    )
 
 
 @app.command()
