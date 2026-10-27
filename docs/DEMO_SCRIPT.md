@@ -72,3 +72,19 @@ manuscripts. Preflight: pay for the audit, get the proof." Repo URL on screen.
 - Never show `.env`, a real manuscript, a pen name, or anything under `drafts/`.
 - Keep the PayPal checkout on screen only as long as the approval takes; the product is the
   report, not the payment page.
+
+## A draft cut, generated
+
+`scripts/video/record.py` drives the running app in demo mode with Playwright and records each
+beat above with captions drawn into the page; `scripts/video/assemble.py` trims, fades and joins
+them into `build/video/preflight.mp4` (~2:15, silent, 1280×720). It is a starting point: replace
+the simulated checkout with a screen recording of the real PayPal sandbox, add a voiceover if
+you like, and keep it under three minutes.
+
+```bash
+canonkeeper serve --provider mock --port 8787 &
+canonkeeper demo --dest build/demo
+python scripts/mcp_flow_demo.py --brief --auto-approve --provider mock build/demo/books/*.txt > build/mcp.txt
+python scripts/video/record.py --out build/video --mcp build/mcp.txt --draft build/demo/draft-04-the-ledger.txt
+python scripts/video/assemble.py build/video
+```

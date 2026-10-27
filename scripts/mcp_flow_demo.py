@@ -30,9 +30,31 @@ def _val(res):  # noqa: ANN001, ANN202
     return res.structured_content or json.loads(res.content[0].text)
 
 
-def _say(label: str, data: object) -> None:
+BRIEF = False
+
+
+def _brief(label: str, data: dict) -> str:
+    """One line per tool result: the part a person watching needs."""
+    if label.startswith("quote_series"):
+        return f"{data['price']['amount']} {data['price']['currency']} — {data['price']['explanation']}"
+    if label.startswith("order_audit"):
+        return f"PayPal order {data.get('order_id')} — approval link for the person: {data.get('approve_url')}"
+    if label.startswith("confirm_payment"):
+        paid = data.get("paid")
+        return f"paid: {str(paid).lower()}" + (f" — {data['detail']}" if data.get("detail") else "")
+    if label.startswith("audit_status"):
+        return f"status: {data.get('status')} — {data.get('claims')} facts, {data.get('contradictions')} contradictions — {data.get('report_url')}"
+    if label.startswith("get_findings"):
+        return f"{data.get('facts')} facts, {data.get('candidates')} candidates judged"
+    return json.dumps(data, ensure_ascii=False)[:160]
+
+
+def _say(label: str, data: dict) -> None:
+    if BRIEF:
+        print(f"▶ {label:<44} {_brief(label, data)}")
+        return
     print(f"\n▶ {label}")
-    print(json.dumps(data, indent=2)[:1200])
+    print(json.dumps(data, indent=2, ensure_ascii=False)[:1200])
 
 
 async def main() -> None:
@@ -46,7 +68,10 @@ async def main() -> None:
         action="store_true",
         help="fake PayPal only: submit the fake approval page instead of asking the person",
     )
+    ap.add_argument("--brief", action="store_true", help="one line per tool call")
     a = ap.parse_args()
+    global BRIEF
+    BRIEF = a.brief
 
     args = ["mcp"]
     if a.provider:
@@ -69,7 +94,7 @@ async def main() -> None:
         _say("order_audit", o)
 
         c = _val(await s.call_tool("confirm_payment", {"job_id": job}))
-        _say("confirm_payment (before the person approves — must not run anything)", c)
+        _say("confirm_payment (before the person approves)", c)
         assert not c.get("paid"), "the agent must not be able to pay by itself"
 
         url = o["approve_url"]
@@ -81,7 +106,7 @@ async def main() -> None:
                 follow_redirects=True,
                 timeout=30,
             )
-            print(f"\n(fake approval submitted; the web app landed on {resp.url})")
+            print(f"\n  (the person approves on the PayPal page — simulated: {resp.url})\n")
         else:
             print(f"\nOpen this link, approve the payment, then press Enter:\n  {url}")
             sys.stdin.readline()
