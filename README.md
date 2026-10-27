@@ -261,7 +261,8 @@ Working offline pipeline; real-model runs on the Gemini free tier. See
 - [x] corpus loading, chapterizing, provenance offsets
 - [x] claim extraction with quote grounding
 - [x] bible store, alias resolution, slot index
-- [x] candidate heuristics (slot mismatch, dead-speaks, timeline, name drift)
+- [x] candidate heuristics (slot mismatch, dead-speaks, timeline, name drift, origin
+      mismatch, household role collision)
 - [x] predicate / value normalisation at ingest
 - [x] batched adjudicator, series-as-prefix for prompt caching, budgeted context assembly
 - [x] audit report + bible viewer (HTML/JSON)
@@ -271,11 +272,15 @@ Working offline pipeline; real-model runs on the Gemini free tier. See
 - [x] chapterizer verified against the real Gutenberg layouts of all six Holmes volumes
 - [x] `check` on an unpublished draft, with the deliberate-reveal case in the demo
 - [x] Gemini free-tier provider with pacing, backoff, JSON-mode fallback; `doctor` command
-- [ ] first real run on Sherlock Holmes; prompt tuning; publish benchmark numbers
+- [x] first real run on Sherlock Holmes (Watson's wound found; 2,331 sourced facts)
+- [ ] second benchmark row with the descriptive sweep (running on the free tier)
 - [x] Preflight: upload → quote → PayPal checkout → capture → audit → report (`canonkeeper serve`)
-- [ ] Preflight verified against the real PayPal sandbox with a sandbox buyer
+- [x] PayPal sandbox credentials and Orders v2 create verified (`canonkeeper doctor --paypal`)
+- [ ] full sandbox checkout recorded with a sandbox buyer account (for the video)
 - [x] Preflight as an MCP server (`canonkeeper mcp`): an author's assistant quotes, orders,
       hands the person the PayPal approval link, confirms, and reads the findings as data
+- [x] MCP flow exercised end to end from a real MCP client (`scripts/mcp_flow_demo.py`)
+- [x] customers can delete their files; uploads capped for a public host; `render.yaml`
 - [ ] local-model mode verified against Ollama
 - [ ] demo video
 
