@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import random
+from collections import Counter
 from pathlib import Path
 
 from canonkeeper.config import load_settings
@@ -40,6 +41,7 @@ def main() -> None:
 
     totals = {False: [0, 0], True: [0, 0]}  # claims kept, ungrounded drops
     only_with: list[str] = []
+    preds: dict[bool, Counter[str]] = {False: Counter(), True: Counter()}
     for b, ch, text, off, note in picked:
         keys: dict[bool, set[tuple[str, str, str]]] = {}
         claims_by: dict[bool, list] = {}
@@ -56,6 +58,7 @@ def main() -> None:
             totals[hints][1] += ext.stats.dropped_ungrounded
             keys[hints] = {(c.subject.lower(), c.predicate, c.object.lower()) for c in got}
             claims_by[hints] = got
+            preds[hints].update({c.predicate for c in got} and [c.predicate for c in got])
         for c in claims_by[True]:
             k = (c.subject.lower(), c.predicate, c.object.lower())
             if k not in keys[False]:
@@ -69,6 +72,36 @@ def main() -> None:
         kept, drop = totals[hints]
         label = "with hints" if hints else "without   "
         print(f"{label}: {kept} claims kept ({kept / n:.1f}/chunk), {drop} dropped ungrounded")
+    descriptive = {
+        "eye_color",
+        "hair_color",
+        "height",
+        "build",
+        "age",
+        "wound_location",
+        "birthplace",
+        "nationality",
+        "first_name",
+        "surname",
+        "nickname",
+        "dead",
+        "died",
+        "married_to",
+        "occupation",
+        "residence",
+        "parent_of",
+        "child_of",
+        "sibling_of",
+    }
+    print("\npredicate              without  with")
+    for p in sorted(
+        set(preds[False]) | set(preds[True]), key=lambda x: -(preds[False][x] + preds[True][x])
+    ):
+        mark = "*" if p in descriptive else " "
+        print(f"{mark} {p:20s} {preds[False][p]:7d} {preds[True][p]:5d}")
+    dw = sum(v for k, v in preds[False].items() if k in descriptive)
+    dh = sum(v for k, v in preds[True].items() if k in descriptive)
+    print(f"descriptive/biographical (*): without {dw}, with {dh}")
     print(f"\nclaims only with hints: {len(only_with)}")
     for line in only_with:
         print("  " + line)
