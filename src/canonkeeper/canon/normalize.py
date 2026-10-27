@@ -80,6 +80,8 @@ VALUE_SYNONYMS: dict[str, str] = {
     "golden": "fair",
     "auburn": "red",
     "ginger": "red",
+    "flaxen": "fair",
+    "tow-coloured": "fair",
     "raven": "black",
     "dead": "true",
     "deceased": "true",
@@ -580,20 +582,92 @@ REGIONS: dict[str, str] = {
     "india": "india",
     "bombay": "india",
     "agra": "india",
+    "salt lake city": "united states",
+    "chicago": "united states",
+    "san francisco": "united states",
+    "philadelphia": "united states",
+    "boston": "united states",
+    "atlanta": "united states",
+    "georgia": "united states",
+    "st louis": "united states",
+    "missouri": "united states",
+    "nevada": "united states",
+    "south australia": "australia",
+    "new south wales": "australia",
+    "adelaide": "australia",
+    "sydney": "australia",
+    "melbourne": "australia",
+}
+
+# Places that are a single town or city. Two *different* cities in one country disagree
+# ("born in Edinburgh" / "born in Glasgow"); a city and its own region or country do not
+# ("Adelaide" / "South Australia", "Salt Lake City" / "America").
+CITIES = {
+    "london",
+    "pershore",
+    "portsmouth",
+    "birmingham",
+    "chesterfield",
+    "cardiff",
+    "swansea",
+    "edinburgh",
+    "glasgow",
+    "aberdeen",
+    "dublin",
+    "belfast",
+    "cleveland",
+    "paris",
+    "montpellier",
+    "berlin",
+    "frankfort",
+    "ballarat",
+    "athens",
+    "bombay",
+    "agra",
+    "salt lake city",
+    "chicago",
+    "san francisco",
+    "philadelphia",
+    "boston",
+    "atlanta",
+    "st louis",
+    "adelaide",
+    "sydney",
+    "melbourne",
 }
 
 _COUNTRY_OF = {"england": "britain", "wales": "britain", "scotland": "britain"}
 
 
+def _place_key(value: str) -> str | None:
+    """The most specific known place or demonym named in `value` (multi-word names first)."""
+    v = " " + _WS.sub(" ", value.strip().lower().replace(",", " ").replace(".", "")) + " "
+    for key in sorted([*REGIONS, *DEMONYMS], key=len, reverse=True):
+        if f" {key} " in v:
+            return key
+    return None
+
+
 def place_country(value: str) -> str | None:
     """Country for a birthplace or nationality value, or None if unknown."""
-    v = value.strip().lower()
-    for part in [v, *v.replace(",", " ").split()]:
-        if part in DEMONYMS:
-            return DEMONYMS[part]
-        if part in REGIONS:
-            return REGIONS[part]
-    return None
+    key = _place_key(value)
+    if key is None:
+        return None
+    return DEMONYMS.get(key) or REGIONS.get(key)
+
+
+def same_place(a: str, b: str) -> bool | None:
+    """True when two birthplaces/nationalities can both be right, False when they cannot,
+    None when either is unknown. A city agrees with its own country or region; two different
+    cities never agree, even in one country."""
+    ka, kb = _place_key(a), _place_key(b)
+    if ka is None or kb is None:
+        return None
+    if ka == kb:
+        return True
+    if ka in CITIES and kb in CITIES:
+        return False
+    return same_country(a, b)
 
 
 def same_country(a: str, b: str) -> bool | None:

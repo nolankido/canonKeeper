@@ -57,21 +57,83 @@ MULTI_VALUED_OK = {
 _NUM = re.compile(r"\b(1[5-9]\d\d|20\d\d|\d{1,3})\b")
 
 
+_NUMBER_WORDS = {
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+    "eleven": "11",
+    "twelve": "12",
+    "twenty": "20",
+    "thirty": "30",
+    "forty": "40",
+    "fifty": "50",
+    "sixty": "60",
+}
+# A hair or eye "colour" with none of these is a texture or a vague remark ("curly",
+# "fluffy", "peculiar tint") and cannot contradict a colour.
+_COLOUR_WORDS = {
+    "black",
+    "brown",
+    "dark",
+    "fair",
+    "blond",
+    "blonde",
+    "golden",
+    "red",
+    "auburn",
+    "ginger",
+    "chestnut",
+    "grey",
+    "gray",
+    "grizzled",
+    "white",
+    "silver",
+    "sandy",
+    "light",
+    "hazel",
+    "blue",
+    "green",
+    "amber",
+    "violet",
+    "yellow",
+    "flaxen",
+    "raven",
+    "tawny",
+    "pale",
+}
+
+
 def _norm(v: str) -> str:
     v = v.strip().lower()
     v = re.sub(r"^(the|a|an)\s+", "", v)
     v = re.sub(r"[^\w\s-]", "", v)
+    v = " ".join(_NUMBER_WORDS.get(t, t) for t in v.split())
     return re.sub(r"\s+", " ", v)
 
 
-def _same_value(a: str, b: str) -> bool:
-    from canonkeeper.canon.normalize import same_country
+def _has_colour(v: str) -> bool:
+    return any(t in _COLOUR_WORDS for t in re.split(r"[\s-]+", v.lower()))
+
+
+def _same_value(a: str, b: str, predicate: str | None = None) -> bool:
+    from canonkeeper.canon.normalize import same_place
 
     na, nb = _norm(a), _norm(b)
     if na == nb:
         return True
-    if same_country(na, nb) is True:
-        return True
+    if predicate in ("hair_color", "eye_color") and not (_has_colour(na) and _has_colour(nb)):
+        return True  # nothing to compare
+    if predicate in ("birthplace", "nationality"):
+        place = same_place(na, nb)
+        if place is not None:
+            return place
     if na in nb or nb in na:  # "shoulder" vs "left shoulder" is not a contradiction
         return True
     return fuzz.token_set_ratio(na, nb) >= 90
@@ -90,7 +152,7 @@ def slot_mismatch(store: CanonStore) -> list[Candidate]:
         groups: list[list[Claim]] = []
         for c in ordered:
             for g in groups:
-                if _same_value(g[0].object, c.object):
+                if _same_value(g[0].object, c.object, predicate):
                     g.append(c)
                     break
             else:

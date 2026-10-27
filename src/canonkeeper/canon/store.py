@@ -34,6 +34,7 @@ class CanonStore:
         self._by_entity: dict[str, list[Claim]] = defaultdict(list)
         self._ids: set[str] = set()
         self._canon_cache: dict[str, str] = {}
+        self._claimants: dict[str, set[str]] = {}  # alias → every entity that claimed it
         self._indexed_count = 0
         self.dropped_generic = 0
         self.last_extract_stats: object | None = None
@@ -76,8 +77,26 @@ class CanonStore:
                     continue  # "he" is not a name for anyone
                 if n not in lst and n != canon:
                     lst.append(n)
-                self._alias_to_canon[n.lower()] = canon
-            self._alias_to_canon[canon.lower()] = canon
+                if n.lower() != canon.lower():
+                    self._alias_to_canon[n.lower()] = canon
+                    self._claimants.setdefault(n.lower(), set()).add(canon)
+            # A name already known as someone else's alias stays that: registering "Dr.
+            # Mortimer" as an entity after "James Mortimer" claimed it must not split him, and
+            # the result must not depend on the order the entries arrive in (load replays them).
+            self._alias_to_canon.setdefault(canon.lower(), canon)
+
+    def _resolve(self, key: str) -> str | None:
+        """Follow alias → entity links to the end ("mortimer" → "Dr. Mortimer" → "James
+        Mortimer"); None when `key` is not a known name."""
+        hit = self._alias_to_canon.get(key)
+        seen: set[str] = set()
+        while hit is not None and hit.lower() not in seen:
+            seen.add(hit.lower())
+            nxt = self._alias_to_canon.get(hit.lower())
+            if nxt is None or nxt == hit:
+                break
+            hit = nxt
+        return hit
 
     def canonical(self, name: str) -> str:
         """Resolve a surface name to a canonical entity; fuzzy-match as a last resort.
@@ -86,7 +105,13 @@ class CanonStore:
         cached = self._canon_cache.get(key)
         if cached is not None:
             return cached
-        hit = self._alias_to_canon.get(key)
+        owners = {self._resolve(c.lower()) or c for c in self._claimants.get(key, ())}
+        if len(owners) > 1:
+            # "Drebber" is both Enoch J. Drebber and his son: a name two people answer to is
+            # not guessed (last-registered-wins made the bible depend on arrival order).
+            self._canon_cache[key] = name
+            return name
+        hit = self._resolve(key)
         if hit is None and self._alias_to_canon:
             # Best fuzzy match that could be the same person: "Mrs. Turner" scores 95 against
             # "Mr. Turner", and that merge once erased the canon's best-known landlady slip.
@@ -95,10 +120,9 @@ class CanonStore:
             ):
                 if score < 92:
                     break
-                if names_compatible(name, cand) and names_compatible(
-                    name, self._alias_to_canon[cand]
-                ):
-                    hit = self._alias_to_canon[cand]
+                target = self._resolve(cand) or cand
+                if names_compatible(name, cand) and names_compatible(name, target):
+                    hit = target
                     break
         result = hit or name
         self._canon_cache[key] = result
@@ -153,7 +177,29 @@ class CanonStore:
             )
             added += int(self.add(c))
         self.merge_variants()
+        self._settle_subjects()
         return added
+
+    def _settle_subjects(self) -> None:
+        """Re-resolve every stored subject against the final alias table. Aliases learned late
+        in a run (chapter 12 reveals that "the stranger" is Jefferson Hope) apply to claims made
+        earlier, and the bible written to disk then reloads into exactly the same entities."""
+        self._canon_cache.clear()
+        changed = False
+        settled: list[Claim] = []
+        for c in self.claims:
+            canon = self.canonical(c.subject)
+            if canon != c.subject:
+                c = c.model_copy(update={"subject": canon})
+                changed = True
+            settled.append(c)
+        if changed:
+            unique: dict[str, Claim] = {}
+            for c in settled:
+                unique.setdefault(c.id, c)
+            self.claims = list(unique.values())
+            self._ids = set(unique)
+            self._indexed_count = -1
 
     def merge_variants(self) -> list[tuple[str, str]]:
         """Fold entities whose names differ only by middle names or initials into the one with

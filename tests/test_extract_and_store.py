@@ -236,3 +236,34 @@ def test_generic_names_are_neither_aliases_nor_subjects(tmp_path):
     assert store.canonical("he") == "he"  # not routed anywhere
     assert [c.subject for c in store.claims] == ["Sherlock Holmes"]
     assert store.dropped_generic == 2
+
+
+def test_alias_table_is_order_independent_and_survives_reload(tmp_path):
+    """ "Dr. Mortimer" arrives both as an entity of its own and as James Mortimer's alias, in
+    either order. Both orders, and a save/load round trip, must give one entity."""
+    prov = Provenance(book="01", book_index=0, chapter="I", chapter_index=0, quote="q")
+
+    def mk(subj, obj, q):
+        return Claim(
+            kind=ClaimKind.ATTRIBUTE,
+            subject=subj,
+            predicate="occupation",
+            object=obj,
+            provenance=prov.model_copy(update={"quote": q}),
+        )
+
+    from canonkeeper.models import ExtractionResult
+
+    claims = [mk("Dr. Mortimer", "doctor", "a"), mk("Mortimer", "surgeon", "b")]
+    orders = [
+        {"Dr. Mortimer": ["Mortimer"], "James Mortimer": ["Dr. Mortimer"]},
+        {"James Mortimer": ["Dr. Mortimer"], "Dr. Mortimer": ["Mortimer"]},
+    ]
+    for i, aliases in enumerate(orders):
+        st = CanonStore(tmp_path / f"b{i}.jsonl")
+        st.ingest(ExtractionResult(claims=claims, aliases=aliases))
+        assert st.entities() == ["James Mortimer"], (i, st.entities())
+        st.save()
+        back = CanonStore.load(tmp_path / f"b{i}.jsonl")
+        assert back.entities() == ["James Mortimer"]
+        assert {c.subject for c in back.claims} == {"James Mortimer"}
