@@ -110,6 +110,8 @@ this once, on the laptop, in the repo folder:
    report* → scroll to the first card. Stop recording. Aim for 30–40 seconds.
 4. **Hand it back.** The clip lands in `Videos\Captures`. Copy it to
    `build\video\checkout.mp4` in the repo and tell me; I will cut it into the draft in place
-   of the simulated checkout and keep the total under three minutes.
+   of the simulated checkout and keep the total under three minutes. The cut is one command,
+   which scales any recording size to 1280x720 and warns if the total reaches 3:00:
+   `python scripts/video/assemble.py build/video --replace buy=build/video/checkout.mp4`.
 5. **Devpost testing notes.** If judges should try the hosted sandbox checkout, put the sandbox
    buyer's email and password in Devpost's private testing instructions, never in the repo.

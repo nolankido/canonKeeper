@@ -285,7 +285,9 @@ canonkeeper doctor --round-trip        # sandbox: $1 order you approve as the bu
 dashboard, or none for demo mode); `--public-url` is what PayPal sends the buyer back to. The
 free plan sleeps after ~15 idle minutes and its disk does not survive a restart: while an audit
 runs the service pings its own URL so it is not put to sleep mid-job, but download the report
-you want to keep.
+you want to keep. After a deploy, `python scripts/smoke_hosted.py <url> --order` checks the
+key, the PayPal mode, the sample, a demo quote and the redirect to PayPal's approval page,
+without approving anything or running a model.
 
 After payment the money path is one function (`preflight/payments.py`): a job is paid only on a
 completed capture of the quoted amount, a buyer who approved and closed the tab can press
