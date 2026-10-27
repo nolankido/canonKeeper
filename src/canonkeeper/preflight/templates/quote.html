@@ -57,7 +57,7 @@
     {% if paypal_client_id and not quota_error %}
     <button type="submit" class="secondary">Or pay on PayPal's page</button>
     {% else %}
-    <button type="submit"{% if quota_error %} disabled{% endif %}>Pay ${{ quote.total_str }} with PayPal</button>
+    <button type="submit" class="paypal"{% if quota_error %} disabled{% endif %}>Pay ${{ quote.total_str }} with PayPal</button>
     {% endif %}
     <a class="btn secondary" href="/">Start over</a>
   </form>

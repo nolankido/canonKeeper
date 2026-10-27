@@ -144,6 +144,29 @@ def _refuse_before_reading(files: list[UploadFile]) -> None:
         )
 
 
+STATUS_LABELS = {
+    "quoted": "quote ready",
+    "ordered": "waiting for PayPal",
+    "cancelled": "not paid",
+    "held": "payment on hold",
+    "paid": "paid · queued",
+    "running": "running",
+    "done": "done",
+    "failed": "failed",
+    "refunding": "refunding",
+    "refunded": "refunded",
+    "deleted": "files deleted",
+    "active": "active",
+    "closing": "closing",
+    "closed": "closed",
+}
+
+
+def status_label(status: str) -> str:
+    """The words a person sees for a job's or a budget's status."""
+    return STATUS_LABELS.get(status, status)
+
+
 def create_app(
     *,
     settings: Settings | None = None,
@@ -201,6 +224,7 @@ def create_app(
     app.state.store, app.state.runner, app.state.paypal = store, runner, pp
     app.state.mcp_service = service
     templates = Jinja2Templates(directory=str(_TEMPLATES))
+    templates.env.filters["label"] = status_label
 
     def render(request: Request, name: str, status_code: int = 200, **ctx: object) -> HTMLResponse:
         return templates.TemplateResponse(

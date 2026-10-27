@@ -2,21 +2,24 @@
 {% block title %}Assistant budget · ${{ budget.amount_usd }}{% endblock %}
 {% block head %}<meta name="referrer" content="no-referrer">{% endblock %}
 {% block body %}
-<h1>Assistant budget <span class="status {{ budget.status }}">{{ budget.status }}</span></h1>
-<p class="lede">A balance you funded through PayPal so that your AI assistant can pay for continuity audits and draft checks without asking you each time. It can never spend more than is left, every spend is listed below, and you can close it at any time: the unused balance goes back to your PayPal account.</p>
+<h1>Assistant budget <span class="status {{ budget.status }}">{{ budget.status | label }}</span></h1>
+<p class="lede">A balance you fund through PayPal once, so that your AI assistant can pay for continuity audits and draft checks without asking you each time. It can never spend more than is left, every spend is listed below, and you can close it at any time: the unused balance goes back to your PayPal account.</p>
 
 {% if note %}<div class="banner" role="alert">PayPal: {{ note }}.</div>{% endif %}
 
 <div class="card" data-testid="budget-summary">
   <div class="kv">
-    <div>Funded</div><div>${{ budget.amount_usd }} USD{% if paypal_mode == 'sandbox' %} · PayPal sandbox, test money{% elif paypal_mode == 'fake' %} · simulated, no money moved{% endif %}</div>
+    {% set funded = budget.status in ('active', 'closing', 'closed') %}
+    <div>{{ 'Funded' if funded else 'Amount' }}</div><div>${{ budget.amount_usd }} USD{% if not funded %} · {{ 'waiting for your approval on PayPal' if budget.status == 'ordered' else 'never funded' }}{% endif %}{% if paypal_mode == 'sandbox' %} · PayPal sandbox, test money{% elif paypal_mode == 'fake' %} · simulated, no money moved{% endif %}</div>
+    {% if funded %}
     <div>Left to spend</div><div class="big" data-testid="budget-balance">${{ '%.2f' % budget.balance }}</div>
     <div>Spent</div><div>${{ '%.2f' % budget.spent }} on {{ budget.spends | length }} job{{ '' if budget.spends | length == 1 else 's' }}</div>
+    {% endif %}
     {% if budget.order_id %}<div>PayPal order</div><div><code>{{ budget.order_id }}</code>{% if budget.capture_id %} · capture <code>{{ budget.capture_id }}</code>{% endif %}</div>{% endif %}
   </div>
   {% if budget.status == 'ordered' %}
   <p>Waiting for you to approve the ${{ budget.amount_usd }} payment on PayPal. Nothing can be spent until PayPal confirms it.</p>
-  {% if budget.approve_url %}<a class="btn" href="{{ budget.approve_url }}">Approve on PayPal</a>{% endif %}
+  {% if budget.approve_url %}<a class="btn paypal" href="{{ budget.approve_url }}">Approve on PayPal</a>{% endif %}
   <form action="/budget/{{ budget.id }}/check" method="post" class="inline"><button type="submit" class="secondary">I've approved it — check payment</button></form>
   {% elif budget.status == 'active' %}
   <form action="/budget/{{ budget.id }}/close" method="post" data-testid="budget-close">
@@ -24,6 +27,9 @@
     <label><input type="checkbox" name="confirm" value="yes" required> Close and refund the unused balance</label>
     <button type="submit" class="secondary">Close the budget</button>
   </form>
+  {% elif budget.status == 'closing' %}
+  <p>Closing: the unused balance is on its way back to your PayPal account. Nothing more can be spent.</p>
+  <form action="/budget/{{ budget.id }}/close" method="post" class="inline"><input type="hidden" name="confirm" value="yes"><button type="submit" class="secondary">Check the refund</button></form>
   {% elif budget.status == 'closed' %}
   <p>Closed. Nothing more can be spent.</p>
   {% elif budget.status == 'cancelled' %}

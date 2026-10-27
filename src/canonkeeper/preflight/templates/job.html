@@ -2,21 +2,22 @@
 {% block title %}{{ job.series_name }} — {{ job.status }}{% endblock %}
 {% block head %}{% if job.status in ('paid', 'running', 'refunding', 'held') %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
 {% block body %}
-<h1>{% if job.kind == 'check' %}Check of <code>{{ job.draft }}</code> · {% endif %}{{ job.series_name }} <span class="status {{ job.status }}">{{ job.status }}</span></h1>
+<h1>{% if job.kind == 'check' %}Check of <code>{{ job.draft }}</code> · {% endif %}{{ job.series_name }} <span class="status {{ job.status }}">{{ job.status | label }}</span></h1>
 <p class="lede">{{ job.books | length }} books · {{ "{:,}".format(job.tokens) }} tokens · quote ${{ job.quote_usd }}{% if job.order_id %} · order <code>{{ job.order_id }}</code>{% endif %}</p>
 
 <div class="card">
 {% if note %}<p><strong>PayPal:</strong> {{ note }}.</p>{% endif %}
 {% if job.status == 'quoted' %}
   <p>Quote ready. Nothing has been sent to a model.</p>
-  <form action="/jobs/{{ job.id }}/order" method="post"><button type="submit">Pay ${{ job.quote_usd }} with PayPal</button></form>
+  <p class="note" data-testid="quote-explanation">How it's calculated: <code>{{ quote.explanation }}</code></p>
+  <form action="/jobs/{{ job.id }}/order" method="post"><button type="submit" class="paypal">Pay ${{ job.quote_usd }} with PayPal</button></form>
 {% elif job.status == 'ordered' %}
   <p>Waiting for PayPal approval.</p>
-  {% if job.approve_url %}<a class="btn" href="{{ job.approve_url }}">Continue to PayPal</a>{% endif %}
+  {% if job.approve_url %}<a class="btn paypal" href="{{ job.approve_url }}">Continue to PayPal</a>{% endif %}
   <form action="/jobs/{{ job.id }}/confirm" method="post" class="inline"><button type="submit" class="secondary">I've approved it — check payment</button></form>
 {% elif job.status == 'cancelled' %}
   <p>Checkout was cancelled. Nothing was charged.</p>
-  <form action="/jobs/{{ job.id }}/order" method="post"><button type="submit">Try again</button></form>
+  <form action="/jobs/{{ job.id }}/order" method="post"><button type="submit" class="paypal">Try again with PayPal</button></form>
 {% elif job.status in ('paid', 'running') %}
   <p>Paid{% if job.paid_at %} {{ job.paid_at[:16] | replace('T', ' ') }} UTC{% endif %}. The audit is {{ 'queued' if job.status == 'paid' else 'running' }} — extracting every chapter, then judging each candidate conflict against the series text. This page refreshes every 10 seconds.</p>
   {% if job.stage and job.progress_total %}
@@ -144,7 +145,7 @@
 
 {% if job.status in ('quoted', 'cancelled', 'done', 'failed', 'refunded') %}
 <form class="card" action="/jobs/{{ job.id }}/delete" method="post">
-  <p class="note">Delete your files: the manuscripts, the bible, the reports and the cached model responses. Download the report first if you want to keep it. This cannot be undone.</p>
+  <p class="note">Delete your files: the manuscripts, the bible, the reports and the cached model responses. {% if job.status == 'done' %}Download the report first if you want to keep it. {% endif %}This cannot be undone.</p>
   <label><input type="checkbox" name="confirm" value="yes" required> Delete everything for this job</label>
   <button type="submit" class="secondary">Delete my files</button>
 </form>
