@@ -380,3 +380,42 @@ def test_names_spoken_in_dialogue_are_pointed_out_only_when_asked(series, settin
     assert [(c["subject"], c["predicate"], c["object"]) for c in claims] == [
         ("John Watson", "first_name", "James")
     ]
+
+
+def test_two_names_that_alias_each_other_resolve_to_one_entity_either_way(tmp_path):
+    """Regression: one chunk said "Baskerville" is Sir Henry Baskerville, another the reverse.
+    Each end resolved to the other, and Sir Henry's 54 facts were filed under a name nothing
+    looked up: missing from the bible pages, the explorer and the CSV."""
+    from canonkeeper.canon import CanonStore
+
+    s = CanonStore(tmp_path / "bible.jsonl")
+    s.register_aliases({"Sir Henry Baskerville": ["Baskerville", "Sir Henry"]})
+    s.register_aliases({"Baskerville": ["Sir Henry Baskerville"]})
+    for name in ("Baskerville", "Sir Henry Baskerville", "Sir Henry"):
+        assert s.canonical(name) == "Sir Henry Baskerville"
+
+
+def test_an_alias_given_as_a_string_is_one_name_not_its_letters(tmp_path):
+    """Regression: {"Sir Henry": "Sir Henry Baskerville"} registered S, r, H, e, n, y."""
+    from canonkeeper.canon import CanonStore
+
+    s = CanonStore(tmp_path / "bible.jsonl")
+    s.register_aliases({"Sir Henry": "Sir Henry Baskerville"})  # type: ignore[dict-item]
+    assert s.aliases["Sir Henry"] == ["Sir Henry Baskerville"]
+    assert s.canonical("e") == "e"
+
+
+def test_a_model_reply_with_a_string_alias_keeps_it_whole(settings):
+    from canonkeeper.extract.extractor import Extractor
+
+    class OneReply:
+        def complete(self, *a, **k):
+            return '{"aliases": {"Sir Henry": "Sir Henry Baskerville"}, "claims": []}'
+
+    from canonkeeper.corpus.chapterize import chapterize
+    from canonkeeper.corpus.loaders import Book
+
+    text = "Chapter 1\n\nSir Henry came in."
+    book = Book("01", "One", 0, text, chapterize(text))
+    r = Extractor(OneReply(), settings).extract_chunk("S", book, book.chapters[0], text, 0, "")  # type: ignore[arg-type]
+    assert r.aliases == {"Sir Henry": ["Sir Henry Baskerville"]}

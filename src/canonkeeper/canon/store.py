@@ -71,10 +71,12 @@ class CanonStore:
         for canon, names in aliases.items():
             if is_generic_name(canon):
                 continue
+            if isinstance(names, str):
+                names = [names]  # one alias given as a string, not split into its letters
             lst = self.aliases.setdefault(canon, [])
             for n in names:
-                if is_generic_name(n):
-                    continue  # "he" is not a name for anyone
+                if is_generic_name(n) or len(n.strip()) < 2:
+                    continue  # "he" is not a name for anyone, nor is a stray letter
                 if n not in lst and n != canon:
                     lst.append(n)
                 if n.lower() != canon.lower():
@@ -89,9 +91,16 @@ class CanonStore:
         """Follow alias → entity links to the end ("mortimer" → "Dr. Mortimer" → "James
         Mortimer"); None when `key` is not a known name."""
         hit = self._alias_to_canon.get(key)
-        seen: set[str] = set()
-        while hit is not None and hit.lower() not in seen:
-            seen.add(hit.lower())
+        chain: list[str] = []
+        while hit is not None:
+            if hit.lower() in (c.lower() for c in chain):
+                # A cycle: two chunks each named the other as the alias ("Baskerville" ↔ "Sir
+                # Henry Baskerville"). Every member must resolve to the same name whichever end
+                # it is entered from, or the entity's facts are filed under a name nothing
+                # looks up: the fullest name in the cycle wins.
+                cycle = chain[[c.lower() for c in chain].index(hit.lower()) :]
+                return max(cycle, key=lambda c: (len(c), c))
+            chain.append(hit)
             nxt = self._alias_to_canon.get(hit.lower())
             if nxt is None or nxt == hit:
                 break

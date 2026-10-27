@@ -325,7 +325,10 @@ class Extractor:
                 self._count("claims_kept")
             except (KeyError, ValueError, TypeError):
                 self._count("dropped_invalid")
-        aliases = {str(k): [str(a) for a in v] for k, v in (data.get("aliases") or {}).items()}
+        aliases = {
+            str(k): [str(v)] if isinstance(v, str) else [str(a) for a in v or []]
+            for k, v in (data.get("aliases") or {}).items()
+        }
         return ExtractionResult(claims=claims, aliases=aliases)
 
     def extract_series(
