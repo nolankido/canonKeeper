@@ -38,12 +38,18 @@ class Series:
 
 
 def decode_text(data: bytes, name: str = "file") -> str:
-    """Text from a manuscript file, whatever a word processor saved it as.
+    """Text from a manuscript file, whatever a word processor saved it as, with "\n" line
+    endings (as `Path.read_text` gives): Windows files end lines with "\r\n", and paragraphs
+    are found by blank lines.
 
     UTF-8 (with or without a BOM) is the norm; Word's "Unicode text" is UTF-16 with a BOM;
     older Windows tools write Windows-1252, whose curly quotes are invalid UTF-8. Anything
     else with NUL bytes (a .docx, a PDF) is refused with a message that says what to do.
     """
+    return _decode(data, name).replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _decode(data: bytes, name: str) -> str:
     for bom, codec in (
         (b"\xef\xbb\xbf", "utf-8-sig"),
         (b"\xff\xfe\x00\x00", "utf-32"),

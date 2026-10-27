@@ -750,6 +750,9 @@ def test_uploads_in_word_processor_encodings_are_read_not_refused(tmp_path):
     assert decode_upload(prose.encode("utf-16")) == prose  # Word's "Unicode text"
     assert decode_upload(prose.encode("utf-16-le")) == prose  # no BOM
     assert decode_upload(prose.encode("cp1252")) == prose  # old Windows tools
+    crlf = prose.replace("\n", "\r\n") * 2
+    assert decode_upload(crlf.encode("utf-8")) == prose * 2  # Windows line endings
+    assert decode_upload(crlf.encode("utf-16")) == prose * 2
     with pytest.raises(ValueError, match="save it as plain text"):
         decode_upload(b"PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00", "book.docx")
 
