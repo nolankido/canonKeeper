@@ -417,6 +417,7 @@ def demo(
     from canonkeeper.pipeline import build_bible, check_manuscript
     from canonkeeper.report import write_report
     from canonkeeper.report.bible import write_bible
+    from canonkeeper.report.display import label
 
     settings = _settings("mock", dest)
     manifest_path = write_demo_series(dest)
@@ -429,7 +430,7 @@ def demo(
     console.rule(f"[bold]{m.series}[/bold] — {len(series.books)} books, {series.words:,} words")
     console.print("planted errors:")
     for who, what, how in PLANTED:
-        console.print(f"  • {who} · {what}: {how}")
+        console.print(f"  • {who}’s {label(what)}: {how}")
 
     store = build_bible(series, llm, settings, bible_path)
     console.print(
@@ -446,7 +447,7 @@ def demo(
     console.rule(f"[bold]check[/bold] — unpublished draft {draft.name} against the bible")
     console.print("planted in the draft:")
     for who, what, how in DRAFT_PLANTED:
-        console.print(f"  • {who} · {what}: {how}")
+        console.print(f"  • {who}’s {label(what)}: {how}")
     check_report = check_manuscript(series, store, draft, llm, settings)
     check_html, _ = write_report(check_report, report_dir / "check")
     console.print()
