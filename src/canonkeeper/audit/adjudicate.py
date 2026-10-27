@@ -179,12 +179,18 @@ class Adjudicator:
         colour and birthplace slips 'deliberate, likely character development')."""
         if f.verdict not in ("deliberate", "not_conflict"):
             return f
+        own = [_ws(c.provenance.quote) for c in f.candidate.claims]
         hit = shown.find(f.evidence) if f.evidence else None
         if hit is not None:
             passage = _ws(hit[2])
-            own = [_ws(c.provenance.quote) for c in f.candidate.claims]
             if f.verdict == "not_conflict" or not any(passage in q for q in own):
                 return f.model_copy(update={"evidence": hit[2]})
+        elif f.verdict == "not_conflict" and f.evidence:
+            # A misread fact is shown by its own sentence, which is verbatim in the bible even
+            # when that chapter did not fit in the context window.
+            ev = _ws(f.evidence)
+            if len(ev) >= 12 and any(ev in q or q in ev for q in own):
+                return f
         why = "quoted no passage" if f.evidence is None else "quoted nothing"
         return f.model_copy(
             update={
@@ -205,7 +211,9 @@ class Adjudicator:
         model = self.settings.adjudicate_model
         messages = self.messages_for(batch, store, series_name)
         raw = self.llm.complete(model, messages, json_mode=True)
-        shown = Grounder("\n\n".join(m["content"] for m in messages[1:]))
+        # Evidence must come from the series text (message #1), never from the candidate list
+        # we wrote ourselves: a 4B model once 'quoted' our own "Book 3 … quote: …" line.
+        shown = Grounder(messages[1]["content"])
         try:
             data = parse_json(raw)
         except Exception:

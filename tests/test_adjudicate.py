@@ -151,5 +151,10 @@ def test_clearing_a_conflict_needs_a_passage_from_the_text(series, settings, moc
     assert explained.verdict == "deliberate" and explained.evidence
     misread = run(lambda m: {"verdict": "not_conflict", "evidence": own_quote})
     assert misread.verdict == "not_conflict"
+    # Text from our own candidate list is not the story: it cannot clear anything.
+    listing = run(
+        lambda m: {"verdict": "deliberate", "evidence": m[2]["content"].splitlines()[3][:120]}
+    )
+    assert listing.verdict == "ambiguous"
     real = run(lambda m: {"verdict": "contradiction"})
     assert real.verdict == "contradiction"  # contradictions need no extra proof
