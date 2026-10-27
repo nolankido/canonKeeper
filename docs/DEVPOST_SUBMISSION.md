@@ -96,6 +96,12 @@ and are handled. Two surfaces: the web app (`canonkeeper serve`) and an MCP serv
 the person approves the payment on PayPal — agent-initiated, human-approved commerce.
 `scripts/mcp_flow_demo.py` shows the whole exchange from the client side.
 
+Nothing runs on money that has not arrived: a job becomes paid in exactly one function
+(`payments.settle`), reached from PayPal's return redirect, from the MCP `confirm_payment` tool,
+or from a "check payment" button for a buyer who approved and closed the tab. It requires a
+completed capture (not a PENDING one) of exactly the quoted amount and currency, and the agent
+never holds a credential that could approve. Model calls start only after that check passes.
+
 ## AI tools used
 Gemini API through its OpenAI-compatible endpoint: `gemini-3.5-flash-lite` for extraction
 (two passes per chunk, medium reasoning effort) and `gemini-3.6-flash` for adjudication, both
