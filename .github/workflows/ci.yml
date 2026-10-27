@@ -38,5 +38,4 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
         env:
-          CANONKEEPER_PROVIDER: mock
-          PYTHONUTF8: "1"
+          CANONKEEPER_PROVIDER: mock  # default cp1252 locale on purpose: as users run it
