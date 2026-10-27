@@ -411,7 +411,8 @@ class PreflightService:
                 "status": job.status,
                 "finished": False,
                 "findings": None,
-                "note": f"no findings yet: the job is {job.status}. " + _status_next(job.status),
+                "note": f"no findings yet: the job is {job.status}. "
+                + (PAY_NEXT if job.status == "quoted" else _status_next(job.status)),
             }
         report = json.loads(p.read_text(encoding="utf-8"))
         rows = []
