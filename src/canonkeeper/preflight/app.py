@@ -30,6 +30,7 @@ from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup, escape
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.concurrency import run_in_threadpool
 
@@ -184,6 +185,14 @@ STATUS_LABELS = {
 }
 
 
+def chat_markdown(text: str) -> Markup:
+    """An assistant's reply as a chat window shows it: escaped, with its bold and italics."""
+    t = str(escape(text))
+    t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
+    t = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<i>\1</i>", t)
+    return Markup(t)
+
+
 def status_label(status: str) -> str:
     """The words a person sees for a job's or a budget's status."""
     return STATUS_LABELS.get(status, status)
@@ -317,6 +326,7 @@ def create_app(
     app.state.mcp_service = service
     templates = Jinja2Templates(directory=str(_TEMPLATES))
     templates.env.filters["label"] = status_label
+    templates.env.filters["chat"] = chat_markdown
 
     def render(request: Request, name: str, status_code: int = 200, **ctx: object) -> HTMLResponse:
         return templates.TemplateResponse(
@@ -462,7 +472,13 @@ def create_app(
             }
             for t in await mcp_server.list_tools()
         ]
-        return render(request, "assistant.html", mcp_url=f"{base}/mcp", tools=tools)
+        session_file = _SAMPLES / "agent-session.json"
+        session = (
+            json.loads(session_file.read_text(encoding="utf-8")) if session_file.exists() else None
+        )
+        return render(
+            request, "assistant.html", mcp_url=f"{base}/mcp", tools=tools, session=session
+        )
 
     @app.post("/quote-demo")
     def quote_demo(request: Request) -> RedirectResponse:

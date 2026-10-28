@@ -1,6 +1,6 @@
 # A real agent buying from Preflight (Oct 28, 2026)
 
-`transcript.json` is a real session, not a script: Claude (Claude Code run headless, `claude -p`)
+[`transcript.json`](../../src/canonkeeper/preflight/samples/agent-session.json) is a real session, not a script: Claude (Claude Code run headless, `claude -p`)
 connected to Preflight's MCP endpoint and allowed only Preflight's tools, asked five things in
 plain words. Every tool call and every reply in it is the agent's own; only the spending key is
 masked. It was recorded and filmed by

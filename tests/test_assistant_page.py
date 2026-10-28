@@ -62,3 +62,16 @@ def test_the_private_page_gives_the_local_steps_and_the_home_page_links_it(tmp_p
     assert "canonkeeper serve --provider openweights" in page and "ollama pull qwen3:4b" in page
     assert "not verdicts to trust" in page  # the measured limit of a small model, said plainly
     assert 'href="/private"' in web.get("/").text
+
+
+def test_the_assistant_page_shows_the_recorded_agent_session(tmp_path):
+    """Judge review: judges need a way to see an assistant buy without an MCP client."""
+    settings = Settings(provider="mock", workdir=tmp_path / "w", _env_file=None)
+    web = TestClient(create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pf"))
+    page = web.get("/assistant").text
+    assert 'data-testid="agent-session"' in page
+    assert "<b>open_budget</b>" in page and "<b>close_budget</b>" in page
+    assert "You approve the $20 on PayPal" in page
+    import re
+
+    assert 'budget_key="pfk_…"' in page and not re.search(r"pfk_[A-Za-z0-9]", page)  # masked

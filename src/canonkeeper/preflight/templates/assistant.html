@@ -9,6 +9,22 @@
   <figcaption>A real session: Claude (Claude Code, headless) connected to Preflight over MCP opens a $20 budget capped at $6 a purchase; the person approves it on PayPal; Claude audits the demo series, asks the person to confirm a finding they say is wrong, checks a draft and closes the budget, $13.44 refunded through PayPal. PayPal sandbox, on a local copy of Preflight whose demo answers come from its rule-based stand-in; sped up. <a href="https://github.com/nolankido/canonKeeper/tree/main/docs/agent-session">The transcript</a>.</figcaption>
 </figure>
 
+{% if session %}
+<details class="card session" data-testid="agent-session">
+  <summary>Read the whole session: what the person asked, every tool Claude called, every reply</summary>
+  {% for turn in session.turns %}
+  <p class="you">{{ turn.prompt }}</p>
+  {% for st in turn.steps %}
+  {% if st.kind == 'call' %}<p class="call">→ <b>{{ st.name }}</b>({% for k, v in st.args.items() %}{{ k }}={% if v is string %}"{{ v }}"{% else %}{{ v | tojson }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %})</p>
+  {% elif st.kind == 'result' %}<p class="call">← {{ st.text }}</p>
+  {% else %}<div class="ai">{{ st.text | chat }}</div>{% endif %}
+  {% endfor %}
+  {% if turn.then %}<p class="act">{{ turn.then }}</p>{% endif %}
+  {% endfor %}
+  <p class="note">Recorded {{ session.recorded_at }} with <code>scripts/video/agent_session.py</code>: PayPal sandbox, on a local copy of Preflight whose demo answers came from its rule-based stand-in. The spending key is masked.</p>
+</details>
+{% endif %}
+
 <div class="card" data-testid="connect">
   <h2>1. Connect it</h2>
   <label for="mcp-url">Preflight's MCP address (streamable HTTP, no sign-in)</label>
