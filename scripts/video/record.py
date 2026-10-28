@@ -214,7 +214,7 @@ async def scene_holmes(page: Page) -> None:
     # the triage grid: every finding on one screen, the author's own rulings beside the model's
     await smooth_scroll_to(page, "document.getElementById('triage')", offset=10)
     await caption(page, "Every finding in one grid: sort it, filter it, search it.", 3.5)
-    await caption(page, "The author's own rulings sit beside the model's calls.", 3)
+    await caption(page, "The author's own rulings sit beside the model's calls.", 2.5)
     await page.click("#triage-grid .ag-row[row-index='0'] [col-id='finding']")
     await page.wait_for_timeout(900)
     await smooth_scroll_to(page, "document.querySelector('div.f')", offset=20)
@@ -313,7 +313,7 @@ async def scene_buy(page: Page) -> str:
     await caption(page, "No model is called until the payment is captured.", 3)
     await page.wait_for_timeout(1500)
     await page.reload()
-    await caption(page, "The audit ran: facts extracted, conflicts screened, each one judged.", 3)
+    await caption(page, "The audit ran: facts extracted, conflicts screened, each one judged.", 6)
     await page.click("a.btn[href$='/report']")
     await page.wait_for_load_state("networkidle")
     await page.evaluate("document.body.style.zoom = '0.8'")
