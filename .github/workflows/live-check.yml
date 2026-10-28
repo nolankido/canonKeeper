@@ -1,0 +1,31 @@
+name: Live site check
+
+# Judges can test the hosted Preflight until 2026-12-15. Once a day this runs the same smoke test
+# as `scripts/smoke_hosted.py` against it (no payment, no model call); a failed run emails the
+# repo owner, which is the alert. Run it by hand from the Actions tab after any deploy.
+
+on:
+  schedule:
+    - cron: "17 0 * * *" # 00:17 UTC = 14:17 Hawaii, 16:17/17:17 Pacific
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Smoke-test https://preflight-kq1o.onrender.com
+        run: |
+          if [ "$(date -u +%F)" \> "2026-12-16" ] && [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "Judging is over; nothing to check."; exit 0
+          fi
+          # Render's free plan sleeps when idle: the first try can time out while it wakes.
+          python scripts/smoke_hosted.py https://preflight-kq1o.onrender.com \
+            || { sleep 60; python scripts/smoke_hosted.py https://preflight-kq1o.onrender.com; }

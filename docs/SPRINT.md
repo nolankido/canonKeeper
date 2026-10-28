@@ -42,7 +42,7 @@ sponsor prize. Target: Best Use of Agentic Commerce; sponsor: AG Grid (Render cr
 | T22 | Nov 10 | Hardening: model IDs, fallbacks, error pages, Windows tests, tag v1.0 | Tech | Linux and Windows green; tagged | open |
 | T23 | Nov 11 | Buffer for whatever slipped | — | — | open |
 | T24 | Nov 11 | Submit with Nolan (N6); license visible in the repo's About box; no code changes after this | All | Devpost shows Submitted | open |
-| T25 | Dec 1–15 | Judging operations: deploys frozen, nightly benchmarks paused, daily smoke test as a scheduled task that alerts Nolan on failure | Design | Hosted demo green every day of judging | open |
+| T25 | Dec 1–15 | Judging operations: deploys frozen, nightly benchmarks paused, daily smoke test (`.github/workflows/live-check.yml`; a failed run emails Nolan) | Design | Hosted demo green every day of judging | smoke test live from Oct 27; freeze Dec 1 |
 
 ## Nolan's steps
 | # | Step | By | Unblocks |
