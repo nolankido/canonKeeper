@@ -7,7 +7,8 @@ needs: the leg is in the second. Before a report is written, each claim in a fin
 for the copy of the *same* fact (same character, same fact, same value, same book) whose
 sentence names the value, or, for a role two people share ("the landlady"), names the person.
 Every copy is grounded to a verbatim quote, so this changes which true sentence is shown, never
-what is claimed. Judging is untouched: it runs before this and on the screen's own picks.
+what is claimed. Judging is untouched: it runs before this and on the screen's own picks. For a shared role the
+naming sentence is added beside the role's own, since the judge's explanation may quote either.
 """
 
 from __future__ import annotations
@@ -49,6 +50,7 @@ def telling_passages(report: AuditReport, store: CanonStore) -> int:
     for finding in report.findings:
         role = finding.candidate.heuristic == "role_collision"
         claims = finding.candidate.claims
+        inserts: list[tuple[int, Claim]] = []
         for i, c in enumerate(claims):
             copies = [
                 o
@@ -58,9 +60,16 @@ def telling_passages(report: AuditReport, store: CanonStore) -> int:
             if c.object.lower() in ("true", "false") or _names(c, role=role):
                 continue
             better = [o for o in copies if _names(o, role=role)]
-            if better:
+            if better and role:
+                # keep the sentence that gives the role ("our landlady entered"): the judge's
+                # explanation may lean on it; add the one that names her beside it
+                inserts.append((i + 1, better[0]))
+                swapped += 1
+            elif better:
                 claims[i] = better[0]
                 swapped += 1
+        for at, extra in reversed(inserts):
+            claims.insert(at, extra)
     return swapped
 
 

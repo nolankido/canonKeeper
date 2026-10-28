@@ -65,7 +65,9 @@ def test_a_shared_role_shows_the_sentence_that_names_the_person(tmp_path):
         store.add(c)
     report = _report(store, [hudson, a], "role_collision")
     assert telling_passages(report, store) == 1
-    assert report.findings[0].candidate.claims[1].provenance.quote.startswith("When Mrs. Turner")
+    quotes = [c.provenance.quote for c in report.findings[0].candidate.claims]
+    assert quotes == ["Mrs. Hudson, our landlady", "our landlady had provided",
+                      "When Mrs. Turner has brought in the tray"]  # fmt: skip
 
 
 def test_two_screens_raising_the_same_disagreement_make_one_finding(tmp_path):
