@@ -26,7 +26,7 @@ import re
 import secrets
 from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -34,6 +34,7 @@ from typing import Any
 from canonkeeper.preflight.filelock import file_lock, read_json, write_json
 
 MIN_USD, MAX_USD = Decimal("5"), Decimal("200")
+MAX_DAYS = 365
 _ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
 
 
@@ -51,6 +52,10 @@ class Budget:
     key_hash: str
     amount_usd: str
     status: str = "ordered"  # ordered | active | closing | closed | cancelled
+    # Limits the person sets: no single purchase above this, and no spending after this time.
+    # Either can be tightened on the budget's page at any time, never loosened.
+    max_per_job_usd: str | None = None
+    spend_until: str | None = None
     close_requested: bool = False  # the person asked to close: refund whatever arrives
     order_id: str | None = None
     approve_url: str | None = None
@@ -83,6 +88,22 @@ class Budget:
             return Decimal(0)
         return Decimal(self.amount_usd) - self.spent + self.credited - self.refunded
 
+    def refuses(self, price: Decimal, now: datetime | None = None) -> str | None:
+        """Why the person's limits forbid this purchase, or None."""
+        if self.spend_until and (now or datetime.now(UTC)) >= datetime.fromisoformat(
+            self.spend_until
+        ):
+            return (
+                f"this budget stopped spending on {self.spend_until[:10]}, as the person set it; "
+                "close it to send the rest back to PayPal"
+            )
+        if self.max_per_job_usd and price > Decimal(self.max_per_job_usd):
+            return (
+                f"this costs ${price:.2f}, over the person's limit of ${self.max_per_job_usd} "
+                "per purchase: ask them"
+            )
+        return None
+
     def public(self) -> dict[str, Any]:
         """What the budget's page and an assistant may see (never the key or its hash)."""
         d = asdict(self)
@@ -102,13 +123,31 @@ class BudgetStore:
             raise KeyError(budget_id)
         return self.root / f"{budget_id}.json"
 
-    def create(self, amount_usd: Decimal) -> tuple[Budget, str]:
+    def create(
+        self,
+        amount_usd: Decimal,
+        *,
+        max_per_job_usd: Decimal | None = None,
+        days: int | None = None,
+    ) -> tuple[Budget, str]:
         """A new, unfunded budget and its spending key (returned once, stored as a hash)."""
         if not MIN_USD <= amount_usd <= MAX_USD:
             raise ValueError(f"a budget is between ${MIN_USD} and ${MAX_USD}")
+        if max_per_job_usd is not None and not Decimal("1") <= max_per_job_usd <= amount_usd:
+            raise ValueError("the limit per purchase is between $1 and the budget's amount")
+        if days is not None and not 1 <= days <= MAX_DAYS:
+            raise ValueError(f"a budget can last between 1 and {MAX_DAYS} days")
         key = "pfk_" + secrets.token_urlsafe(24)
         budget = Budget(
-            id=secrets.token_urlsafe(12), key_hash=key_hash(key), amount_usd=f"{amount_usd:.2f}"
+            id=secrets.token_urlsafe(12),
+            key_hash=key_hash(key),
+            amount_usd=f"{amount_usd:.2f}",
+            max_per_job_usd=f"{max_per_job_usd:.2f}" if max_per_job_usd is not None else None,
+            spend_until=(
+                (datetime.now(UTC) + timedelta(days=days)).isoformat(timespec="seconds")
+                if days is not None
+                else None
+            ),
         )
         self._write(budget)
         return budget, key

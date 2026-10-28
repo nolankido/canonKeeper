@@ -342,10 +342,12 @@ def open_budget(
     base: str,
     *,
     absolute_links: bool = False,
+    max_per_job: Decimal | None = None,
+    days: int | None = None,
 ) -> tuple[Budget, str]:
     """A budget and its PayPal order; returns (budget, spending key). Nothing can be spent until
     the person approves the order and PayPal confirms the capture."""
-    budget, key = budgets.create(amount)
+    budget, key = budgets.create(amount, max_per_job_usd=max_per_job, days=days)
     o = paypal.create_order(
         amount=budget.amount_usd,
         currency=CURRENCY,
@@ -462,6 +464,8 @@ def spend_budget(
             return f"this budget is {b.status}"
         if b.balance < price:
             return f"the budget has ${b.balance:.2f} left; this costs ${price:.2f}"
+        if refused := b.refuses(price):
+            return refused
         paid = store.update(
             fresh.id, expect=("quoted",), status="paid", paid_at=_now(), budget_id=b.id
         )
@@ -472,6 +476,30 @@ def spend_budget(
         )
     runner.submit(fresh.id)
     _sync(job, store.get(job.id))
+    return None
+
+
+def tighten_budget(
+    budget_id: str,
+    budgets: BudgetStore,
+    *,
+    max_per_job: Decimal | None = None,
+    stop_now: bool = False,
+) -> str | None:
+    """The person tightens a budget's limits: a lower limit per purchase, or no more spending
+    from now on. Limits only ever tighten, so whoever can reach the page cannot loosen them."""
+    with budgets.locked(budget_id) as b:
+        if b.status in ("closed", "cancelled"):
+            return f"this budget is {b.status}"
+        if max_per_job is not None:
+            if max_per_job < Decimal("1"):
+                return "the lowest limit per purchase is $1"
+            current = Decimal(b.max_per_job_usd) if b.max_per_job_usd else Decimal(b.amount_usd)
+            if max_per_job > current:
+                return f"a limit can only go down (it is ${current:.2f})"
+            b.max_per_job_usd = f"{max_per_job:.2f}"
+        if stop_now:
+            b.spend_until = datetime.now(UTC).isoformat(timespec="seconds")
     return None
 
 

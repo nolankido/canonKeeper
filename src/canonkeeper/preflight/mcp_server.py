@@ -117,16 +117,32 @@ class PreflightService:
 
     # -- agent budgets ------------------------------------------------------------------------
 
-    def open_budget(self, amount_usd: str | float) -> dict[str, Any]:
+    def open_budget(
+        self,
+        amount_usd: str | float,
+        max_per_purchase_usd: str | float | None = None,
+        days: int | None = None,
+    ) -> dict[str, Any]:
         try:
             amount = Decimal(str(amount_usd))
+            cap = Decimal(str(max_per_purchase_usd)) if max_per_purchase_usd else None
         except InvalidOperation:
-            raise ValueError("amount_usd must be a number of dollars, e.g. 20") from None
-        budget, key = open_budget(amount, self.paypal, self.budgets, self.base, absolute_links=True)
+            raise ValueError("amounts are numbers of dollars, e.g. 20") from None
+        budget, key = open_budget(
+            amount,
+            self.paypal,
+            self.budgets,
+            self.base,
+            absolute_links=True,
+            max_per_job=cap,
+            days=int(days) if days else None,
+        )
         return {
             "budget_id": budget.id,
             "budget_key": key,
             "amount": f"{budget.amount_usd} {CURRENCY}",
+            "max_per_purchase": budget.max_per_job_usd,
+            "spend_until": budget.spend_until,
             "approve_url": budget.approve_url,
             "budget_url": f"{self.base}/budget/{budget.id}",
             "next": "keep budget_key private (it spends the budget); ask the person to open "
@@ -571,10 +587,16 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
     @tool(
         description="Ask the person to fund a budget (5 to 200 USD) you may spend on audits and "
         "draft checks without asking each time. Returns a PayPal approval URL for the PERSON, "
-        "their budget page, and a private budget_key for you."
+        "their budget page, and a private budget_key for you. Set max_per_purchase_usd and/or "
+        "days only when the person asks for a limit per purchase or an end date; they can "
+        "tighten either later on the budget page, never loosen it."
     )
-    def open_budget(amount_usd: str | float) -> dict[str, Any]:
-        return service.open_budget(amount_usd)
+    def open_budget(
+        amount_usd: str | float,
+        max_per_purchase_usd: str | float | None = None,
+        days: int | None = None,
+    ) -> dict[str, Any]:
+        return service.open_budget(amount_usd, max_per_purchase_usd, days)
 
     @tool(
         description="After the person approved the budget's payment: capture it and make the "

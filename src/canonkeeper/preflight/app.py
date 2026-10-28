@@ -20,7 +20,7 @@ import re
 import threading
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode, urlparse
@@ -54,6 +54,7 @@ from canonkeeper.preflight.payments import (
     refund,
     settle,
     settle_budget,
+    tighten_budget,
 )
 from canonkeeper.preflight.paypal import (
     FakePayPal,
@@ -689,7 +690,8 @@ def create_app(
 
     def budget_page(request: Request, budget: Budget, note: str | None = None) -> HTMLResponse:
         jobs = {s["job_id"]: store.get(s["job_id"]) for s in budget.spends}
-        return render(request, "budget.html", budget=budget, jobs=jobs, note=note)
+        now = datetime.now(UTC).isoformat(timespec="seconds")
+        return render(request, "budget.html", budget=budget, jobs=jobs, note=note, now=now)
 
     @app.get("/budget/{budget_id}", response_class=HTMLResponse)
     def budget_view(request: Request, budget_id: str) -> HTMLResponse:
@@ -716,6 +718,22 @@ def create_app(
                 {"status": after.status, "problem": problem, "budget_url": f"/budget/{budget_id}"}
             )
         return budget_return(request, budget_id)
+
+    @app.post("/budget/{budget_id}/limits", response_model=None)
+    def budget_limits(
+        request: Request, budget_id: str, max_per_job: str = Form(""), stop_now: str = Form("")
+    ) -> RedirectResponse | HTMLResponse:
+        budget = budget_or_404(budget_id)
+        try:
+            cap = Decimal(max_per_job.strip().lstrip("$")) if max_per_job.strip() else None
+        except InvalidOperation:
+            return budget_page(request, budget, note="the limit must be a number of dollars")
+        problem = tighten_budget(
+            budget.id, service.budgets, max_per_job=cap, stop_now=stop_now == "yes"
+        )
+        if problem:
+            return budget_page(request, budget_or_404(budget_id), note=problem)
+        return RedirectResponse(f"/budget/{budget_id}", status_code=303)
 
     @app.post("/budget/{budget_id}/close", response_model=None)
     def budget_close(
