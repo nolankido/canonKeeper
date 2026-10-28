@@ -419,8 +419,26 @@ def create_app(
     async def assistant(request: Request) -> HTMLResponse:
         """How to connect an AI assistant over MCP, with the tools it gets (read from the
         server itself, so the list cannot drift from what the assistant sees)."""
+
+        def tags(a: Any) -> list[str]:
+            if a is None:
+                return []
+            return [
+                t
+                for t, on in (
+                    ("reads only", a.read_only_hint),
+                    ("cannot be undone", a.destructive_hint),
+                    ("talks to PayPal", a.open_world_hint),
+                )
+                if on
+            ]
+
         tools = [
-            {"name": t.name, "summary": (t.description or "").split(". ")[0].rstrip(".") + "."}
+            {
+                "name": t.name,
+                "summary": (t.description or "").split(". ")[0].rstrip(".") + ".",
+                "tags": tags(t.annotations),
+            }
             for t in await mcp_server.list_tools()
         ]
         return render(request, "assistant.html", mcp_url=f"{base}/mcp", tools=tools)

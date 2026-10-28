@@ -40,8 +40,9 @@
 
 <details class="card" data-testid="tools">
   <summary>The {{ tools | length }} tools it gets</summary>
+  <p class="note">Each tool tells the assistant what it does to the world (MCP annotations), so an assistant that asks before acting knows which ones spend money or cannot be undone.</p>
   <ul class="tools">
-    {% for t in tools %}<li><code>{{ t.name }}</code> {{ t.summary }}</li>{% endfor %}
+    {% for t in tools %}<li><code>{{ t.name }}</code> {{ t.summary }}{% for g in t.tags %} <span class="hint">{{ g }}</span>{% endfor %}</li>{% endfor %}
   </ul>
 </details>
 

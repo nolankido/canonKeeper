@@ -40,3 +40,16 @@ def test_every_page_links_to_it(tmp_path):
     home = web.get("/").text
     assert 'href="/assistant" data-testid="nav-assistant"' in home
     assert 'data-testid="assistant-note"' in home
+
+
+def test_every_tool_says_what_it_does_to_the_world(tmp_path):
+    """MCP annotations: an assistant can tell reading from spending before it acts."""
+    settings = Settings(provider="mock", workdir=tmp_path / "w", _env_file=None)
+    app = create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pf")
+    tools = {t.name: t for t in asyncio.run(build_server(app.state.mcp_service).list_tools())}
+    assert all(t.annotations and t.annotations.title for t in tools.values())
+    a = {n: t.annotations for n, t in tools.items()}
+    assert a["get_findings"].read_only_hint and a["budget_status"].read_only_hint
+    assert a["pay_with_budget"].destructive_hint and a["delete_job"].destructive_hint
+    assert a["close_budget"].destructive_hint and a["close_budget"].open_world_hint
+    assert not a["quote_series"].read_only_hint and not a["quote_series"].destructive_hint

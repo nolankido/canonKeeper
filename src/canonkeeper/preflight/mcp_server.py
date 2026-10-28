@@ -464,6 +464,46 @@ class PreflightService:
         ]
 
 
+# What each tool does to the world, for assistants that ask before acting (MCP tool annotations):
+# read-only, destructive (money spent or files gone for good), idempotent, and whether it talks
+# to PayPal. Titles are what an assistant shows the person.
+TOOL_HINTS: dict[str, tuple[str, dict[str, bool]]] = {
+    "request_upload_link": ("Get an upload link for the books", {}),
+    "upload_status": ("Has the person uploaded?", {"ro": True}),
+    "open_budget": ("Open a PayPal-funded budget", {"world": True}),
+    "confirm_budget": ("Confirm the budget's PayPal payment", {"idem": True, "world": True}),
+    "mark_finding_wrong": ("Mark a finding wrong (part refund)", {"world": True}),
+    "rule_on_finding": ("Record the author's ruling", {"idem": True}),
+    "budget_status": ("Budget balance and receipts", {"ro": True}),
+    "pay_with_budget": ("Pay for a job from the budget", {"destroy": True}),
+    "close_budget": ("Close the budget, refund the rest", {"destroy": True, "world": True}),
+    "quote_demo_series": ("Quote the demo series", {}),
+    "get_demo_draft": ("Get the demo series' next draft", {"ro": True}),
+    "quote_series": ("Quote an audit from book texts", {}),
+    "order_audit": ("Create the PayPal order for a quote", {"world": True}),
+    "confirm_payment": ("Confirm the PayPal payment", {"idem": True, "world": True}),
+    "audit_status": ("Audit status", {"ro": True}),
+    "get_findings": ("Read the findings", {"ro": True}),
+    "check_draft": ("Quote a check of a new draft", {}),
+    "delete_job": ("Delete the books and everything derived", {"destroy": True}),
+    "refund_failed_audit": ("Refund a failed audit", {"destroy": True, "world": True}),
+    "list_jobs": ("List jobs", {"ro": True}),
+}
+
+
+def _annotations(name: str):  # noqa: ANN202 - ToolAnnotations, imported lazily with the SDK
+    from mcp.types import ToolAnnotations
+
+    title, h = TOOL_HINTS[name]
+    return ToolAnnotations(
+        title=title,
+        read_only_hint=h.get("ro", False),
+        destructive_hint=h.get("destroy", False),
+        idempotent_hint=h.get("idem", h.get("ro", False)),
+        open_world_hint=h.get("world", False),
+    )
+
+
 def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: ANN201 - MCPServer type varies by SDK version
     """`hosted`: served over HTTP by the public web service. Then nothing lists other people's
     jobs; every job is reached only by its unguessable id, as on the website."""
@@ -508,7 +548,7 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
                 except (ValueError, KeyError, LookupError) as e:
                     raise ToolError(str(e.args[0]) if e.args else type(e).__name__) from e
 
-            return server.tool(**kw)(explained)
+            return server.tool(annotations=_annotations(fn.__name__), **kw)(explained)
 
         return register
 
