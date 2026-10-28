@@ -58,8 +58,13 @@ def test_a_share_link_dies_with_the_files(tmp_path):
     web.get(f"/jobs/{job}")
     share = svc.store.get(job).share_id
     assert web.get(f"/r/{share}/report").status_code == 200
-    svc.delete_job(job)
+    gone = svc.delete_job(job)
+    assert gone["receipt"]["paid"] is True and gone["receipt"]["charged"] == "5.05 USD"
     assert web.get(f"/r/{share}/report").status_code == 404
+    unpaid = svc.quote_series("S", BOOKS)["job_id"]
+    assert svc.delete_job(unpaid)["receipt"] == {
+        "paid": False, "charged": "0.00 USD", "order_id": None, "paid_from_budget": None
+    }  # fmt: skip
     assert web.get("/r/not-a-share-id-x/report").status_code == 404
     assert web.get(f"/r/{job}/report").status_code == 404  # a job id is not a share id
 

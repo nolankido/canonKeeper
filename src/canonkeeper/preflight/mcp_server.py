@@ -440,10 +440,17 @@ class PreflightService:
             job = delete_job_files(job_id, self.paypal, self.store)
         except KeyError:
             raise ValueError("unknown job") from None
+        paid = bool(job.capture_id or job.budget_id)
         return {
             "job_id": job.id,
             "status": job.status,
-            "receipt": {"order_id": job.order_id, "amount": job.quote_usd},
+            # what was charged, said plainly: a quote nobody paid for cost nothing
+            "receipt": {
+                "paid": paid,
+                "charged": f"{job.quote_usd} {CURRENCY}" if paid else f"0.00 {CURRENCY}",
+                "order_id": job.order_id,
+                "paid_from_budget": job.budget_id,
+            },
         }
 
     def get_findings(self, job_id: str, *, include_cleared: bool = False) -> dict[str, Any]:
