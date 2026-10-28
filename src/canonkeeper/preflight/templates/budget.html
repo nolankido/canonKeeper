@@ -47,15 +47,18 @@
   {% elif budget.approve_url %}<a class="btn paypal" href="{{ budget.approve_url }}">Approve on PayPal</a>{% endif %}
   <form action="/budget/{{ budget.id }}/check" method="post" class="inline"><button type="submit" class="secondary">I've approved it — check payment</button></form>
   {% elif budget.status == 'active' %}
-  <form action="/budget/{{ budget.id }}/limits" method="post" class="item" data-testid="budget-tighten">
-    <label for="max_per_job">Lower the limit per purchase (USD)</label>
-    <input id="max_per_job" name="max_per_job" type="text" inputmode="decimal" placeholder="e.g. 6">
-    <button type="submit" class="secondary">Set the limit</button>
-  </form>
-  <form action="/budget/{{ budget.id }}/limits" method="post" class="inline">
-    <input type="hidden" name="stop_now" value="yes"><button type="submit" class="secondary" data-testid="budget-stop">Stop all spending now</button>
-  </form>
-  <p class="note">Limits only ever go down, so nobody who reaches this page can loosen them.</p>
+  <details class="mark" data-testid="budget-limits-edit">
+    <summary>Tighten your limits</summary>
+    <form action="/budget/{{ budget.id }}/limits" method="post" class="item" data-testid="budget-tighten">
+      <label for="max_per_job">Lower the limit per purchase (USD)</label>
+      <input id="max_per_job" name="max_per_job" type="text" inputmode="decimal" placeholder="e.g. 6">
+      <button type="submit" class="secondary">Set the limit</button>
+    </form>
+    <form action="/budget/{{ budget.id }}/limits" method="post" class="inline">
+      <input type="hidden" name="stop_now" value="yes"><button type="submit" class="secondary" data-testid="budget-stop">Stop all spending now</button>
+    </form>
+    <p class="note">Limits only ever go down, so nobody who reaches this page can loosen them.</p>
+  </details>
   <form action="/budget/{{ budget.id }}/close" method="post" data-testid="budget-close">
     <p class="note">Close the budget: your assistant can no longer spend it, and the unused ${{ '%.2f' % budget.balance }} is refunded to your PayPal account.</p>
     <label><input type="checkbox" name="confirm" value="yes" required> Close and refund the unused balance</label>
