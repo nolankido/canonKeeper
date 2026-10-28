@@ -70,7 +70,8 @@
   #triage-grid .v-cleared { color: var(--ok); }
   #triage-grid .act { color: var(--accent); text-decoration: underline; cursor: pointer; }
   .f.flash { box-shadow: 0 0 0 3px var(--accent); transition: box-shadow .6s; }
-  @media print { #triage { display: none; } }
+  @media print { #triage, .noprint { display: none; } }
+  .linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -97,7 +98,7 @@
 
   
   
-  <nav class="jump"><a href="#contradictions">4 contradictions</a> · <a href="#review">4 need your judgement</a> · <a href="#cleared">18 reviewed and cleared</a> · <a href="/sample/bible" data-testid="bible-link">explore the series bible</a></nav>
+  <nav class="jump"><a href="#contradictions">4 contradictions</a> · <a href="#review">4 need your judgement</a> · <a href="#cleared">18 reviewed and cleared</a> · <a href="/sample/bible" data-testid="bible-link">explore the series bible</a><span class="noprint"> · <button type="button" class="linkish" id="print" data-testid="print">print or save as PDF</button></span></nav>
 
   
   <section id="triage" data-testid="triage">
@@ -471,6 +472,7 @@
 <script>
   // printing or saving as PDF: open every collapsed section so nothing is left out
   addEventListener("beforeprint", () => document.querySelectorAll("details").forEach(d => d.open = true));
+  document.getElementById("print").addEventListener("click", () => print());
   // the "reviewed and cleared" link opens the collapsed list it points at
   const openCleared = () => { if (location.hash === "#cleared") document.querySelectorAll("#cleared ~ details").forEach(d => d.open = true); };
   addEventListener("hashchange", openCleared); openCleared();

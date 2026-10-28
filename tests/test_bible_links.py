@@ -84,3 +84,10 @@ def test_the_sample_bible_links_back_and_uses_ag_charts_14_axes():
     assert 'href="/sample" data-testid="back-to-job">← The audit report' in grid
     assert "axes: { x: {" in grid and "axes: [" not in grid
     assert "headerName: short(b)" in grid and "wrapHeaderText: true" in grid
+
+
+def test_the_report_offers_print_or_pdf_and_hides_the_button_on_paper():
+    """An author sends the report to an editor: one click to print or save it as a PDF."""
+    page = (SAMPLES / "sherlock-holmes-report.html").read_text(encoding="utf-8")
+    assert 'data-testid="print"' in page and 'getElementById("print")' in page
+    assert "#triage, .noprint { display: none; }" in page
