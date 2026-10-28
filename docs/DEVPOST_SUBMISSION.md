@@ -110,28 +110,21 @@ Built from scratch inside the submission period: the repository's first commit i
   per-stage breakdown still does — 8 of the 12 remaining misses are never extracted.
 
 ## What we learned
-- Provenance is the product. Requiring a verbatim quote for every fact (and dropping the
-  ~1% that cannot be located in the text) is what makes a finding trustworthy enough to pay
-  for; the report shows passages, not opinions.
-- The judgement is the hard part, and it needs context. "Dark eyes" vs "grey eyes" is an error
-  until you read that Holmes is in disguise. A screen that over-generates and a judge that
-  reads the surrounding chapters beats a clever screen on its own.
-- Measure the pipeline, not the demo. The first benchmark run scored recall 0.05 and pointed
-  at extraction, not judgement; a narrow second extraction pass and a higher reasoning budget, measured
-  by the same harness, took recall from 0.05 to 0.35–0.40 at precision 0.64–0.80. The README table is generated, never typed.
-- A free tier is a budget, not a limit. Daily caps (and the discovery that 503s count against
-  them) turned into a client-side budget guard, a model fallback ladder, a cache that makes
-  every run resumable, and `build --dry-run` that says exactly what a run will spend.
-- Test where the users are. A line-ending change passed every Linux test and broke a draft
-  check on Windows, the maintainer's own platform; CI now runs on both.
-- An assistant needs a limit, not a key. Approving every payment makes the assistant a
-  messenger; giving it credentials makes it a risk. A balance the person funds once through
-  PayPal, spent under a lock and refunded on close, lets it act without ever holding a secret.
-- Money code fails at the timeouts. Every refund is recorded with its amount and request id
-  before PayPal is asked, so a retry after a lost answer sends the same refund, never a new one.
-- The real PayPal sandbox differs from any fake: orders start `PAYER_ACTION_REQUIRED`, not
-  `CREATED`; the create response omits the amount. Running `doctor --paypal` against the
-  sandbox found two bugs the in-process fake had hidden.
+- Provenance is the product. Requiring a verbatim quote for every fact (and dropping the ~1%
+  that cannot be found in the text) is what makes a finding worth paying for.
+- Judgement needs context. "Dark eyes" vs "grey eyes" is an error until you read that Holmes is
+  in disguise; a screen that over-generates and a judge that reads the chapters beats a clever
+  screen alone.
+- Measure the pipeline, not the demo. Recall 0.05 on the first benchmark pointed at
+  extraction, not judgement; a second, narrow extraction pass took it to 0.35–0.40. The README
+  table is generated, never typed, and a judging-prompt change that broke one right call was
+  reverted on its numbers.
+- An assistant needs a limit, not a key. A balance the person funds once through PayPal, spent
+  under a lock and refunded on close, lets it act without holding a secret; every refund is
+  recorded with its request id before PayPal is asked, so a retry never pays twice.
+- The real sandbox differs from any fake (orders start `PAYER_ACTION_REQUIRED`; the create
+  response omits the amount), and a free tier is a budget: 503s count against the daily cap,
+  so every run is cached, resumable and priced in requests before it starts.
 
 ## What's next
 Names spoken in dialogue (Mary Watson calling her husband "James" is the one real Holmes slip
