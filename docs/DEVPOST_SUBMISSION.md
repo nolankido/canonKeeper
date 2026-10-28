@@ -18,33 +18,26 @@ I publish series fiction. Book six has to agree with book one, written three yea
 and the only tool for that is a spreadsheet and memory. Readers notice when it fails.
 
 ## What it does
-Reads an entire book series, builds a series bible where every fact carries the exact passage
-that asserted it, screens for facts that cannot all be true, and has a model rule on each one
-with the series text in context: a real contradiction (with a fix aimed at the later book), a
-deliberate reveal, or noise. A ruling that clears a conflict must quote the passage that
-clears it, or it goes to the author as "needs your judgement". The audit's price is known
-before it runs — the token count is — so Preflight quotes it, takes payment through PayPal,
-and only then spends any compute.
+**Book six has to agree with book one.** Preflight reads a whole series and shows every place it
+doesn't: both passages, and a fix aimed at the later book (the earlier ones are in print).
 
-When the author is writing the next book, they upload the draft on the finished audit's page:
-a smaller quote on the draft alone, the same PayPal checkout, and only the places where the
-draft disagrees with what is already published. The same service is an MCP server, hosted at
-`/mcp`, so an author's AI assistant can price, order, check and read the findings as a customer of
-the service, never holding a PayPal credential (at most a budget's spending key, capped by the
-balance and the person's limits). The person either approves each payment on PayPal or funds an
-assistant budget once through PayPal: the assistant spends it on audits and draft checks, never
-past the balance, every spend on the budget's page, and the unused rest refunds to PayPal.
-
-What the author takes away: a report that reads like an editor's note ("John Watson's wound:
-shoulder in A Study in Scarlet vs leg in The Sign of the Four", both passages, the fix), the
-series bible as a browsable page and as a spreadsheet with the passage behind every row, and the
-findings as JSON. If a paid audit cannot finish, the author chooses a free retry or a full
-refund through PayPal. And the finding guarantee: an author who marks a reported contradiction
-wrong gets $0.50 back for it (up to half the price): through PayPal, or into the assistant's
-budget when the budget paid. The mark goes on the report.
-Items the model could not call either way ("needs your judgement") get the author's own ruling,
-free, written onto the report beside the model's note. The bible also opens in an AG Grid
-explorer: every fact with its passage, sorted, filtered, disputed rows flagged, CSV out.
+- **A series bible with receipts.** Every fact about every character is tied to the exact
+  sentence that states it. A model then rules on each fact that cannot all be true, with the
+  series in context. Clearing a conflict (a reveal, a disguise, time passing) requires quoting
+  the passage that explains it; otherwise it is a contradiction, or left to the author.
+- **Paid per audit with PayPal.** The price is known before anything runs ($5 + $4 per 100k
+  tokens, arithmetic shown). Nothing reaches a model until PayPal confirms the capture. A failed
+  audit is refunded; a finding the author marks wrong returns $0.50 (up to half the price).
+- **Next book?** Upload the draft: a smaller quote, the same checkout, and only the places the
+  draft disagrees with what is published.
+- **Agents as customers.** The same service is a hosted MCP server. An author's assistant
+  quotes, orders and reads findings, or spends a budget the person funded once through PayPal,
+  never past the balance or the person's limits. It never holds a PayPal credential and cannot
+  approve a payment or claim a refund; the person does both. A real Claude session doing all of
+  this on the sandbox is in the repo (`docs/agent-session/`).
+- **What the author keeps:** the report (an AG Grid triage of every finding, then each finding
+  with its passages), the series bible as an AG Grid explorer and a spreadsheet, the findings as
+  JSON, and a read-only link to share with an editor.
 
 ## How we built it
 Python. Extraction with a cheap long-context model under a strict schema with mandatory
@@ -155,6 +148,12 @@ a receipt, a credit for a failed audit, and a partial refund of the remainder on
 promise for as long as the author needs; Vault (saved payment methods charged later) needs
 account approval a hackathon entry cannot get, and would let the merchant charge again without
 the person in the loop.
+
+Why plain Orders v2 and not PayPal's agent tooling: Preflight is the merchant. PayPal's agent
+toolkit and MCP server let an assistant act on a PayPal account it is given; here the
+assistant is a *customer* of a shop and must never hold PayPal credentials at all. So the shop
+speaks Orders v2, Payments v2 refunds and verified webhooks itself, and the assistant only ever
+hands the person PayPal's own approval page.
 
 ## AI tools used
 Gemini API through its OpenAI-compatible endpoint: `gemini-3.5-flash-lite` for extraction
