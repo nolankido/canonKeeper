@@ -210,7 +210,7 @@ half `gemini-3.5-flash-lite` after the free-tier fallback.
 ## Preflight in detail (PayPal)
 
 ```
-upload series ──▶ quote ($5 + $4 per 100k tokens, arithmetic shown) ──▶ PayPal checkout
+upload series (.docx, .txt, .md) ──▶ quote ($5 + $4 per 100k tokens, arithmetic shown) ──▶ PayPal checkout
       ──▶ capture of exactly the quoted amount ──▶ the audit runs ──▶ report + bible
 writing the next book? ──▶ a draft check ($2 + the same rate on the draft) ──▶ same checkout
 ```

@@ -25,7 +25,8 @@ doesn't: both passages, and a fix aimed at the later book (the earlier ones are 
   sentence that states it. A model then rules on each fact that cannot all be true, with the
   series in context. Clearing a conflict (a reveal, a disguise, time passing) requires quoting
   the passage that explains it; otherwise it is a contradiction, or left to the author.
-- **Paid per audit with PayPal.** The price is known before anything runs ($5 + $4 per 100k
+- **Paid per audit with PayPal.** Upload the books as they are written (Word .docx, plain text or
+  Markdown). The price is known before anything runs ($5 + $4 per 100k
   tokens, arithmetic shown). Nothing reaches a model until PayPal confirms the capture. A failed
   audit is refunded; a finding the author marks wrong returns $0.50 (up to half the price).
 - **Next book?** Upload the draft: a smaller quote, the same checkout, and only the places the
