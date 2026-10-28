@@ -36,7 +36,7 @@ sponsor prize. Target: Best Use of Agentic Commerce; sponsor: AG Grid (Render cr
 | T16 | Nov 4 | One visual system across home, quote, job, report, bible; PayPal-branded pay button; phone width; print; fresh-eyes screenshot review | Design | Review finds nothing it would change | done 10-27: fresh-agent screenshot review, its findings fixed (af83773); the PayPal mark comes from the JS SDK buttons on the sandbox |
 | T17 | Nov 4 | Video script v2: problem, audience and value in the first 15 seconds; real sandbox checkout; Claude Desktop buying a draft check from its budget; real numbers | Presentation | Script timed under 2:50 | done 10-27 (script v2: 363 words, 2:25 of speech) |
 | T18 | Nov 7 (after N3) | Record every scene on the hosted instance; splice Nolan's two clips; captions | Presentation | Full cut assembled | in progress 10-27: the recorder films PayPal's real sandbox checkout and budget approval itself (96c6a86); final take after the T4 recording so findings are real Gemini answers |
-| T19 | Nov 8 | Narration (decision 4), final cut, fresh-agent review against the Presentation criterion | Presentation | Final file under 2:55 handed to Nolan | open |
+| T19 | Nov 8 | Narration (decision 4), final cut, fresh-agent review against the Presentation criterion | Presentation | Final file under 2:55 handed to Nolan | narration done 10-27 (`scripts/video/narrate.py`: Piper, LibriTTS-R voice, timed to the captions, SRT for YouTube); the cut's assistant beat is the real agent session; final take after T4 |
 | T20 | Nov 9 | Devpost text final: description, AI tools and how each is used (Gemini models; built with Claude Code), testing instructions, gallery images | Presentation | Every rule's requirement checked off | open |
 | T21 | Nov 10 | Judge rehearsal: a fresh agent uses only the Devpost text and the hosted URL; fix what trips it | All | Rehearsal reaches the report | local rehearsal done 10-27 (its findings fixed: 708a11f and before); repeat on the hosted URL Nov 10 |
 | T22 | Nov 10 | Hardening: model IDs, fallbacks, error pages, Windows tests, tag v1.0 | Tech | Linux and Windows green; tagged | open |
@@ -60,7 +60,7 @@ then a measured candidate-dedupe change); a recording of a real assistant sessio
 | N1 | Render deploy: GitHub sign-in, New → Blueprint, paste GEMINI_API_KEY / PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET, send the URL; then (optional, 3 min) developer.paypal.com → the sandbox app → Webhooks → add `<url>/paypal/webhook` for CHECKOUT.ORDER.APPROVED and PAYMENT.CAPTURE.COMPLETED and paste its ID as PAYPAL_WEBHOOK_ID | Oct 29 | T5 |
 | N2 | `canonkeeper doctor --round-trip`, approve as the sandbox buyer | Oct 28 | proof of the real money path |
 | N3 | (No longer needed: the sandbox checkout and budget approval are filmed by the recorder; a branded assistant UI stays out of the video for the trademark rule.) Was: record the real sandbox checkout, and Claude Desktop buying an audit through the hosted MCP (Settings → Connectors → Add custom connector → `<render url>/mcp`) (after T6–T9) | Nov 7 | T18 |
-| N4 | Voiceover, if decision 4 is "own voice" | Nov 8 | T19 |
+| N4 | (Not needed: decision 4 is a synthetic open-source voice, which Nolan approved 10-27.) Optional: record your own voice from `scripts/video/narration.json` instead | Nov 8 | T19 |
 | N5 | Upload the final cut to YouTube, public | Nov 9 | T20, T24 |
 | N6 | Submit on Devpost; sandbox buyer login only in the private testing notes | Nov 11 | the entry |
 
@@ -70,7 +70,7 @@ then a measured candidate-dedupe change); a recording of a real assistant sessio
    "the agent never triggers a payment" (every movement of money into the balance is still approved by
    the person). Default yes, prepaid balance, refundable remainder (Vault needs account approval).
 3. A counts-only result from Nolan's own catalog via local mode (no text leaves his laptop). Default skip.
-4. Video voice: own voice / captions only / open-source synthetic voice. Default captions only.
+4. Video voice: own voice / captions only / open-source synthetic voice. Decided 10-27: open-source synthetic voice plus captions (Nolan: "great").
 
 ## Done before the sprint (10-26 → 10-27)
 Security (path traversal, open redirect), payment path (settle, capture checks, check payment, refunds,
