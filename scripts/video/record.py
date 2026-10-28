@@ -56,7 +56,7 @@ CAPTION_JS = """
       'max-width:1100px;background:rgba(20,20,24,.88);color:#fff;font:600 24px/1.35 ' +
       '"DejaVu Sans",system-ui,sans-serif;padding:14px 22px;border-radius:12px;' +
       'z-index:99999;text-align:center;transition:opacity .25s;box-shadow:0 6px 24px rgba(0,0,0,.25)';
-    document.body.appendChild(el);
+    (document.body || document.documentElement).appendChild(el);
   }
   el.style.opacity = text ? '1' : '0';
   if (text) el.textContent = text;
@@ -147,7 +147,10 @@ async def pay_by_card(page: Page) -> None:
         if await close.is_visible():
             await close.click()  # close PayPal's cookie banner without accepting
 
+    # PayPal's pop-up can still be redirecting after its first load: wait for the card form
+    await pop.wait_for_selector("#cardNumber", timeout=60000)
     await no_cookies()
+    SCENE_CUES.append((time.monotonic() - CLIP_T0, "PayPal's own checkout"))  # for narrate.py
     await pop.evaluate(CAPTION_JS, "PayPal's own checkout. Sandbox: test money only.")
     await pop.select_option("#country", "US")
     await pop.wait_for_timeout(1500)
@@ -317,7 +320,9 @@ async def scene_buy(page: Page) -> str:
     await page.click("a.btn[href$='/report']")
     await page.wait_for_load_state("networkidle")
     await page.evaluate("document.body.style.zoom = '0.8'")
-    await caption(page, "Five contradictions, each with both passages and a fix to the newer book.", 4)
+    await caption(
+        page, "Five contradictions, each with both passages and a fix to the newer book.", 4
+    )
     await page.mouse.wheel(0, 500)
     await page.wait_for_timeout(1500)
     return job_url

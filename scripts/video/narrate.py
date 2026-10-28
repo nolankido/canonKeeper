@@ -3,7 +3,8 @@
     python scripts/video/narrate.py build/video --piper <venv>/bin/piper \\
         --model voices/en_US-libritts_r-medium.onnx
 
-The words are in `scripts/video/narration.json`: each line names a cue (the start of a caption
+The words are in `scripts/video/narration.json`: each line names a cue (or a list of them,
+the first that appears wins) (the start of a caption
 the recorder drew, `scene:<name>`, or for the assistant's film `turn:<n>`, `call:<tool>`,
 `then:<n>`, `budget`) and is spoken from that moment, or as soon as the line before it ends.
 Lines are matched in order, so a cue that appears twice (two payments) is taken the second time
@@ -31,7 +32,7 @@ HERE = Path(__file__).resolve().parent
 GAP = 0.25  # seconds of quiet between two lines
 LATE = 1.5  # warn when a line starts this much after its cue
 # How the voice should say a word it gets wrong: the text on screen and in the SRT is unchanged.
-SAY = {"Preflight": "Pree-flight", "MCP": "M C P"}
+SAY = {"Preflight": "Pree flight", "MCP": "M C P"}
 
 
 def duration(path: Path) -> float:
@@ -97,7 +98,13 @@ def main() -> None:
     placed: list[tuple[float, float, str, Path]] = []
     seek, free, problems = 0, 0.0, 0
     for line in lines:
-        hit = next((i for i in range(seek, len(cues)) if cues[i][1].startswith(line["cue"])), None)
+        # a cue may be a list: the first that appears (the sandbox and simulated checkouts
+        # caption different moments)
+        wants = line["cue"] if isinstance(line["cue"], list) else [line["cue"]]
+        hit = next(
+            (i for i in range(seek, len(cues)) if any(cues[i][1].startswith(w) for w in wants)),
+            None,
+        )
         if hit is None:
             after = repr(cues[seek - 1][1]) if seek else "the start"
             raise SystemExit(f"no cue {line['cue']!r} after {after} (see cues.json)")
