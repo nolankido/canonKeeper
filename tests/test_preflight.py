@@ -73,6 +73,8 @@ def _upload(client):
         ("files", ("02-the-wreck.txt", BOOK2.encode(), "text/plain")),
     ]
     r = client.post("/quote", data={"series_name": "The Saltmarsh Chronicles"}, files=files)
+    assert r.status_code == 303 and r.headers["location"].startswith("/jobs/"), r.text
+    r = client.get(r.headers["location"])  # the quote lives at the job's own address
     assert r.status_code == 200, r.text
     return r
 
@@ -395,7 +397,7 @@ def test_sample_report_and_no_public_job_list(tmp_path, client):
 
 def test_demo_series_button_quotes_saltmarsh(client):
     assert 'action="/quote-demo"' in client.get("/").text
-    r = client.post("/quote-demo")
+    r = client.post("/quote-demo", follow_redirects=True)
     assert r.status_code == 200 and "The Saltmarsh Chronicles" in r.text and "Pay $" in r.text
     job = client.app.state.store.all()[0]
     assert job.books == ["01-the-harbour.txt", "02-the-wreck.txt", "03-the-return.txt"]
@@ -461,7 +463,12 @@ def test_check_next_draft_against_a_finished_audit(client):
         ("files", ("02-the-wreck.txt", BOOK2.encode(), "text/plain")),
         ("files", ("03-the-return.txt", BOOK3.encode(), "text/plain")),
     ]
-    r = client.post("/quote", data={"series_name": "The Saltmarsh Chronicles"}, files=files)
+    r = client.post(
+        "/quote",
+        data={"series_name": "The Saltmarsh Chronicles"},
+        files=files,
+        follow_redirects=True,
+    )
     audit_id = r.text.split('action="/jobs/')[1].split("/order")[0]
     store, runner, pp = client.app.state.store, client.app.state.runner, client.app.state.paypal
 
@@ -482,9 +489,12 @@ def test_check_next_draft_against_a_finished_audit(client):
     assert "Writing the next book?" in page
 
     r = client.post(
-        f"/jobs/{audit_id}/check", files={"draft": ("04-the-ledger.txt", DRAFT4.encode())}
+        f"/jobs/{audit_id}/check",
+        files={"draft": ("04-the-ledger.txt", DRAFT4.encode())},
+        follow_redirects=True,
     )
     assert r.status_code == 200 and "Check <code>the-ledger.txt</code>" in r.text
+    assert "Pay $2.01" in r.text or "$2.01" in r.text  # the quote, re-priced as a check
     check_id = r.text.split('action="/jobs/')[1].split("/order")[0]
     check = store.get(check_id)
     assert check.kind == "check" and check.parent_id == audit_id
@@ -1069,7 +1079,7 @@ def test_no_model_key_means_no_quotes_and_no_payments(tmp_path):
     c = TestClient(create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pf"))
     assert "no model key configured" in c.get("/").text
     assert c.get("/healthz").json()["model"] == "no key"
-    assert c.post("/quote-demo").status_code == 503
+    assert c.post("/quote-demo", follow_redirects=True).status_code == 503
     files = [("files", ("01.txt", b"Ivy has green eyes.", "text/plain"))]
     assert c.post("/quote", data={"series_name": "S"}, files=files).status_code == 503
 
@@ -1153,10 +1163,10 @@ def test_demo_series_runs_share_one_cache_and_uploads_do_not(client, monkeypatch
     store = client.app.state.store
     ids = []
     for _ in range(2):
-        r = client.post("/quote-demo")
+        r = client.post("/quote-demo", follow_redirects=True)
         ids.append(r.text.split('action="/jobs/')[1].split("/order")[0])
     files = [("files", ("01-mine.txt", BOOK1.replace("Ivy", "Iris").encode(), "text/plain"))]
-    r = client.post("/quote", data={"series_name": "Mine"}, files=files)
+    r = client.post("/quote", data={"series_name": "Mine"}, files=files, follow_redirects=True)
     ids.append(r.text.split('action="/jobs/')[1].split("/order")[0])
     assert [store.get(i).demo for i in ids] == [True, True, False]
     for job_id in ids:
@@ -1284,7 +1294,7 @@ def test_an_order_the_days_quota_cannot_finish_is_refused_before_paypal(tmp_path
     )
     pp = FakePayPal()
     web = TestClient(create_app(settings=settings, paypal=pp, workdir=tmp_path / "pf"))
-    r = web.post("/quote-demo")
+    r = web.post("/quote-demo", follow_redirects=True)
     job_id = r.text.split('action="/jobs/')[1].split("/order")[0]
 
     # A spent day on the extraction model and its fallback (the counter's own log format).
@@ -1315,7 +1325,11 @@ def test_an_order_the_days_quota_cannot_finish_is_refused_before_paypal(tmp_path
 
 
 def _demo_job(web) -> str:
-    return web.post("/quote-demo").text.split('action="/jobs/')[1].split("/order")[0]
+    return (
+        web.post("/quote-demo", follow_redirects=True)
+        .text.split('action="/jobs/')[1]
+        .split("/order")[0]
+    )
 
 
 def test_paypal_buttons_appear_only_with_real_credentials(tmp_path, client):
@@ -1326,10 +1340,12 @@ def test_paypal_buttons_appear_only_with_real_credentials(tmp_path, client):
         mode = "sandbox"
         client_id = "SB-CLIENT-ID"
 
-    assert 'data-testid="paypal-buttons"' not in client.post("/quote-demo").text  # fake mode
+    assert (
+        'data-testid="paypal-buttons"' not in client.post("/quote-demo", follow_redirects=True).text
+    )  # fake mode
     settings = Settings(provider="mock", workdir=tmp_path / "s", _env_file=None)
     web = TestClient(create_app(settings=settings, paypal=SandboxLike(), workdir=tmp_path / "spf"))
-    page = web.post("/quote-demo").text
+    page = web.post("/quote-demo", follow_redirects=True).text
     assert 'data-testid="paypal-buttons"' in page
     assert "https://www.paypal.com/sdk/js?client-id=SB-CLIENT-ID&currency=USD" in page
     assert "Or pay on PayPal&#39;s page" in page or "Or pay on PayPal's page" in page

@@ -94,7 +94,10 @@ def main(argv: list[str] | None = None) -> int:
     status, _, text = fetch(f"{base}/sample")
     check("sample report", status == 200 and "<html" in text.lower(), f"HTTP {status}")
 
-    status, _, text = fetch(f"{base}/quote-demo", data={})
+    status, headers, text = fetch(f"{base}/quote-demo", data={})
+    if status == 303 and headers.get("location", headers.get("Location", "")).startswith("/jobs/"):
+        # the quote form redirects to the job's own page (POST, redirect, GET)
+        status, _, text = fetch(base + headers.get("location", headers.get("Location", "")))
     m = re.search(r'action="/jobs/([A-Za-z0-9_-]+)/order"', text)
     price = re.search(r"Pay \$([\d.,]+)", text)
     if not check(

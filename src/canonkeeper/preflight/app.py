@@ -396,12 +396,19 @@ def create_app(
         raw = request.cookies.get(_MY_JOBS, "")
         return [j for j in raw.split(".") if _JOB_ID_RE.fullmatch(j)][:_MY_JOBS_MAX]
 
-    def remember(request: Request, response: HTMLResponse, job_id: str) -> HTMLResponse:
+    def remember(request: Request, response: RedirectResponse, job_id: str) -> RedirectResponse:
         ids = [job_id, *(j for j in mine(request) if j != job_id)][:_MY_JOBS_MAX]
         response.set_cookie(
             _MY_JOBS, ".".join(ids), max_age=60 * 60 * 24 * 60, httponly=True, samesite="lax"
         )
         return response
+
+    def to_quote(request: Request, job_id: str, *, via_agent: bool = False) -> RedirectResponse:
+        """After a form makes a quote, send the browser to the job's own address (POST, then
+        redirect, then GET): reloading the quote, or coming back to it on a phone, shows the
+        same quote instead of "Method Not Allowed" or a second job."""
+        url = f"/jobs/{job_id}" + ("?via=assistant" if via_agent else "")
+        return remember(request, RedirectResponse(url, status_code=303), job_id)
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request) -> HTMLResponse:
@@ -419,7 +426,7 @@ def create_app(
         return render(request, "assistant.html", mcp_url=f"{base}/mcp", tools=tools)
 
     @app.post("/quote-demo")
-    def quote_demo(request: Request) -> HTMLResponse:
+    def quote_demo(request: Request) -> RedirectResponse:
         """Quote the invented three-book Saltmarsh series (five planted errors), so a visitor
         can walk the whole flow without having a series of their own to hand."""
         require_model()
@@ -430,9 +437,8 @@ def create_app(
             ("02-the-wreck.txt", BOOK2.encode()),
             ("03-the-return.txt", BOOK3.encode()),
         ]
-        job, q = store.create_from_upload(SERIES_NAME, files)
-        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
-        return remember(request, page, job.id)
+        job, _ = store.create_from_upload(SERIES_NAME, files)
+        return to_quote(request, job.id)
 
     @app.get("/sample", response_class=HTMLResponse)
     def sample() -> FileResponse:
@@ -459,10 +465,9 @@ def create_app(
     @app.post("/quote")
     async def make_quote(
         request: Request, series_name: str = Form(...), files: list[UploadFile] | None = None
-    ) -> HTMLResponse:
-        job, q = await quote_upload(series_name, files)
-        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
-        return remember(request, page, job.id)
+    ) -> RedirectResponse:
+        job, _ = await quote_upload(series_name, files)
+        return to_quote(request, job.id)
 
     async def quote_upload(series_name: str, files: list[UploadFile] | None) -> tuple[Job, Quote]:
         files = files or []
@@ -500,19 +505,18 @@ def create_app(
         token: str,
         series_name: str = Form(...),
         files: list[UploadFile] | None = None,
-    ) -> HTMLResponse:
+    ) -> RedirectResponse:
         if upload_link(token).get("job_id"):
             raise HTTPException(409, "this upload link has already been used")
-        job, q = await quote_upload(series_name, files)
+        job, _ = await quote_upload(series_name, files)
         try:
             service.uploads.attach(token, job.id)
         except ValueError as e:  # two uploads at once on one link: the first one counts
             raise HTTPException(409, str(e)) from None
-        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY, via_agent=True)
-        return remember(request, page, job.id)
+        return to_quote(request, job.id, via_agent=True)
 
     @app.post("/upload/{token}/demo")
-    def upload_demo(request: Request, token: str) -> HTMLResponse:
+    def upload_demo(request: Request, token: str) -> RedirectResponse:
         """The upload link, used for the demo series instead of the person's own books: the
         same way a judge without a series to hand can see the agent flow through."""
         if upload_link(token).get("job_id"):
@@ -520,7 +524,7 @@ def create_app(
         require_model()
         from canonkeeper.demo import BOOK1, BOOK2, BOOK3, SERIES_NAME
 
-        job, q = store.create_from_upload(
+        job, _ = store.create_from_upload(
             SERIES_NAME,
             [
                 ("01-the-harbour.txt", BOOK1.encode()),
@@ -532,8 +536,7 @@ def create_app(
             service.uploads.attach(token, job.id)
         except ValueError as e:
             raise HTTPException(409, str(e)) from None
-        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY, via_agent=True)
-        return remember(request, page, job.id)
+        return to_quote(request, job.id, via_agent=True)
 
     def wants_json(request: Request) -> bool:
         """PayPal's JS SDK buttons call the same routes with fetch and want JSON back."""
@@ -719,6 +722,16 @@ def create_app(
         job = store.get(job_id)
         if job is None:
             raise HTTPException(404)
+        if job.status == "quoted":  # the quote itself, with PayPal's buttons
+            kind = "check" if job.kind == "check" else "audit"
+            return render(
+                request,
+                "quote.html",
+                job=job,
+                quote=quote(job.tokens, words=job.words, books=len(job.books), kind=kind),
+                currency=CURRENCY,
+                via_agent=request.query_params.get("via") == "assistant",
+            )
         return render(
             request,
             "job.html",
@@ -805,13 +818,13 @@ def create_app(
         return RedirectResponse(f"/jobs/{job_id}#guarantee", status_code=303)
 
     @app.post("/jobs/{job_id}/check")
-    async def make_check(request: Request, job_id: str, draft: UploadFile) -> HTMLResponse:
+    async def make_check(request: Request, job_id: str, draft: UploadFile) -> RedirectResponse:
         """Quote a check of one new draft against this finished audit's bible."""
         require_model()
         _refuse_before_reading([draft])
         data = await draft.read()
         try:
-            job, q = await run_in_threadpool(
+            job, _ = await run_in_threadpool(
                 store.create_check, job_id, draft.filename or "draft.txt", data
             )
         except KeyError:
@@ -819,8 +832,7 @@ def create_app(
         except ValueError as e:
             code = 409 if "finished" in str(e) else 413 if "large" in str(e) else 400
             raise HTTPException(code, str(e)) from None
-        page = render(request, "quote.html", job=job, quote=q, currency=CURRENCY)
-        return remember(request, page, job.id)
+        return to_quote(request, job.id)
 
     @app.post("/jobs/{job_id}/delete")
     def delete(job_id: str, confirm: str = Form("")) -> RedirectResponse:

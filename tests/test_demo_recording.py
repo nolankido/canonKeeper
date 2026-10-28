@@ -89,7 +89,11 @@ def test_keyless_demo_replays_the_recording_offline_and_says_so(recording, tmp_p
     keyless = Settings(provider="mock", workdir=tmp_path / "k", _env_file=None)
     app = create_app(settings=keyless, paypal=FakePayPal(), workdir=tmp_path / "kpf")
     web = TestClient(app)
-    job_id = web.post("/quote-demo").text.split('action="/jobs/')[1].split("/order")[0]
+    job_id = (
+        web.post("/quote-demo", follow_redirects=True)
+        .text.split('action="/jobs/')[1]
+        .split("/order")[0]
+    )
     with respx.mock(assert_all_called=False) as router:  # any network call would show here
         net = router.route().mock(return_value=httpx.Response(500))
         _pay(web, app, job_id)
@@ -148,7 +152,11 @@ def test_a_hosted_instance_seeds_its_demo_cache_and_needs_no_quota_for_the_demo(
         encoding="utf-8",
     )
     web = TestClient(app)
-    job_id = web.post("/quote-demo").text.split('action="/jobs/')[1].split("/order")[0]
+    job_id = (
+        web.post("/quote-demo", follow_redirects=True)
+        .text.split('action="/jobs/')[1]
+        .split("/order")[0]
+    )
     r = web.post(f"/jobs/{job_id}/order", follow_redirects=False)
     assert r.status_code == 303  # ordered: every request the demo needs is already answered
 

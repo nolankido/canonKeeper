@@ -26,7 +26,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from playwright.async_api import Page, async_playwright
+from playwright.async_api import Locator, Page, async_playwright
 
 W, H = 1280, 720
 BASE = "http://127.0.0.1:8787"
@@ -92,6 +92,36 @@ def sandbox(page: Page) -> bool:
     return any("smart/buttons" in f.url for f in page.frames)
 
 
+async def guest_button(pop: Page, timeout_s: float = 45) -> Locator:
+    """PayPal's guest "Pay Now" button. Since late Oct 2026 the card form opens with "Save info
+    & create your PayPal account" switched on (its button reads "Create Account & Pay Now"):
+    switch it off. Older forms have a separate guest button. Never returns a button whose text
+    offers to create an account."""
+    switch = pop.locator("input[role=switch], input[type=checkbox][id^=Switch]")
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if await switch.count() and await switch.first.is_checked():
+            label = pop.locator(f"label[for='{await switch.first.get_attribute('id')}']")
+            if await label.count():
+                await label.first.click()
+            else:
+                await switch.first.click(force=True)
+            await pop.wait_for_timeout(1500)
+            continue
+        for candidate in (
+            pop.locator("[data-testid=pomaGuestSubmitButton]"),
+            pop.get_by_role("button", name="Pay Now", exact=True),
+        ):
+            if await candidate.count() and await candidate.first.is_visible():
+                text = (await candidate.first.inner_text()).lower()
+                if "create" not in text and "account" not in text:
+                    return candidate.first
+        await pop.wait_for_timeout(1000)
+    shot = Path(f"paypal-popup-{int(time.time())}.png")
+    await pop.screenshot(path=str(shot), full_page=True)
+    raise RuntimeError(f"no guest checkout button on PayPal's form; see {shot.resolve()}")
+
+
 async def pay_by_card(page: Page) -> None:
     """Pay through PayPal's card button as a guest with the published sandbox test card."""
     frame = next(f for f in page.frames if "smart/buttons" in f.url)
@@ -124,12 +154,10 @@ async def pay_by_card(page: Page) -> None:
     await pop.press("#email", "Tab")  # PayPal checks the email before offering guest checkout
     await pop.select_option("#billingState", "CA")
     await no_cookies()
-    await pop.locator("[data-testid=pomaGuestSubmitButton]").wait_for(
-        state="visible", timeout=45000
-    )
+    button = await guest_button(pop)
     await pop.wait_for_timeout(500)
     try:
-        await pop.locator("[data-testid=pomaGuestSubmitButton]").click(timeout=20000)  # guest
+        await button.click(timeout=20000)  # pay as a guest: never the create-account button
         await pop.wait_for_event("close", timeout=90000)
     except Exception:
         shot = Path(f"paypal-popup-{int(time.time())}.png")
@@ -215,7 +243,8 @@ async def scene_buy(page: Page) -> str:
     if sandbox(page):
         await caption(page, "Pay with PayPal: PayPal, Venmo, Pay Later or a card.", 3)
         await pay_by_card(page)
-        await page.wait_for_url("**/jobs/**", timeout=60000)
+        # the quote already lives at /jobs/<id>: wait for the job page itself, past "quoted"
+        await page.wait_for_selector("h1 .status:not(.quoted)", timeout=60000)
         await page.wait_for_load_state("networkidle")
         await caption(page, "PayPal captured it. Only now does anything reach a model.", 3.5)
     else:

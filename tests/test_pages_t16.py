@@ -32,7 +32,7 @@ def test_a_quoted_job_shows_its_arithmetic_and_a_paypal_button_in_plain_words(tm
     assert f"$5.00 base + {tokens:,} tokens at $4.00 per 100k tokens ($0.05) = $5.05" in page
     assert 'class="paypal">Pay $5.05 with PayPal' in page
     assert "Download the report first" not in page  # there is no report yet
-    assert 'class="paypal"' in web.post("/quote-demo").text
+    assert 'class="paypal"' in web.post("/quote-demo", follow_redirects=True).text
 
 
 def test_an_unfunded_budget_shows_no_balance_and_a_closing_one_says_so(tmp_path):
@@ -211,3 +211,16 @@ def test_an_https_deployment_also_sends_hsts(tmp_path):
     app = create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pf",
                      public_base_url="https://preflight.example.com")  # fmt: skip
     assert "max-age" in TestClient(app).get("/healthz").headers["strict-transport-security"]
+
+
+def test_a_quote_has_its_own_address_so_reloading_it_is_safe(tmp_path):
+    """Judge review: /quote-demo was POST-only, so a reload (or a phone coming back to the tab)
+    showed "Method Not Allowed", and re-sending the form made a second job."""
+    web, svc = _shop(tmp_path)
+    r = web.post("/quote-demo", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith("/jobs/")
+    url = r.headers["location"]
+    first, again = web.get(url), web.get(url)
+    assert first.status_code == again.status_code == 200
+    assert "Pay $5.05 with PayPal" in again.text and ">quote ready</span>" in again.text
+    assert len(svc.store.all()) == 1

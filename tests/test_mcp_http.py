@@ -79,7 +79,7 @@ def test_an_assistant_buys_an_audit_over_http_with_an_upload_link(hosted) -> Non
                 assert waiting["status"] == "waiting for the upload"
 
                 # The person opens the link and uploads the books (not the assistant).
-                async with httpx.AsyncClient() as web:
+                async with httpx.AsyncClient(follow_redirects=True) as web:
                     page = await web.get(link["upload_url"])
                     assert page.status_code == 200 and "Upload your series" in page.text
                     files = [
@@ -91,6 +91,7 @@ def test_an_assistant_buys_an_audit_over_http_with_an_upload_link(hosted) -> Non
                         link["upload_url"], data={"series_name": "Saltmarsh"}, files=files
                     )
                     assert up.status_code == 200 and 'data-testid="via-agent"' in up.text
+                    assert up.url.path.startswith("/jobs/")  # the quote has its own address
                     again = await web.post(
                         link["upload_url"], data={"series_name": "x"}, files=files[:1]
                     )
@@ -203,7 +204,7 @@ def test_the_person_can_use_the_demo_series_on_an_assistants_upload_link(hosted)
     link = svc.request_upload_link("Saltmarsh")
     page = httpx.get(link["upload_url"]).text
     assert 'data-testid="upload-demo"' in page and "budget" in page
-    r = httpx.post(f"{link['upload_url']}/demo")
+    r = httpx.post(f"{link['upload_url']}/demo", follow_redirects=True)
     assert r.status_code == 200 and "tell it to go ahead" in r.text
     st = svc.upload_status(link["token"])
     assert st["status"] == "quoted" and "pay_with_budget" in st["next"]

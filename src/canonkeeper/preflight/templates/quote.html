@@ -2,10 +2,10 @@
 {% block title %}Quote — {{ job.series_name }}{% endblock %}
 {% block body %}
 {% if job.kind == 'check' %}
-<h1>Check <code>{{ job.draft }}</code></h1>
+<h1>Check <code>{{ job.draft }}</code> <span class="status {{ job.status }}">{{ job.status | label }}</span></h1>
 <p class="lede">against the bible of {{ job.series_name }} ({{ job.books | length }} books) · draft: {{ "{:,}".format(job.words) }} words · {{ "{:,}".format(job.tokens) }} tokens</p>
 {% else %}
-<h1>{{ job.series_name }}</h1>
+<h1>{{ job.series_name }} <span class="status {{ job.status }}">{{ job.status | label }}</span></h1>
 <p class="lede">{{ job.books | length }} books · {{ "{:,}".format(job.words) }} words · {{ "{:,}".format(job.tokens) }} tokens</p>
 {% endif %}
 
