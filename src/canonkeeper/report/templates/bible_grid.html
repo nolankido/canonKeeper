@@ -134,6 +134,9 @@
       { field: "quote", headerName: "Passage", flex: 1, minWidth: 260, hide: narrow, tooltipField: "quote", filter: "agTextColumnFilter" }
     ];
   }
+  function short(b) {  // "The Sign of the Four" -> "Sign of the Four", for a phone's width
+    return b.replace(/^(The|A|An) /, "").replace(/ of Sherlock Holmes$/, "");
+  }
   function matrixColumns() {
     // one column per book, in reading order; a cell is marked where its book changes the value
     // the earliest book gave
@@ -144,6 +147,34 @@
       { colId: "flag", headerName: "⚠", headerTooltip: "Disputed: the books give two different values", width: 56, cellClass: "flag", cellDataType: "text",
         valueGetter: function (p) { return p.data && p.data.disputed ? "⚠" : ""; } }
     ];
+    if (narrow) {
+      // a phone has no room for a column per book: one column, each book's value on its own
+      // line in reading order, the changed ones marked; a tap opens the passages below
+      cols.splice(0, 3,
+        { field: "entity", headerName: "Who", pinned: "left", width: 96, wrapText: true, autoHeight: true, filter: "agTextColumnFilter" },
+        { field: "fact", headerName: "Fact", width: 86, wrapText: true, autoHeight: true, filter: "agTextColumnFilter" });
+      cols.push({ colId: "bybook", headerName: "Each book, in order", flex: 1, minWidth: 150, wrapText: true, autoHeight: true,
+        filter: "agTextColumnFilter",
+        valueGetter: function (p) {
+          if (!p.data || !p.data.books) return "";
+          return matrix.books.filter(function (b) { return p.data.books[b]; })
+            .map(function (b) { return short(b) + ": " + p.data.books[b]; }).join("\n");
+        },
+        cellRenderer: function (p) {
+          if (!p.data || !p.data.books) return "";
+          var lead = first(p.data), box = document.createElement("div");
+          matrix.books.forEach(function (b) {
+            var v = p.data.books[b]; if (!v) return;
+            var line = document.createElement("div");
+            line.textContent = short(b) + ": " + v;
+            if (p.data.disputed && v !== lead) line.className = "changed";
+            box.appendChild(line);
+          });
+          return box;
+        },
+        cellStyle: { lineHeight: "1.35", paddingTop: "6px", paddingBottom: "6px" } });
+      return cols;
+    }
     var perBook = [];
     matrix.books.forEach(function (b) {
       perBook.push({ colId: "book:" + b, headerName: b, headerTooltip: b, width: 150, minWidth: 110, flex: 1, filter: "agTextColumnFilter",
@@ -182,7 +213,9 @@
       onCellClicked: function (e) {
         if (view === "rows") { remember({ focus: e.data.entity + "|" + e.data.fact }); return show(e.data); }
         var col = e.column.getColId();
-        var book = col.indexOf("book:") === 0 ? col.slice(5) : (matrix.books.find(function (b) { return e.data.books[b]; }) || "");
+        var lead = matrix.books.find(function (b) { return e.data.books[b]; }) || "";
+        var changedBook = matrix.books.find(function (b) { var v = e.data.books[b]; return v && e.data.books[lead] && v !== e.data.books[lead]; });
+        var book = col.indexOf("book:") === 0 ? col.slice(5) : (col === "bybook" && changedBook ? changedBook : lead);
         remember({ focus: e.data.entity + "|" + e.data.fact, book: book });
         showBook(e.data, book);
       },
