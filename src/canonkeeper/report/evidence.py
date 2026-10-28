@@ -7,8 +7,9 @@ needs: the leg is in the second. Before a report is written, each claim in a fin
 for the copy of the *same* fact (same character, same fact, same value, same book) whose
 sentence names the value, or, for a role two people share ("the landlady"), names the person.
 Every copy is grounded to a verbatim quote, so this changes which true sentence is shown, never
-what is claimed. Judging is untouched: it runs before this and on the screen's own picks. For a shared role the
-naming sentence is added beside the role's own, since the judge's explanation may quote either.
+what is claimed. Judging is untouched: it runs before this and on the screen's own picks. For a
+shared role the naming sentence is added beside the role's own, since the judge's explanation
+may quote either.
 """
 
 from __future__ import annotations
