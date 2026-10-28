@@ -529,7 +529,9 @@ def test_check_next_draft_against_a_finished_audit(client):
         files={"draft": ("04-the-ledger.txt", DRAFT4.encode())},
         follow_redirects=True,
     )
-    assert r.status_code == 200 and "Check <code>the-ledger.txt</code>" in r.text
+    assert (
+        r.status_code == 200 and "Check <code>draft-04-the-ledger.txt</code>" in r.text
+    )  # the demo draft, as recorded
     assert "Pay $2.01" in r.text or "$2.01" in r.text  # the quote, re-priced as a check
     check_id = r.text.split('action="/jobs/')[1].split("/order")[0]
     check = store.get(check_id)

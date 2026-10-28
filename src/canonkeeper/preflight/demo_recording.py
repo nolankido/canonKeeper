@@ -142,7 +142,7 @@ def record(settings: Settings, dest: Path | None = None, *, workdir: Path) -> di
     from datetime import UTC, datetime
 
     from canonkeeper.demo import BOOK1, BOOK2, BOOK3, DRAFT4, SERIES_NAME
-    from canonkeeper.preflight.jobs import JobStore, Runner
+    from canonkeeper.preflight.jobs import DEMO_DRAFT_FILE, JobStore, Runner
 
     run_settings = settings.model_copy(
         update={"workdir": workdir, "model_fallbacks_enabled": False}
@@ -158,7 +158,7 @@ def record(settings: Settings, dest: Path | None = None, *, workdir: Path) -> di
     results: dict[str, Any] = {}
     for job in (audit, None):
         if job is None:  # the draft check, once the audit is done
-            job, _ = store.create_check(audit.id, "draft-04-the-ledger.txt", DRAFT4.encode())
+            job, _ = store.create_check(audit.id, DEMO_DRAFT_FILE, DRAFT4.encode())
         if not job.demo:
             raise RuntimeError("the recording's upload was not recognised as the demo series")
         store.update(job.id, status="paid")

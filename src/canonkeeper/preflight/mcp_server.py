@@ -326,7 +326,7 @@ class PreflightService:
         """The demo series' next book, a draft with planted slips, for check_draft."""
         from canonkeeper.demo import DRAFT4
 
-        return {"name": "04-the-ledger.txt", "text": DRAFT4}
+        return {"name": "draft-04-the-ledger.txt", "text": DRAFT4}
 
     def order_audit(self, job_id: str) -> dict[str, Any]:
         job = self.store.get(job_id)

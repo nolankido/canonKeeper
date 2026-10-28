@@ -87,3 +87,15 @@ def series() -> Series:
     ):
         books.append(Book(key, title, i, text, chapterize(text, min_chars=50)))
     return Series("Test Series", books)
+
+
+@pytest.fixture(autouse=True)
+def _no_packaged_recording(request, tmp_path_factory, monkeypatch):
+    """The packaged demo recording (real Gemini answers) would answer every keyless demo job;
+    tests pin the rule-based stand-in's planted behaviour instead. test_demo_recording.py
+    tests the recording itself."""
+    if request.module.__name__.endswith("test_demo_recording"):
+        return
+    from canonkeeper.preflight import demo_recording
+
+    monkeypatch.setattr(demo_recording, "RECORDING", tmp_path_factory.mktemp("no-recording"))

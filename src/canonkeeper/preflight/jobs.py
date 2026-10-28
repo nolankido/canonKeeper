@@ -161,6 +161,7 @@ def _strip_numbering(name: str) -> str:
 _JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 _SHARE_ID = re.compile(r"[A-Za-z0-9_-]{16}")
 MAX_BOOKS = 40
+DEMO_DRAFT_FILE = "draft-04-the-ledger.txt"  # the demo draft, as recorded (demo_recording)
 MAX_TOTAL_BYTES = 40 * 10**6  # ~10M tokens; the six Holmes volumes are 2.6 MB
 MAX_UNPAID_BYTES = 10**9  # all unpaid quotes together; the oldest are evicted past this
 
@@ -261,6 +262,11 @@ class JobStore:
         stem = _strip_numbering(name) or "draft.txt"
         safe = "".join(ch if ch.isalnum() or ch in "-_." else "-" for ch in stem)
         safe = safe.lstrip(".") or "draft.txt"  # never "..", never a hidden file
+        demo = parent.demo and _is_demo_draft(draft_text)
+        if demo:
+            # the demo draft's file name is part of what the model is asked; the packaged
+            # recording asked under this name, so a visitor's copy replays whatever it is called
+            safe = DEMO_DRAFT_FILE
         (d / "draft").mkdir(parents=True, exist_ok=True)
         text = draft_text
         (d / "draft" / safe).write_text(text, encoding="utf-8")
@@ -276,7 +282,7 @@ class JobStore:
             kind="check",
             parent_id=parent_id,
             draft=safe,
-            demo=parent.demo and _is_demo_draft(draft_text),
+            demo=demo,
         )
         self.save(job)
         return job, q
@@ -476,8 +482,12 @@ class Runner:
         """With no model key, the demo series is answered from the packaged Gemini recording
         (a label saying so), not by the rule-based stand-in: a judge without a key still sees
         real model output. Only the exact demo books, and the exact demo draft for a check."""
+        from canonkeeper.demo import SERIES_NAME
+
         if self.settings.provider != "mock" or not job.demo:
             return None
+        if job.series_name != SERIES_NAME:  # the series name is in every prompt: the recording
+            return None  # asked under its own, so a renamed copy gets the stand-in
         from canonkeeper.preflight import demo_recording
 
         return demo_recording.label()
