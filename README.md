@@ -79,12 +79,17 @@ Entered in the [PayPal AI Hackathon 2026](https://paypalaihackathon.devpost.com/
 
 ## The engine: how canonkeeper works
 
-```
- series.json ──▶ fetch/chapterize ──▶ extract claims ──▶ bible.jsonl
-                                    (cheap long-ctx model)    │
-                                                              ▼
-                     report.html ◀── adjudicate ◀── candidate conflicts
-                                  (stronger model)   (local heuristics, $0)
+```mermaid
+flowchart TD
+    B[Books: .docx .txt .md<br/>or Project Gutenberg] --> C[Chapters]
+    C -->|cheap long-context model| E[Facts, each with<br/>a verbatim quote]
+    E -->|quote not found in the text| X((dropped))
+    E --> S[Series bible]
+    S -->|local heuristics, no model| K[Candidate conflicts]
+    K -->|stronger model, series in context| J{Judged}
+    J --> R1[Contradiction:<br/>both passages, fix the later book]
+    J --> R2[Cleared: only by quoting<br/>the passage that explains it]
+    J --> R3[Left to the author]
 ```
 
 A cheap long-context model reads every chapter into atomic facts, each with a **verbatim quote**
