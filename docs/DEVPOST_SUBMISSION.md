@@ -145,6 +145,14 @@ or from a "check payment" button for a buyer who approved and closed the tab. It
 completed capture (not a PENDING one) of exactly the quoted amount and currency, and the agent
 never holds a credential that could approve. Model calls start only after that check passes.
 
+Why the assistant budget captures the money and refunds the rest, instead of holding an
+authorization: PayPal honours an authorization for only a few days, and a budget is meant to
+last while the author writes the next book, weeks or months. Captured funds with every spend on
+a receipt, a credit for a failed audit, and a partial refund of the remainder on close keep the
+promise for as long as the author needs; Vault (saved payment methods charged later) needs
+account approval a hackathon entry cannot get, and would let the merchant charge again without
+the person in the loop.
+
 ## AI tools used
 Gemini API through its OpenAI-compatible endpoint: `gemini-3.5-flash-lite` for extraction
 (two passes per chunk, medium reasoning effort) and `gemini-3.6-flash` for adjudication, both
