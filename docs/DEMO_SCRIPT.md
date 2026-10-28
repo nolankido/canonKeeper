@@ -10,63 +10,55 @@ The video must show the project working end-to-end, on the machine it was built 
 third-party music or copyrighted material. Everything shown is public-domain text or our own
 invented series. Warm every cache first: nothing on screen should wait on a model.
 
-Script v2 (T17, 2026-10-27). Narration is timed at 150 words a minute; each beat lists its
-word count, and the total is 363 words, 2:25 of speech inside a 2:50 cut (room for the screens to breathe). Numbers on screen are real:
-read them off the hosted pages on the day, and if a benchmark run has added a newer README row,
-read that row instead.
+Script v3 (2026-10-27). Narration is timed at 150 words a minute; each beat lists its word
+count. Numbers on screen are real: read them off the pages on the day, and if a benchmark run has
+added a newer README row, read that row instead. v3 replaces the scripted assistant with a real
+recorded agent session, and adds the triage grid and the bible's chart to the Holmes beat.
 
-## 0:00–0:15 — Problem, audience, value (Impact) · 36 words
-On screen: the Holmes report, first card (Watson's wound, both passages, the fix).
+## 0:00–0:06 — Problem, audience, value (Impact) · 30 words
+On screen: the opening card.
 > "Book six has to agree with book one. Preflight reads a whole series and shows every
-> contradiction: both passages, and a fix for the newer book. For series authors and editors,
-> paid per audit with PayPal."
+> contradiction, with both passages and a fix for the newer book."
 
-## 0:15–0:45 — It works on a real series (Technological Implementation) · 68 words
-Scroll the Holmes sample report, then open *Explore the bible* (AG Grid) and tick *Disputed
-facts only*.
-> "Here it is on all six Sherlock Holmes books. It finds the two slips readers have argued about
-> for a century: Watson's wound moves from his shoulder to his leg, and the landlady is Mrs.
-> Hudson, then Mrs. Turner. When Holmes dies and comes back, it clears that, and quotes the
-> passage that explains it. Underneath is a bible of 3,963 facts, each one tied to its
-> sentence."
+## 0:06–0:50 — It works on a real series (Technological Implementation, Design) · 92 words
+The Holmes sample report: the triage grid (AG Grid) → click Watson's row → his card → the
+landlady → the Reichenbach clearance → *see it in the bible* (AG Grid, one column per book) →
+click the *Return* bar of the chart (AG Charts) to filter to the facts that book changes.
+> "Here it is on all six Sherlock Holmes books. Every finding sits in one grid, with my own
+> rulings beside the model's. It finds the slips readers have argued about for a century:
+> Watson's wound moves from his shoulder to his leg, and the landlady is Mrs. Hudson, then Mrs.
+> Turner. When Holmes dies and comes back, it clears that, and quotes the passage that explains
+> it. Underneath is a bible of 3,963 facts, each tied to its sentence: click a book, and you see
+> what it changed."
 
-## 0:45–1:20 — Buying an audit (PayPal + AI, Design) · 72 words
-Hosted URL. *Try it with the demo series* → quote page → the gold PayPal button → sandbox
-checkout → approve → job page ticks to *done* → *Open the report*.
-> "Buying one: upload the books and the price is known before anything runs: five dollars, plus
-> four per hundred thousand tokens, with the arithmetic on the page. Pay with PayPal. Nothing
-> touches a model until PayPal confirms a completed capture of exactly the quoted amount, and a
-> failed audit refunds through PayPal with one button. A minute later: the report, five planted
-> contradictions in the demo series, each with its two passages."
+## 0:50–1:30 — Buying an audit (PayPal, Design) · 66 words
+Home → *Try it with the demo series* → quote page → PayPal's card button, as a guest with
+PayPal's sandbox test card (the pop-up plays at 1.7×) → job page ticks to *done* → the report.
+> "Buying one: the price is known before anything runs, five dollars plus four per hundred
+> thousand tokens, with the arithmetic on the page. Pay with PayPal. Nothing touches a model
+> until PayPal confirms the capture of exactly that amount, and a failed audit refunds with one
+> button. A minute later: five planted contradictions, each with its two passages."
 
-## 1:20–2:05 — An assistant with a budget (Agentic Commerce) · 92 words
-An MCP assistant connected to the hosted endpoint (`<url>/mcp`), shown as the recorder's own
-unbranded chat panel: the rules bar third-party trademarks in the video. Type: *"Open a $20
-Preflight budget."* The assistant replies with an approval link; approve it with PayPal on the
-budget page (the assistant cannot). Then: *"Check my new draft against the series."* It quotes
-the check, pays from the budget and reads the findings back. Cut to the budget page: the spend,
-the balance.
-> "The same shop serves AI assistants over MCP. I give my assistant a twenty-dollar budget. It can
-> open the order, but only I can approve it, on PayPal. From then on it works on its own:
-> it checks my next draft against everything already published, pays from the budget, and
-> brings back the contradictions. It can never spend past the balance, every spend is on a
-> receipt, and it never holds a PayPal credential. That is the shape agentic commerce should
-> have: the person sets the limit once, the assistant acts inside it."
+## 1:30–2:30 — A real assistant with a budget (Agentic Commerce, Innovation) · 112 words
+`agent-video.webm` from `scripts/video/agent_session.py`: a real headless agent connected to
+Preflight's MCP endpoint, every call and reply its own, replayed in an unbranded chat panel
+("Your AI assistant": the rules bar third-party trademarks in the video). It ends on the
+budget's page: every spend, the refund for the finding marked wrong, the rest refunded.
+> "The same shop serves AI assistants over MCP, and this is a real session. I ask for a
+> twenty-dollar budget, at most six dollars a purchase. The assistant opens the order, but only I
+> can approve it, on PayPal. From then on it works on its own: it audits the series, pays from the
+> budget, and brings back the contradictions. When I say one is wrong, it can't refund itself: it
+> gives me a link, and I confirm it, fifty cents back. It checks my next draft, then closes the
+> budget, and the rest goes back to PayPal. I set the limit once; it acts inside it, and never
+> holds a PayPal credential."
 
-## 2:05–2:25 — The author stays in charge (Innovation) · 37 words
-Job page: *This one is wrong* on a finding → receipt shows $0.50 back. *Needs your judgement*:
-*Not a problem*. Budget page: *Close the budget* → *Refunded to PayPal*.
-> "If a finding is wrong, I say so: fifty cents comes back through PayPal, up to half the
-> price, and the report shows my call beside the model's. When I'm done, closing the budget
-> refunds the rest."
-
-## 2:25–2:40 — Is it honest? (Technological Implementation) · 38 words
+## 2:30–2:45 — Is it honest? (Technological Implementation) · 38 words
 README benchmark table.
 > "We measure it: contradictions are planted in the Holmes novels and the pipeline is scored on
 > what it finds. Precision 0.80, recall 0.40 on the last run. The misses are listed, and so is
 > the work on them."
 
-## 2:40–2:50 — Close · 20 words
+## 2:45–2:52 — Close · 20 words
 Repo URL and hosted URL on screen.
 > "Open source, MIT, free tier or your own machine for private books. Preflight: pay for the
 > audit, get the proof."
@@ -74,59 +66,36 @@ Repo URL and hosted URL on screen.
 ## Production notes
 - Caches warm: `audit`, `check` and the Saltmarsh job must complete in seconds on camera. Run
   each once the day before; a re-run replays from `.canonkeeper/cache`.
-- Sandbox buyer: log in once in the recording browser before starting so checkout is two clicks.
-- The assistant beat is filmed by `scripts/video/record.py` (below): no branded assistant UI on
-  screen, and the approval with PayPal is shown: it is the point of the beat.
-- Terminal font ≥ 18pt; report pages at 110% zoom; 1920×1080.
+- No PayPal login on camera: checkout is PayPal's guest card form with the sandbox test card.
+- The assistant beat is the real session's film: no branded assistant UI on screen.
 - Never show `.env`, a real manuscript, a pen name, or anything under `drafts/`.
 - Keep the PayPal checkout on screen only as long as the approval takes; the product is the
   report, not the payment page.
 
-## A draft cut, generated
+## The cut, generated
 
-`scripts/video/record.py` drives the running app in demo mode with Playwright and films each
-beat of v2 with captions drawn into the page, including the assistant scene: it calls the
-server's own MCP endpoint the way Claude Desktop would (open a budget, check the draft, pay from
-the budget, read the findings) and films the person's side, the PayPal approval and the budget
-page. `scripts/video/assemble.py` trims, fades and joins the scenes into
-`build/video/preflight.mp4` (about 2:50, silent, 1280×720).
+`scripts/video/agent_session.py` runs the assistant beat for real: a headless agent connected
+to the server's MCP endpoint, asked five things an author would ask. The one step it can never
+take, approving a PayPal payment, the script takes as the person would. It saves the transcript
+and films it twice: `agent.webm` (named, for /assistant and the README) and `agent-video.webm`
+(the generic title and shorter holds the video needs).
 
-Against a server with PayPal **sandbox** keys, both payments are real: the recorder pays through
-PayPal's own card button as a guest with PayPal's published sandbox test card (no PayPal login),
-films PayPal's pop-up full width and splices it in where it opened, and the cut plays the form
-fills at 1.7×. The assistant panel is labelled generically ("Your AI assistant"), not with any
-product's name, because the rules bar third-party trademarks in the video. Without sandbox keys
-the same scenes run on the simulated checkout.
+`scripts/video/record.py` films every other beat from the running app with captions drawn into
+the page, and takes `--agent-clip` for the assistant beat. Against a server with PayPal
+**sandbox** keys the payment is real: the recorder pays through PayPal's own card button as a
+guest with PayPal's published sandbox test card (no PayPal login, local server only), films the
+pop-up and splices it in where it opened; the cut plays it at 1.7×. Without sandbox keys the
+same scenes run on the simulated checkout. `scripts/video/assemble.py` fades and joins the
+scenes into `preflight.mp4` (1280×720, silent; narration is added over it) and warns at 3:00.
 
 ```bash
-canonkeeper serve --provider mock --port 8787 &
-canonkeeper demo --dest build/demo
-python scripts/video/record.py --out build/video --draft build/demo/draft-04-the-ledger.txt
+set -a; . keys.env; set +a           # sandbox keys only
+canonkeeper serve --provider mock --port 8791 --workdir build/w &
+python scripts/video/agent_session.py --base http://127.0.0.1:8791 --out build/agent
+python scripts/video/record.py --base http://127.0.0.1:8791 --out build/video \
+    --agent-clip build/agent/agent-video.webm
 python scripts/video/assemble.py build/video
 ```
 
-## Recording the real sandbox checkout (about 10 minutes, Windows)
-
-The generated cut simulates the checkout; the video should show the real PayPal sandbox. Do
-this once, on the laptop, in the repo folder:
-
-1. **Prove the money path first.** `.venv\Scripts\canonkeeper doctor --round-trip`. It prints
-   a sandbox approval link: open it, log in as the sandbox **personal (buyer)** account (from
-   developer.paypal.com → Testing Tools → Sandbox Accounts → the `personal` account → View/edit
-   account, which shows its email and password), approve. The terminal then shows capture →
-   verify → refund. If any step is red, stop and send me the output.
-2. **Warm the run.** `.venv\Scripts\canonkeeper serve` (sandbox credentials come from `.env`),
-   open http://127.0.0.1:8787, press *Try it with the demo series*, pay with the sandbox buyer, wait for
-   *done*. This fills the cache so the recorded run finishes in seconds. Leave the browser
-   logged in to the sandbox buyer.
-3. **Record.** Press `Win + Alt + R` (Xbox Game Bar starts recording the active window; the
-   same keys stop it). Go to http://127.0.0.1:8787 → *Try it with the demo series* → *Pay with
-   PayPal* → approve on the sandbox page → wait on the job page until *done* → *Open the
-   report* → scroll to the first card. Stop recording. Aim for 30–40 seconds.
-4. **Hand it back.** The clip lands in `Videos\Captures`. Copy it to
-   `build\video\checkout.mp4` in the repo and tell me; I will cut it into the draft in place
-   of the simulated checkout and keep the total under three minutes. The cut is one command,
-   which scales any recording size to 1280x720 and warns if the total reaches 3:00:
-   `python scripts/video/assemble.py build/video --replace buy=build/video/checkout.mp4`.
-5. **Devpost testing notes.** If judges should try the hosted sandbox checkout, put the sandbox
-   buyer's email and password in Devpost's private testing instructions, never in the repo.
+Devpost testing notes: if judges should try the hosted sandbox checkout, put the sandbox buyer's
+email and password in Devpost's private testing instructions, never in the repo.

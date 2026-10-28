@@ -5,6 +5,9 @@
     python scripts/video/record.py --out build/video --draft build/demo/draft-04-the-ledger.txt
     python scripts/video/assemble.py build/video                # -> build/video/preflight.mp4
 
+The final cut uses a real agent session for the assistant beat instead of the scripted calls:
+run scripts/video/agent_session.py first, then `record.py --agent-clip <its agent-video.webm>`.
+
 The scenes follow docs/DEMO_SCRIPT.md (v2). The assistant scene drives the server's own MCP
 endpoint (/mcp, JSON-RPC over HTTP) the way Claude Desktop would, and films the person's side:
 the PayPal approval and the budget page.
@@ -21,6 +24,7 @@ import argparse
 import asyncio
 import html
 import json
+import shutil
 import subprocess
 import time
 import urllib.request
@@ -202,6 +206,12 @@ async def scene_holmes(page: Page) -> None:
     await caption(
         page, "3,963 facts in the series bible, each tied to the exact passage that states it.", 3.5
     )
+    # the triage grid: every finding on one screen, the author's own rulings beside the model's
+    await smooth_scroll_to(page, "document.getElementById('triage')", offset=10)
+    await caption(page, "Every finding in one grid: sort it, filter it, search it.", 3.5)
+    await caption(page, "The author's own rulings sit beside the model's calls.", 3)
+    await page.click("#triage-grid .ag-row[row-index='0'] [col-id='finding']")
+    await page.wait_for_timeout(900)
     await smooth_scroll_to(page, "document.querySelector('div.f')", offset=20)
     await caption(page, "Watson's war wound: the shoulder in book 1, the leg in book 2.", 4)
     await caption(
@@ -240,7 +250,29 @@ async def scene_holmes(page: Page) -> None:
     await page.wait_for_selector(".ag-row")
     await page.wait_for_timeout(1200)
     await caption(page, "Each finding opens the series bible: one column per book.", 3.5)
-    await caption(page, "Changed values are marked; the passage is underneath.", 3.5)
+    await click_bar(page, "Return")
+    await caption(page, "Click a bar: the facts that book changes, beside what came before.", 4)
+
+
+async def click_bar(page: Page, label: str) -> None:
+    """Click one bar of the bible's AG Charts bar chart (drawn on a canvas, so by position: the
+    bars share the width evenly, one per book after the first)."""
+    books = await page.evaluate(
+        "[...document.querySelectorAll('#grid .ag-header-cell[col-id^=\"book:\"]')]"
+        ".map(e => e.getAttribute('col-id'))"
+    )
+    n = max(1, len(books) - 1)
+    k = next((i for i, b in enumerate(books[1:]) if label in b), n - 1)
+    box = await page.locator("#chart").bounding_box()
+    assert box, "the bible page drew no chart"
+    left, right = box["x"] + 30, box["x"] + box["width"] - 8
+    x, y = left + (k + 0.5) * (right - left) / n, box["y"] + box["height"] * 0.72
+    await page.mouse.move(x, y, steps=12)
+    await page.wait_for_timeout(700)
+    await page.mouse.click(x, y)
+    await page.wait_for_function(
+        "document.getElementById('chart-note').innerText.includes('Showing')"
+    )
 
 
 async def scene_buy(page: Page) -> str:
@@ -429,10 +461,17 @@ async def scene_in_charge(page: Page, job_url: str, budget_url: str) -> None:
 async def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, default=Path("build/video"))
-    ap.add_argument("--draft", type=Path, required=True)
+    ap.add_argument("--draft", type=Path, help="the draft the scripted assistant checks")
     ap.add_argument("--bench", default="", help="one line of benchmark numbers for the close card")
     ap.add_argument("--base", default=BASE, help="the running server (demo mode)")
+    ap.add_argument(
+        "--agent-clip", type=Path,
+        help="a real agent session's film (agent_session.py's agent-video.webm): used as the "
+        "assistant beat, in place of the scripted MCP calls and the in-charge scene",
+    )  # fmt: skip
     a = ap.parse_args()
+    if not (a.agent_clip or a.draft):
+        ap.error("give --agent-clip (a real agent session) or --draft (the scripted one)")
     globals()["BASE"] = a.base.rstrip("/")
     a.out.mkdir(parents=True, exist_ok=True)
     order: list[str] = []
@@ -486,8 +525,14 @@ async def main() -> None:
         )
         await record("holmes", scene_holmes)
         job_url = await record("buy", scene_buy)
-        budget_url = await record("agent", scene_agent, a.out, job_url, a.draft)
-        await record("in-charge", scene_in_charge, job_url, budget_url)
+        if a.agent_clip:
+            # the real session already holds what in-charge shows: a finding the person marks
+            # wrong, money back to the budget, the budget closed and the rest refunded
+            shutil.copyfile(a.agent_clip, a.out / f"{len(order):02d}-agent.webm")
+            order.append("agent")
+        else:
+            budget_url = await record("agent", scene_agent, a.out, job_url, a.draft)
+            await record("in-charge", scene_in_charge, job_url, budget_url)
         await record(
             "honest",
             scene_card,

@@ -10,7 +10,9 @@ The one step an agent can never take, approving the PayPal payment, is done here
 would: PayPal's card button, as a guest, with PayPal's published sandbox test card, on this
 local server only. Every tool call and every reply is the agent's own, saved to
 `transcript.json`; the film (`agent.webm`) replays that transcript in a plain chat panel and
-ends on the budget's page. `scripts/video/clip.py` turns it into the GIF and MP4.
+ends on the budget's page. `scripts/video/clip.py` turns it into the GIF and MP4. A second
+film, `agent-video.webm`, is the submission video's assistant beat (`record.py --agent-clip`):
+the same transcript under a generic title, with shorter holds.
 """
 
 from __future__ import annotations
@@ -174,7 +176,7 @@ body{margin:0;background:#f4f1ea;font:19px/1.45 "DejaVu Sans",system-ui,sans-ser
 .top{background:#1d1b18;color:#f4f1ea;padding:13px 28px;font-weight:600}
 .top span{opacity:.65;font-weight:400;margin-left:10px}
 #log{padding:20px 56px 120px;max-width:1120px;margin:0 auto}
-.m{margin:10px 0;padding:11px 17px;border-radius:14px;max-width:880px;white-space:pre-wrap}
+.m{margin:10px 0;padding:11px 17px;border-radius:14px;max-width:880px;white-space:pre-wrap;overflow-wrap:anywhere}
 .you{background:#3b4f8a;color:#fff;margin-left:auto;width:fit-content}
 .ai{background:#fff;border:1px solid #e3ddd0}
 .tool{font:14px/1.4 "DejaVu Sans Mono",monospace;color:#6b655c;margin:3px 0 3px 6px}
@@ -195,10 +197,30 @@ d.innerHTML = text; document.getElementById('log').appendChild(d);
 window.scrollTo(0, document.body.scrollHeight); }"""
 
 
-async def film(transcript: dict, out: Path, budget_url: str) -> Path:
-    page_html = CHAT.replace("__TITLE__", "Claude, connected to Preflight over MCP").replace(
-        "__SUB__", html.escape(transcript["mcp"]) + " · PayPal sandbox"
+# The /assistant page and README name the agent; the submission video may not show third-party
+# trademarks, so its cut uses a generic title and shorter holds (it has about a minute).
+PAGE_TITLE = "Claude, connected to Preflight over MCP"
+VIDEO_TITLE = "Your AI assistant, connected to Preflight over MCP"
+
+
+async def film(
+    transcript: dict,
+    out: Path,
+    budget_url: str,
+    *,
+    title: str = PAGE_TITLE,
+    pace: float = 1.0,
+    name: str = "agent.webm",
+) -> Path:
+    """Replay the transcript in a chat panel and end on the budget's page. `pace` scales every
+    hold (0.75 = a quarter shorter); the agent's words are never cut."""
+    page_html = CHAT.replace("__TITLE__", html.escape(title)).replace(
+        "__SUB__", "a recorded session · " + html.escape(transcript["mcp"]) + " · PayPal sandbox"
     )
+
+    def hold(ms: float) -> int:
+        return int(ms * pace)
+
     chat = out / "chat.html"
     chat.write_text(page_html, encoding="utf-8")
     raw = out / "raw"
@@ -210,10 +232,10 @@ async def film(transcript: dict, out: Path, budget_url: str) -> Path:
         )  # fmt: skip
         page: Page = await ctx.new_page()
         await page.goto(chat.as_uri())
-        await page.wait_for_timeout(800)
+        await page.wait_for_timeout(hold(800))
         for turn in transcript["turns"]:
             await page.evaluate(ADD, ["m you", html.escape(turn["prompt"])])
-            await page.wait_for_timeout(1300)
+            await page.wait_for_timeout(hold(1300))
             for s in turn["steps"]:
                 if s["kind"] == "call":
                     args = ", ".join(
@@ -221,24 +243,24 @@ async def film(transcript: dict, out: Path, budget_url: str) -> Path:
                         for k, v in s["args"].items()
                     )
                     await page.evaluate(ADD, ["tool", f"→ <b>{s['name']}</b>({html.escape(args)})"])
-                    await page.wait_for_timeout(500)
+                    await page.wait_for_timeout(hold(500))
                 elif s["kind"] == "result":
                     await page.evaluate(ADD, ["tool", f"← {html.escape(s['text'])}"])
-                    await page.wait_for_timeout(700)
+                    await page.wait_for_timeout(hold(700))
                 else:
                     await page.evaluate(ADD, ["m ai", markdown(s["text"])])
-                    await page.wait_for_timeout(int(1000 * min(8.0, 1.8 + len(s["text"]) / 45)))
+                    await page.wait_for_timeout(hold(1000 * min(8.0, 1.8 + len(s["text"]) / 45)))
             if turn.get("then"):
                 await page.evaluate(ADD, ["you-act", html.escape(turn["then"])])
-                await page.wait_for_timeout(1600)
+                await page.wait_for_timeout(hold(1600))
         await page.goto(budget_url)
-        await page.wait_for_timeout(3500)
+        await page.wait_for_timeout(hold(3500))
         await page.evaluate("window.scrollTo({top: 400, behavior: 'smooth'})")
-        await page.wait_for_timeout(2500)
+        await page.wait_for_timeout(hold(2500))
         await ctx.close()
         await browser.close()
     video = sorted(raw.glob("*.webm"), key=lambda f: f.stat().st_mtime)[-1]
-    dest = out / "agent.webm"
+    dest = out / name
     video.replace(dest)
     return dest
 
@@ -248,6 +270,10 @@ def main() -> None:
     ap.add_argument("--base", default="http://127.0.0.1:8791")
     ap.add_argument("--out", type=Path, default=Path("build/agent"))
     ap.add_argument("--film-only", action="store_true", help="re-film a saved transcript")
+    ap.add_argument(
+        "--video-pace", type=float, default=0.8,
+        help="also film agent-video.webm for the submission cut: a generic title, holds x this",
+    )  # fmt: skip
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
     saved = a.out / "transcript.json"
@@ -284,6 +310,12 @@ def main() -> None:
         transcript["budget_url"] = budget_url
         saved.write_text(json.dumps(transcript, indent=1, ensure_ascii=False), encoding="utf-8")
     print(asyncio.run(film(transcript, a.out, transcript["budget_url"])))
+    if a.video_pace:
+        video = film(
+            transcript, a.out, transcript["budget_url"], title=VIDEO_TITLE, pace=a.video_pace,
+            name="agent-video.webm",
+        )  # fmt: skip
+        print(asyncio.run(video))
 
 
 if __name__ == "__main__":
