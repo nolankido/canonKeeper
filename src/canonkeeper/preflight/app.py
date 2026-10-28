@@ -174,6 +174,33 @@ def status_label(status: str) -> str:
     return STATUS_LABELS.get(status, status)
 
 
+# What every response says about itself. The policy admits exactly what the pages load: PayPal's
+# JS SDK, its button frames and images; AG Grid from this site or its pinned jsDelivr copy;
+# PayPal and Venmo pop-ups open as their own windows, outside this policy. Pages keep their small
+# inline scripts and styles. Nothing may frame Preflight (no clickjacking of a pay button).
+_PAYPAL = "https://*.paypal.com https://*.paypalobjects.com"
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "; ".join(
+        [
+            "default-src 'self'",
+            f"script-src 'self' 'unsafe-inline' {_PAYPAL} https://cdn.jsdelivr.net",
+            "style-src 'self' 'unsafe-inline'",
+            f"img-src 'self' data: {_PAYPAL}",
+            f"frame-src {_PAYPAL}",
+            f"connect-src 'self' {_PAYPAL}",
+            "font-src 'self' data:",
+            "object-src 'none'",
+            "base-uri 'self'",
+            f"form-action 'self' {_PAYPAL}",
+            "frame-ancestors 'none'",
+        ]
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": 'camera=(), microphone=(), geolocation=(), payment=(self "https://www.paypal.com")',
+}
+
 WEBHOOK_EVENTS = ("CHECKOUT.ORDER.APPROVED", "PAYMENT.CAPTURE.COMPLETED")
 
 
@@ -262,6 +289,16 @@ def create_app(
     )
     app.router.routes.extend(mcp_http.routes)
     app.state.store, app.state.runner, app.state.paypal = store, runner, pp
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):  # noqa: ANN001, ANN202
+        response = await call_next(request)
+        for k, v in SECURITY_HEADERS.items():
+            response.headers.setdefault(k, v)
+        if base.startswith("https://"):
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+        return response
+
     app.state.mcp_service = service
     templates = Jinja2Templates(directory=str(_TEMPLATES))
     templates.env.filters["label"] = status_label

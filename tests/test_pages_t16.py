@@ -191,3 +191,23 @@ def test_the_budget_page_offers_paypals_buttons_and_confirms_as_json(tmp_path):
     svc.paypal.approve(order)
     done = web.post(f"/budget/{b['budget_id']}/check", headers=j).json()
     assert done == {"status": "active", "problem": None, "budget_url": f"/budget/{b['budget_id']}"}
+
+
+def test_every_response_carries_the_security_headers(tmp_path):
+    web, _svc = _shop(tmp_path)
+    for path in ("/", "/sample", "/healthz", "/jobs/nope"):
+        h = web.get(path, headers={"accept": "text/html"}).headers
+        csp = h["content-security-policy"]
+        assert "frame-ancestors 'none'" in csp and "object-src 'none'" in csp
+        assert "https://*.paypal.com" in csp.split("script-src")[1].split(";")[0]  # PayPal SDK
+        assert h["x-content-type-options"] == "nosniff" and h["x-frame-options"] == "DENY"
+        assert "strict-transport-security" not in h  # only on https deployments
+
+
+def test_an_https_deployment_also_sends_hsts(tmp_path):
+    from canonkeeper.preflight.paypal import FakePayPal
+
+    settings = Settings(provider="mock", workdir=tmp_path / "w", _env_file=None)
+    app = create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pf",
+                     public_base_url="https://preflight.example.com")  # fmt: skip
+    assert "max-age" in TestClient(app).get("/healthz").headers["strict-transport-security"]

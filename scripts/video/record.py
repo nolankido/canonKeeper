@@ -121,9 +121,13 @@ async def pay_by_card(page: Page) -> None:
         await pop.fill(sel, val)
         await pop.wait_for_timeout(120)
         await no_cookies()  # PayPal's banner comes back over the caption
+    await pop.press("#email", "Tab")  # PayPal checks the email before offering guest checkout
     await pop.select_option("#billingState", "CA")
     await no_cookies()
-    await pop.wait_for_timeout(800)
+    await pop.locator("[data-testid=pomaGuestSubmitButton]").wait_for(
+        state="visible", timeout=45000
+    )
+    await pop.wait_for_timeout(500)
     try:
         await pop.locator("[data-testid=pomaGuestSubmitButton]").click(timeout=20000)  # guest
         await pop.wait_for_event("close", timeout=90000)
