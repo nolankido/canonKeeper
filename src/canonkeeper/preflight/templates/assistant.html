@@ -59,6 +59,11 @@
   <p class="note">Nothing is sent to a model before PayPal has captured the payment. Every spend, credit and refund is listed on the budget's page, which the PayPal approval takes you to. A failed audit is credited back to the budget; a single order is refunded through PayPal with one button.</p>
 </div>
 
+<details class="card" data-testid="flow">
+  <summary>Step by step: who does what, and where PayPal comes in</summary>
+  <img src="/static/assistant-flow.png" width="1084" height="807" loading="lazy" style="width:100%;height:auto;background:#fff;border-radius:8px" alt="Sequence: the assistant opens a $20 budget at most $6 a purchase; Preflight creates a PayPal order and gives the assistant an approval link for the person and a spending key; the person approves on PayPal (only the person can); Preflight captures $20; the assistant quotes the demo series and pays from the budget, never past the balance or the person's limits; the audit runs, nothing reaching a model before a capture; the assistant reads the findings and asks to mark one wrong; Preflight returns a link only the person can confirm; the person confirms on the job page and $0.50 is credited back to the budget; the assistant closes the budget and Preflight refunds the unused balance through PayPal.">
+</details>
+
 <details class="card" data-testid="tools">
   <summary>The {{ tools | length }} tools it gets</summary>
   <p class="note">Each tool tells the assistant what it does to the world (MCP annotations), so an assistant that asks before acting knows which ones spend money or cannot be undone.</p>

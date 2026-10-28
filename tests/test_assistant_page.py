@@ -75,3 +75,25 @@ def test_the_assistant_page_shows_the_recorded_agent_session(tmp_path):
     import re
 
     assert 'budget_key="pfk_…"' in page and not re.search(r"pfk_[A-Za-z0-9]", page)  # masked
+
+
+def test_the_assistant_page_shows_who_does_what_with_the_money(tmp_path):
+    """A judge for agentic commerce sees the flow at a glance: the person approves, the
+    assistant spends inside limits, refunds go back through PayPal."""
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+
+    from canonkeeper.config import Settings
+    from canonkeeper.preflight.app import create_app
+    from canonkeeper.preflight.paypal import FakePayPal
+
+    app = create_app(
+        settings=Settings(provider="mock", workdir=tmp_path / "w", _env_file=None),
+        paypal=FakePayPal(),
+        workdir=tmp_path / "pf",
+    )
+    page = TestClient(app).get("/assistant").text
+    assert 'data-testid="flow"' in page and "only the person can" in page
+    static = Path(__file__).resolve().parents[1] / "src/canonkeeper/preflight/static"
+    assert (static / "assistant-flow.png").stat().st_size > 20_000

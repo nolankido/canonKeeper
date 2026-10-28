@@ -234,6 +234,32 @@ writing the next book? ──▶ a draft check ($2 + the same rate on the draft)
   deploys are frozen from submission (Nov 12) to the end of judging; a paid deploy would keep
   them on a persistent disk or in a database (sandbox money only here).
 
+An assistant buying with a budget, step by step (the [real session](docs/agent-session/)):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor P as Person
+    participant A as AI assistant
+    participant F as Preflight (MCP)
+    participant PP as PayPal
+    A->>F: open_budget($20, at most $6 a purchase)
+    F->>PP: create order
+    F-->>A: approval link (for the person) and a spending key
+    A-->>P: "Approve $20 on PayPal"
+    P->>PP: approves (only the person can)
+    F->>PP: capture $20
+    A->>F: quote_demo_series, then pay_with_budget
+    F-->>A: paid from the balance, never past it or the person's limits
+    Note over F: the audit runs: nothing reaches a model before a capture
+    A->>F: get_findings, then mark_finding_wrong
+    F-->>A: a link: only the person confirms
+    P->>F: confirms on the job page
+    Note over F: $0.50 credited back to the budget
+    A->>F: close_budget
+    F->>PP: refund the unused balance
+```
+
 <p align="center">
 <img src="docs/img/preflight-quote.png" width="49%" alt="The live quote page on the PayPal sandbox: the price with its arithmetic, and PayPal's own buttons (PayPal, Venmo, Pay Later, card)">
 <img src="docs/img/preflight-job.png" width="49%" alt="A job paid on the PayPal sandbox: the receipt with PayPal's order and capture ids, and a $0.50 guarantee refund">
