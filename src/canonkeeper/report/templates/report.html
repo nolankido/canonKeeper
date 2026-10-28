@@ -68,6 +68,7 @@
   #triage-grid .v-contradiction { color: var(--hi); font-weight: 600; }
   #triage-grid .v-judgement { color: var(--med); font-weight: 600; }
   #triage-grid .v-cleared { color: var(--ok); }
+  #triage-grid .act { color: var(--accent); text-decoration: underline; cursor: pointer; }
   .f.flash { box-shadow: 0 0 0 3px var(--accent); transition: box-shadow .6s; }
   @media print { #triage { display: none; } }
 </style>
@@ -98,7 +99,7 @@
   {% if triage | length > 1 %}
   <section id="triage" data-testid="triage">
     <h2>Every finding at a glance</h2>
-    <p class="sub">Sort or filter any column, search everything at once, and click a row to open its finding below.</p>
+    <p class="sub">Sort or filter any column, search everything at once, and click a row to open its finding below.{% if actions_url %} Rule on what the model left to you in the <b>Author</b> column; a contradiction you know is wrong is marked on your job page, where its refund is confirmed.{% endif %}</p>
     <input id="triage-search" type="search" placeholder="Search findings: a name, a book, a check…" aria-label="Search the findings">
     <div id="triage-grid" aria-label="Every finding in this report"></div>
   </section>
@@ -176,6 +177,7 @@
 (function () {
   // the triage grid: AG Grid Community, from this site or (a saved copy) the pinned CDN copy
   var rows = JSON.parse(document.getElementById("triage-rows").textContent);
+  var ACTIONS = {{ actions_url | tojson }};  // the owner's copy only: where rulings are posted
   function open(i) {
     var card = document.getElementById("f" + i);
     if (!card) return;
@@ -205,11 +207,52 @@
         { field: "who", headerName: "Who", hide: true, filter: "agTextColumnFilter" },
         { field: "check", headerName: "Check", width: 130, hide: narrow, wrapText: true, autoHeight: true, filter: "agTextColumnFilter" },
         { field: "books", headerName: "Books", hide: true, filter: "agTextColumnFilter" },
-        { field: "author", headerName: "Author", width: 110, hide: narrow || !rows.some(function (r) { return r.author; }), wrapText: true, autoHeight: true, filter: "agTextColumnFilter" }
+        { field: "author", headerName: "Author", width: ACTIONS ? 150 : 110,
+          hide: !ACTIONS && (narrow || !rows.some(function (r) { return r.author; })),
+          wrapText: true, autoHeight: true, filter: "agTextColumnFilter",
+          editable: function (p) { return !!ACTIONS && p.data.verdict === "needs your judgement"; },
+          singleClickEdit: true,
+          cellEditor: "agSelectCellEditor",
+          cellEditorParams: { values: ["", "ruled: an error", "ruled: not a problem"] },
+          cellClass: function (p) {
+            if (!ACTIONS || p.value || !p.data) return "";
+            return p.data.verdict === "needs your judgement" ? "act" : (p.data.verdict === "contradiction" ? "act" : "");
+          },
+          valueFormatter: function (p) {
+            if (p.value || !ACTIONS || !p.data) return p.value || "";  // (the editor's list has no row)
+            if (p.data.verdict === "needs your judgement") return "rule…";
+            if (p.data.verdict === "contradiction") return "mark wrong…";
+            return "";
+          } }
       ],
       defaultColDef: { sortable: true, resizable: true,
                        cellStyle: { lineHeight: "1.4", paddingTop: "9px", paddingBottom: "9px" } },
-      onRowClicked: function (e) { open(e.data.i); }
+      onCellClicked: function (e) {
+        // the owner's Author cell acts on its own (rule here, or mark on the job page)
+        if (!ACTIONS || e.column.getColId() !== "author") { open(e.data.i); return; }
+        if (e.value) return;
+        if (e.data.verdict === "contradiction") {  // money moves only on the job page, confirmed there
+          window.location = ACTIONS.replace(/\/findings$/, "") + "?mark=" + e.data.i + "#mark-" + e.data.i;
+        } else if (e.data.verdict !== "needs your judgement") { open(e.data.i); }
+      },
+      onCellValueChanged: function (e) {
+        if (e.column.getColId() !== "author") return;
+        var verdict = { "ruled: an error": "error", "ruled: not a problem": "fine" }[e.newValue];
+        if (!verdict) { e.node.setDataValue("author", e.oldValue || ""); return; }
+        fetch(ACTIONS + "/" + e.data.i + "/rule", {
+          method: "POST", headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
+          body: "verdict=" + verdict
+        }).then(function (r) {
+          if (!r.ok) throw new Error();
+          // the card below says the same as the grid, without a reload
+          var card = document.getElementById("f" + e.data.i);
+          if (!card) return;
+          var box = card.querySelector(".review") || document.createElement("div");
+          box.className = "review " + verdict;
+          box.innerHTML = "<b>The author ruled: " + (verdict === "error" ? "a real error to fix" : "not a problem") + ".</b>";
+          if (!box.parentNode) card.querySelector("strong").after(box);
+        }).catch(function () { e.node.setDataValue("author", e.oldValue || ""); });
+      }
     });
     document.getElementById("triage-search").addEventListener("input", function (e) {
       api.setGridOption("quickFilterText", e.target.value);

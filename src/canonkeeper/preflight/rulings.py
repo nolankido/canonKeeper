@@ -55,6 +55,7 @@ def annotate_report(job: Job, store: JobStore) -> None:
         back_url=f"/jobs/{job.id}",
         back_label=back_label_for(job),
         customer=True,
+        actions_url=f"/jobs/{job.id}/findings",
     )
 
 

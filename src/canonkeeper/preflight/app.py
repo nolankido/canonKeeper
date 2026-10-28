@@ -828,12 +828,16 @@ def create_app(
     @app.post("/jobs/{job_id}/findings/{index}/rule", response_model=None)
     def finding_rule(
         request: Request, job_id: str, index: int, verdict: str = Form(...), note: str = Form("")
-    ) -> RedirectResponse | HTMLResponse:
+    ) -> RedirectResponse | HTMLResponse | JSONResponse:
         """The author's ruling on an item the model left to them. No money moves."""
         job = store.get(job_id)
         if job is None:
             raise HTTPException(404)
         problem = rule_on_finding(store, job_id, index, verdict, note)
+        if wants_json(request):  # the report's triage grid rules in place
+            if problem:
+                return JSONResponse({"ruled": False, "problem": problem}, status_code=409)
+            return JSONResponse({"ruled": True, "verdict": verdict})
         if problem:
             job = store.get(job_id) or job
             return render(

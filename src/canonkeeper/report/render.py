@@ -97,9 +97,11 @@ def report_html(
     customer: bool = False,
     bible_url: str | None = None,
     shared: bool = False,
+    actions_url: str | None = None,
 ) -> str:
     """The report page as a string (`write_report` saves it; Preflight's read-only share link
-    renders it on request, `shared=True`)."""
+    renders it on request, `shared=True`). `actions_url` (the owner's copy on Preflight only):
+    where the triage grid posts the author's rulings, so they can rule from the grid."""
     return _env.get_template("report.html").render(
         r=report,
         errors=report.errors,
@@ -112,6 +114,7 @@ def report_html(
         shared=shared,
         credit=model_credit(report) if customer else "",
         triage=triage_rows(report),
+        actions_url=None if shared else actions_url,
         ix=lambda f: next(i for i, g in enumerate(report.findings) if g is f),
         grid_script=GRID_SCRIPT,
     )
@@ -126,6 +129,7 @@ def write_report(
     customer: bool = False,
     bible_url: str | None = None,
     store: CanonStore | None = None,
+    actions_url: str | None = None,
 ) -> tuple[Path, Path]:
     """`back_url`: where the report's header links back to (its job page on Preflight).
     `customer`: the report a paying author gets (Preflight and its sample): plain model credits
@@ -147,7 +151,12 @@ def write_report(
     json_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
     html_path.write_text(
         report_html(
-            report, back_url=back_url, back_label=back_label, customer=customer, bible_url=bible_url
+            report,
+            back_url=back_url,
+            back_label=back_label,
+            customer=customer,
+            bible_url=bible_url,
+            actions_url=actions_url,
         ),
         encoding="utf-8",
     )

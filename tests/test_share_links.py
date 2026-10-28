@@ -70,3 +70,25 @@ def test_the_assistant_gets_the_share_link_to_pass_on(tmp_path):
     share = svc.store.get(job).share_id
     assert st["share_url"] == f"http://preflight.test/r/{share}"
     assert web.get(f"/r/{share}/report").status_code == 200
+
+
+def test_only_the_owners_report_can_rule_from_its_grid(tmp_path):
+    web, svc, job = _done(tmp_path)
+    owner = web.get(f"/jobs/{job}/report").text
+    assert f'var ACTIONS = "/jobs/{job}/findings";' in owner
+    web.get(f"/jobs/{job}")
+    shared = web.get(f"/r/{svc.store.get(job).share_id}/report").text
+    assert "var ACTIONS = null;" in shared
+    ambiguous = svc.get_findings(job)["needs_your_judgement"][0]["index"]
+    r = web.post(
+        f"/jobs/{job}/findings/{ambiguous}/rule",
+        data={"verdict": "fine"},
+        headers={"accept": "application/json"},
+    )
+    assert r.status_code == 200 and r.json() == {"ruled": True, "verdict": "fine"}
+    bad = web.post(
+        f"/jobs/{job}/findings/0/rule",
+        data={"verdict": "fine"},
+        headers={"accept": "application/json"},
+    )
+    assert bad.status_code == 409 and bad.json()["ruled"] is False

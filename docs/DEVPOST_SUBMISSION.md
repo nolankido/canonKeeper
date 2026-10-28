@@ -121,7 +121,8 @@ python, fastapi, paypal-orders-v2, paypal-js-sdk, paypal-webhooks, mcp, gemini-a
   connect at `/assistant`), the PayPal-funded assistant budget, the person-only approval.
 - **AG Grid:** two grids. The series bible explorer (`/sample/bible`: every fact by passage, or
   each fact by book with changes marked), which every finding in a report opens on its own row;
-  and the report's triage grid of every finding (`/sample`), each row opening its card.
+  and the report's triage grid of every finding (`/sample`), each row opening its card; on the
+  author's own copy they rule on what the model left to them right in the grid.
 - **Render:** the service runs on Render from `render.yaml` (a Blueprint: one click, three
   secrets), kept awake through judging, with a daily smoke test against it.
 

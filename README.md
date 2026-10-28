@@ -233,7 +233,10 @@ pinned CDN fallback), in two views:
 
 **In the report, too.** Every report opens with *Every finding at a glance*: an AG Grid of every
 finding (the model's call, severity, the check that raised it, the author's own call), sortable,
-filterable and searchable; clicking a row opens that finding's card with its passages. On the
+filterable and searchable; clicking a row opens that finding's card with its passages. On the author's own copy the grid is
+also where they work: an item left to them is ruled on in the *Author* cell (saved at once, shown on
+the card), and *mark wrong…* on a contradiction opens the job page row where its refund is
+confirmed. On the
 Holmes sample that is 27 findings, four of them contradictions.
 
 Every finished audit gets its own explorer (`/jobs/<id>/bible-grid.html`, also downloadable as

@@ -68,7 +68,8 @@ def test_the_author_rules_on_an_item_and_the_report_shows_it(shop):
 
     web.post(f"/jobs/{job}/findings/{i}/rule", data={"verdict": "fine"})  # changed their mind
     report = web.get(f"/jobs/{job}/report").text
-    assert "The author ruled: not a problem." in report and "a real error to fix" not in report
+    assert "The author ruled: not a problem." in report
+    assert "The author ruled: a real error to fix." not in report
     assert len(svc.store.get(job).rulings) == 1
     assert svc.paypal.get_order(svc.store.get(job).order_id).raw.get("partial_refunds") is None
 

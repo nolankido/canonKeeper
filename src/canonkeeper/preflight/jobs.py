@@ -662,6 +662,7 @@ class Runner:
                     back_label=back_label_for(job),
                     customer=True,
                     store=store,
+                    actions_url=f"/jobs/{job.id}/findings",
                 )
                 self.store.update(
                     job.id,
