@@ -110,6 +110,7 @@ def write_bible(
     return out_path
 
 
+CHART_SCRIPT = "/static/ag-charts-community-14.2.0.min.js"  # AG Charts Community, MIT
 GRID_SCRIPT = (
     "/static/ag-grid-community-36.2.0.min.js"  # served by Preflight; the page falls back to the CDN
 )
@@ -205,6 +206,7 @@ def write_bible_grid(
             card_view=card_view,
             csv=csv,
             local_script=GRID_SCRIPT,
+            chart_script=CHART_SCRIPT,
         ),
         encoding="utf-8",
     )

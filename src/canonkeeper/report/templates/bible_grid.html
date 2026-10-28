@@ -30,6 +30,9 @@
   button { padding: 9px 14px; font: inherit; font-size: 14px; border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 8px; cursor: pointer; }
   #count { font: 13px var(--mono); color: var(--muted); }
   #grid { height: calc(100vh - 300px); min-height: 420px; }
+  #chart { height: 170px; margin: 4px 0 0; position: relative; overflow: hidden; }
+  #chart-note { margin: 2px 0 10px; font-size: 13px; }
+  #chart-note button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
   #detail { margin-top: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; min-height: 64px; }
   #detail .loc { font: 12px var(--mono); color: var(--muted); }
   #detail q { display: block; font-style: italic; margin-top: 4px; }
@@ -58,6 +61,10 @@
     <span id="count" aria-live="polite"></span>
   </div>
   <div id="fallback" role="alert">The grid could not load (it needs the AG Grid script from this site or from cdn.jsdelivr.net). Every fact is also in the {% if card_view %}<a href="{{ card_view }}">card view</a>{% else %}card view{% endif %}{% if csv %} and the <a href="{{ csv }}">spreadsheet</a>{% endif %}.</div>
+  <div id="chart-box" hidden>
+    <div id="chart" role="img" aria-label="How many facts each book changes from an earlier book"></div>
+    <p class="sub" id="chart-note">Each bar: the facts a book changes from what an earlier book said. Click one to see them.</p>
+  </div>
   <div id="grid" aria-label="Every fact in the series bible"></div>
   <div id="detail" aria-live="polite"><span class="loc">Select a row to read the passage behind it.</span></div>
   <p class="sub" style="margin-top:16px">Grid by <a href="https://www.ag-grid.com/">AG Grid</a> Community (MIT). A disputed fact is one where the books give the same character two different values for something that can have only one (eye colour, birthplace…); the audit report judges whether it is an error or explained in the text.</p>
@@ -68,7 +75,7 @@
 (function () {
   var rows = JSON.parse(document.getElementById("rows").textContent);
   var matrix = JSON.parse(document.getElementById("matrix").textContent);
-  var api = null, onlyDisputed = false, view = "rows", narrow = false;
+  var api = null, onlyDisputed = false, view = "rows", narrow = false, changedIn = "";
   var detail = document.getElementById("detail"), count = document.getElementById("count");
 
   function text(tag, cls, value) {
@@ -94,6 +101,7 @@
   function remember(extra) {
     var q = new URLSearchParams();
     if (view === "matrix") q.set("view", "bybook");
+    if (changedIn) q.set("changed", changedIn);
     var search = document.getElementById("search").value;
     if (search) q.set("q", search);
     if (onlyDisputed) q.set("disputed", "1");
@@ -195,6 +203,52 @@
     detail.replaceChildren(text("span", "loc", v === "rows" ? "Select a row to read the passage behind it." : "Select a cell to read what that book says."));
     updateCount();
   }
+  function leadValue(d) {
+    for (var i = 0; i < matrix.books.length; i++) { var v = d.books[matrix.books[i]]; if (v) return v; }
+    return "";
+  }
+  function changes(d, book) {  // does `book` change this fact from what an earlier book said?
+    return !!(d && d.disputed && d.books && d.books[book] && d.books[book] !== leadValue(d));
+  }
+  function showChanged(book) {
+    changedIn = book || "";
+    if (changedIn && view !== "matrix") setView("matrix");
+    api.onFilterChanged();
+    var note = document.getElementById("chart-note");
+    if (changedIn) {
+      note.replaceChildren(text("span", "", "Showing the facts " + changedIn + " changes. "));
+      var all = text("button", "", "Show every fact");
+      all.type = "button";
+      all.addEventListener("click", function () { showChanged(""); });
+      note.appendChild(all);
+    } else {
+      note.textContent = "Each bar: the facts a book changes from what an earlier book said. Click one to see them.";
+    }
+    remember(changedIn ? { changed: changedIn } : {});
+  }
+  function chart() {
+    // AG Charts Community, from this site or the pinned CDN copy; the page works without it
+    var data = matrix.books.map(function (b) {
+      return { book: short(b), full: b, changes: matrix.rows.filter(function (r) { return changes(r, b); }).length };
+    }).filter(function (d, i) { return i > 0; });  // the first book changes nothing yet
+    if (!data.some(function (d) { return d.changes; })) return;
+    var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.getElementById("chart-box").hidden = false;
+    agCharts.AgCharts.create({
+      container: document.getElementById("chart"),
+      data: data,
+      theme: dark ? "ag-default-dark" : "ag-default",
+      background: { visible: false },
+      padding: { top: 6, right: 8, bottom: 4, left: 4 },
+      series: [{ type: "bar", xKey: "book", yKey: "changes", yName: "facts changed",
+                 fill: "#b06f12", cornerRadius: 3,
+                 tooltip: { renderer: function (p) { return { heading: p.datum.full, data: [{ label: "facts it changes", value: String(p.datum.changes) }] }; } },
+                 listeners: { seriesNodeClick: function (e) { showChanged(e.datum.full); } } }],
+      axes: [{ type: "category", position: "bottom", label: { fontSize: narrow ? 9 : 11 } },
+             { type: "number", position: "left", label: { fontSize: 10 } }],
+      legend: { enabled: false }
+    });
+  }
   function start() {
     // a phone shows who, what and the value; the passage opens below the grid on a tap
     narrow = window.innerWidth < 640;
@@ -208,8 +262,13 @@
       columnDefs: rowColumns(),
       defaultColDef: { sortable: true, resizable: true },
       rowClassRules: { disputed: function (p) { return !!(p.data && p.data.disputed); } },
-      isExternalFilterPresent: function () { return onlyDisputed; },
-      doesExternalFilterPass: function (node) { return !!node.data.disputed; },
+      isExternalFilterPresent: function () { return onlyDisputed || !!changedIn; },
+      doesExternalFilterPass: function (node) {
+        if (onlyDisputed && !node.data.disputed) return false;
+        if (!changedIn) return true;
+        if (view === "rows") return !!node.data.disputed && node.data.book === changedIn;
+        return changes(node.data, changedIn);
+      },
       onCellClicked: function (e) {
         if (view === "rows") { remember({ focus: e.data.entity + "|" + e.data.fact }); return show(e.data); }
         var col = e.column.getColId();
@@ -246,7 +305,9 @@
       api.onFilterChanged();
     }
     if (params.get("view") === "bybook") setView("matrix");
+    if (params.get("changed")) showChanged(params.get("changed"));
     if (params.get("focus")) focusOn(params.get("focus"), params.get("book"));
+    loadScripts(chartSources, function () { if (window.agCharts) chart(); }, function () {});
     updateCount();
   }
   function fail() {
@@ -259,15 +320,21 @@
     { src: "https://cdn.jsdelivr.net/npm/ag-grid-community@36.2.0/dist/ag-grid-community.min.js",
       integrity: "sha384-icvtRKM0YJJgeDhXnWY8UlF1PVBFd4K8Pj61la+vG+EU+awBeoP0xGPZhCD2SQOV" }
   ];
-  (function load(list) {
-    if (!list.length) return fail();
+  function loadScripts(list, ok, none) {
+    if (!list.length) return none();
     var s = document.createElement("script");
     s.src = list[0].src;
     if (list[0].integrity) { s.integrity = list[0].integrity; s.crossOrigin = "anonymous"; }
-    s.onload = function () { window.agGrid ? start() : load(list.slice(1)); };
-    s.onerror = function () { load(list.slice(1)); };
+    s.onload = ok;
+    s.onerror = function () { loadScripts(list.slice(1), ok, none); };
     document.head.appendChild(s);
-  })(sources);
+  }
+  var chartSources = [
+    { src: {{ chart_script | tojson }} },
+    { src: "https://cdn.jsdelivr.net/npm/ag-charts-community@14.2.0/dist/umd/ag-charts-community.min.js",
+      integrity: "sha384-o7hyTlvNx0/wSeuNLcVtRmKvzh3/7AtZKa9hvrb4aTqsU49zXNGX+r25F997LRWM" }
+  ];
+  loadScripts(sources, function () { window.agGrid ? start() : fail(); }, fail);
 })();
 </script>
 </body>

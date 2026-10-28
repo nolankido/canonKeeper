@@ -150,6 +150,10 @@ pinned CDN fallback), in two views:
 
 ![Each fact by book: John Watson's wound moving from the shoulder to the leg across the Holmes books, each change marked](docs/img/bible-by-book.png)
 
+**What each book changes, charted.** Above the grid, an AG Charts bar for each book counts the
+facts it changes from what an earlier book said; click a bar and the grid shows just those facts,
+each book's value side by side (the filter is in the address too: `?changed=<book>`).
+
 **In the report, too.** Every report opens with *Every finding at a glance*: an AG Grid of every
 finding (the model's call, severity, the check that raised it, the author's own call), sortable,
 filterable and searchable; clicking a row opens that finding's card with its passages. On the author's own copy the grid is

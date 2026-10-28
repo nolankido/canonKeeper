@@ -62,3 +62,16 @@ def test_the_report_has_a_triage_grid_of_every_finding_linked_to_its_card():
     assert {"contradiction", "needs your judgement"} <= calls
     assert any(r["author"] == "marked wrong" for r in rows)
     assert "ag-grid-community" in html and 'id="triage-grid"' in html
+
+
+def test_the_bible_explorer_charts_what_each_book_changes_and_filters_by_it():
+    """Judge review: an AG Charts bar of the facts each book changes; a bar filters the grid,
+    and the filter lives in the address like the rest of the view."""
+    grid = (SAMPLES / "sherlock-holmes-bible-grid.html").read_text(encoding="utf-8")
+    assert "/static/ag-charts-community-14.2.0.min.js" in grid
+    assert "seriesNodeClick" in grid and 'q.set("changed", changedIn)' in grid
+    static = SAMPLES.parent / "static"
+    assert (static / "ag-charts-community-14.2.0.min.js").stat().st_size > 1_000_000
+    assert (
+        (static / "AG-CHARTS-LICENSE.txt").read_text(encoding="utf-8").startswith("The MIT License")
+    )
