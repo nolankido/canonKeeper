@@ -169,7 +169,8 @@ come from runs in this repository (the benchmark's files are committed).
 
 ## Image gallery (upload in this order; 3:2, 2250x1500)
 
-`docs/gallery/01-report.png` … `05-job.png`, one claim per image with the screen that backs it:
+`docs/gallery/01-report.png` … `05-job.png`, one claim per image with the screen that backs it
+(the budget is the real Claude session's, `docs/agent-session/`):
 the report's Watson finding, the quote with PayPal's buttons, the assistant budget (a real sandbox
 funding, spend, credit and refund), the AG Grid bible, the receipt with a finding marked wrong.
 Rebuild with `scripts/gallery.py` (see its docstring).

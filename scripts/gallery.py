@@ -61,8 +61,8 @@ SLIDES = [
     (
         "budget",
         "Your AI assistant pays, inside a limit you set",
-        "Fund a budget once through PayPal. Over MCP, your assistant buys audits and draft checks "
-        "from it, never past the balance, every spend on this page. Closing it refunds the rest.",
+        "Fund a budget once through PayPal. Here a real Claude session spent it over MCP: never "
+        "past the balance or the $6 limit, every spend on this page; closing it refunded the rest.",
     ),
     (
         "bible",
