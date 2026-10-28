@@ -310,7 +310,11 @@ def _windows(text: str, fallback_window: int) -> list[Chapter]:
     return out
 
 
-def chapterize(text: str, *, min_chars: int = 1500, fallback_window: int = 12_000) -> list[Chapter]:
+def chapterize(text: str, *, min_chars: int = 200, fallback_window: int = 12_000) -> list[Chapter]:
+    """Split a book at its chapter headings. A segment shorter than `min_chars` (a part title,
+    an epigraph between headings) joins the chapter before it. The threshold is low on purpose:
+    at 1,500 characters a book of short chapters had them all merged into its first, so every
+    fact was cited to "Chapter I" while the judge, reading the text, cited the right one."""
     lines = _lines(text)
     body_start = 0
     marks: list[tuple[int, str]] = []

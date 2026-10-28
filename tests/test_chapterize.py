@@ -216,3 +216,16 @@ def test_markdown_and_bare_number_headings_are_chapters():
     # a number standing alone in the text is not a chapter run
     stray = "Chapter text goes on. " * 300 + "\n\n42\n\n" + "More text. " * 300
     assert [c.title for c in chapterize(stray)][0].startswith("Section")
+
+
+def test_short_chapters_keep_their_own_boundaries():
+    """A fact in chapter II is cited to chapter II even when chapters are a few lines long; only
+    a near-empty segment (a part title) is folded into the chapter before it."""
+    para = "Ivy Marlowe walked to Saltmarsh. " * 12
+    text = (
+        f"CHAPTER I. THE HARBOUR\n\n{para}\n\nCHAPTER II. THE ANCHOR\n\n{para}\n\n"
+        f"PART TWO\n\nCHAPTER III. THE LETTER\n\n{para}\n"
+    )
+    titles = [c.title for c in chapterize(text)]
+    assert len(titles) == 3 and titles[:2] == ["CHAPTER I. THE HARBOUR", "CHAPTER II. THE ANCHOR"]
+    assert titles[2].endswith("CHAPTER III. THE LETTER")  # the part title is not a chapter
