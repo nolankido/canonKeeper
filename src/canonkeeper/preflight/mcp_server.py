@@ -357,6 +357,9 @@ class PreflightService:
             out["report_url"] = f"{self.base}/jobs/{job.id}/report"
             out["bible_url"] = f"{self.base}/jobs/{job.id}/bible"
             out["findings_json_url"] = f"{self.base}/jobs/{job.id}/download/report.json"
+            # what the person forwards to an editor: the job id stays private (it can refund
+            # and delete); the share link only reads
+            out["share_url"] = f"{self.base}/r/{self.store.share(job.id)}"
         return out
 
     def check_draft(self, job_id: str, name: str, text: str) -> dict[str, Any]:

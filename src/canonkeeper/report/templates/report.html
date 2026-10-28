@@ -69,6 +69,7 @@
 <main>
   {% if back_url %}<div class="topbar"><b>Preflight</b><a href="{{ back_url }}" data-testid="back-to-job">{{ back_label }}</a></div>{% endif %}
   <h1>{{ r.series }}</h1>
+  {% if shared %}<p class="sub" data-testid="shared">A read-only copy the author shared: nothing on it can be changed from here.</p>{% endif %}
   <div class="sub">{% if is_check %}Draft check: {{ r.books[-1] }} against {{ r.books | length - 1 }} published book{{ '' if r.books | length == 2 else 's' }}{% else %}{{ r.books | length }} books · continuity audit{% endif %}{% if not customer %} by canonkeeper{% endif %}</div>
   {% if r.models.replayed %}<p class="sub" data-testid="replayed">These findings are {{ r.models.replayed }}: real model output for the demo series, shown without sending anything to a model.</p>{% endif %}
 

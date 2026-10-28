@@ -452,6 +452,8 @@ Working offline pipeline; real-model runs on the Gemini free tier. See
       hands the person the PayPal approval link, confirms, and reads the findings as data
 - [x] MCP flow exercised end to end from a real MCP client (`scripts/mcp_flow_demo.py`)
 - [x] customers can delete their files; uploads capped for a public host; `render.yaml`
+- [x] the job page's address is the owner's key (mark wrong, refund, delete); a finished report
+      is shared through a separate read-only link (`/r/<id>`) that never contains it
 - [x] local-model mode run against Ollama (`qwen3:4b`, CPU) — see *Local mode, measured*
 - [ ] demo video
 

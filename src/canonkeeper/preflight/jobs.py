@@ -78,6 +78,9 @@ class Job:
     guarantee: list[dict[str, str]] = field(default_factory=list)
     # The author's rulings on "needs your judgement" items: finding, verdict, note, at.
     rulings: list[dict[str, str]] = field(default_factory=list)
+    # A read-only link to the finished report and bible. The job id itself is the owner's key
+    # (it can mark findings wrong, refund, delete), so it is never what the author shares.
+    share_id: str | None = None
     stage: str | None = None  # "extracting" | "judging" while running
     progress_done: int = 0
     progress_total: int = 0
@@ -155,6 +158,7 @@ def _strip_numbering(name: str) -> str:
 
 
 _JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+_SHARE_ID = re.compile(r"[A-Za-z0-9_-]{16}")
 MAX_BOOKS = 40
 MAX_TOTAL_BYTES = 40 * 10**6  # ~10M tokens; the six Holmes volumes are 2.6 MB
 MAX_UNPAID_BYTES = 10**9  # all unpaid quotes together; the oldest are evicted past this
@@ -210,6 +214,23 @@ class JobStore:
                 setattr(job, k, v)
             self.save(job)
             return job
+
+    def share(self, job_id: str) -> str | None:
+        """The job's read-only share id, made the first time it is asked for."""
+        job = self.get(job_id)
+        if job is None:
+            return None
+        if job.share_id is None:
+            made = self.update(
+                job_id, where=lambda j: j.share_id is None, share_id=secrets.token_urlsafe(12)
+            )
+            job = made or self.get(job_id)
+        return job.share_id if job else None
+
+    def by_share(self, share_id: str) -> Job | None:
+        if not _SHARE_ID.fullmatch(share_id):
+            return None
+        return next((j for j in self.all() if j.share_id == share_id), None)
 
     def get(self, job_id: str) -> Job | None:
         if not _JOB_ID.fullmatch(job_id):

@@ -47,6 +47,31 @@ def model_credit(report: AuditReport) -> str:
     return f"Facts read by {m.get('extract', 'an extraction model')}; conflicts judged by {judged}."
 
 
+def report_html(
+    report: AuditReport,
+    *,
+    back_url: str | None = None,
+    back_label: str = "← Back to the job page: rule on items, check a new draft",
+    customer: bool = False,
+    bible_url: str | None = None,
+    shared: bool = False,
+) -> str:
+    """The report page as a string (`write_report` saves it; Preflight's read-only share link
+    renders it on request, `shared=True`)."""
+    return _env.get_template("report.html").render(
+        r=report,
+        errors=report.errors,
+        others=[f for f in report.findings if not f.is_error],
+        back_url=back_url,
+        back_label=back_label,
+        is_check=bool(report.books) and report.books[-1].endswith("(draft)"),
+        customer=customer,
+        bible_url=bible_url,
+        shared=shared,
+        credit=model_credit(report) if customer else "",
+    )
+
+
 def write_report(
     report: AuditReport,
     out_dir: Path,
@@ -70,18 +95,9 @@ def write_report(
     json_path = out_dir / "report.json"
     html_path = out_dir / "report.html"
     json_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
-    tmpl = _env.get_template("report.html")
     html_path.write_text(
-        tmpl.render(
-            r=report,
-            errors=report.errors,
-            others=[f for f in report.findings if not f.is_error],
-            back_url=back_url,
-            back_label=back_label,
-            is_check=bool(report.books) and report.books[-1].endswith("(draft)"),
-            customer=customer,
-            bible_url=bible_url,
-            credit=model_credit(report) if customer else "",
+        report_html(
+            report, back_url=back_url, back_label=back_label, customer=customer, bible_url=bible_url
         ),
         encoding="utf-8",
     )

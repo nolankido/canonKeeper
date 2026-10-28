@@ -64,6 +64,7 @@ from canonkeeper.preflight.paypal import (
 from canonkeeper.preflight.pricing import CURRENCY, Quote, quote
 from canonkeeper.preflight.rulings import RULINGS, judgement_items, rule_on_finding
 from canonkeeper.report.display import headline
+from canonkeeper.report.render import report_html
 
 _TEMPLATES = Path(__file__).parent / "templates"
 _SAMPLES = Path(__file__).parent / "samples"
@@ -750,10 +751,12 @@ def create_app(
                 currency=CURRENCY,
                 via_agent=request.query_params.get("via") == "assistant",
             )
+        share = store.share(job.id) if job.status == "done" else None
         return render(
             request,
             "job.html",
             job=job,
+            share_url=f"{base}/r/{share}" if share else None,
             quote=quote(job.tokens, words=job.words, books=len(job.books)),
             **review_context(job),
         )
@@ -908,6 +911,50 @@ def create_app(
         if not p.exists():
             raise HTTPException(404, "report not ready")
         return FileResponse(p)
+
+    # --- read-only share links: the report and bible without the job's owner key -------------
+    SHARE_BACK = "← Preflight: audit your own series"
+
+    def shared_job(share_id: str) -> Job:
+        job = store.by_share(share_id)
+        if job is None or job.status != "done":
+            raise HTTPException(404, "this share link does not exist, or its files were deleted")
+        return job
+
+    @app.get("/r/{share_id}")
+    def shared(share_id: str) -> RedirectResponse:
+        shared_job(share_id)
+        return RedirectResponse(f"/r/{share_id}/report", status_code=307)
+
+    @app.get("/r/{share_id}/report", response_class=HTMLResponse)
+    def shared_report(share_id: str) -> HTMLResponse:
+        job = shared_job(share_id)
+        d = store.dir(job.id) / "reports"
+        if not (d / "report.json").exists():
+            raise HTTPException(404, "report not ready")
+        report = AuditReport.model_validate_json((d / "report.json").read_text(encoding="utf-8"))
+        html = report_html(
+            report,
+            back_url="/",
+            back_label=SHARE_BACK,
+            customer=True,
+            bible_url="bible-grid.html" if (d / "bible-grid.html").exists() else None,
+            shared=True,
+        )
+        return HTMLResponse(html)
+
+    @app.get("/r/{share_id}/{name}", response_model=None)
+    def shared_bible(share_id: str, name: str) -> HTMLResponse | FileResponse:
+        if name not in ("bible-grid.html", "bible.html", "bible.csv"):
+            raise HTTPException(404)
+        job = shared_job(share_id)
+        p = store.dir(job.id) / "reports" / name
+        if not p.exists():
+            raise HTTPException(404, "bible not ready")
+        if name.endswith(".csv"):
+            return FileResponse(p, media_type="text/csv")
+        html = p.read_text(encoding="utf-8").replace(f"/jobs/{job.id}", "/")
+        return HTMLResponse(html.replace("← Back to the job page", SHARE_BACK))
 
     @app.get("/jobs/{job_id}/download/{name}")
     def download(job_id: str, name: str) -> FileResponse:
