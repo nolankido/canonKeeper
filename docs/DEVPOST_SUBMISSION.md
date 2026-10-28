@@ -222,6 +222,22 @@ YouTube description (paste):
 > invented demo series. Voice: synthesized with Piper using the LibriTTS-R voice (CC BY 4.0,
 > Koizumi et al., 2023). Payments shown are PayPal sandbox (test money).
 
+## Rules check (each official requirement, and where it is met; re-read 2026-10-28)
+| Requirement (official rules) | Met by |
+|---|---|
+| PayPal developer platform, sandbox, central to the project; plus an AI tool | Orders v2 (create, capture, refund), the JS SDK buttons, verified webhooks, all in the sandbox; every audit is a PayPal purchase. Gemini reads and judges; any MCP assistant buys. |
+| New, or significantly updated after Oct 1, 2026 | Built from scratch: first commit Oct 26, 2026 (public history). Said under *How we built it*. |
+| Text description of features and functionality | This document's sections above, pasted into the form. |
+| Functional demo: hosted URL or clear run instructions | https://preflight-kq1o.onrender.com, plus the local run in *Testing instructions* (no keys needed). |
+| Public repo, open-source license file, license visible in the About section | github.com/nolankido/canonKeeper, public; MIT, detected by GitHub (`license: MIT` in the API). |
+| All source, assets and instructions in the repo | Everything runs from the repo; the Holmes texts are fetched from Project Gutenberg by `canonkeeper fetch`. |
+| Free, unrestricted testing until judging ends (Dec 15) | No login on the site; the PayPal sandbox guest card needs no account; the demo series costs no model quota (recorded answers); deploys frozen and a daily smoke test until Dec 16. |
+| Video under 3 minutes, shows the project working, public on YouTube | 2:53 (`scripts/video`), filmed from the running app with real sandbox payments; Nolan uploads it as Public. |
+| No third-party trademarks or copyrighted music or material in the video | No music. The assistant is shown unbranded ("Your AI assistant"). Text is public domain or invented. PayPal's own checkout appears as itself (the sponsor's page, with the card-network icons PayPal shows); Gemini is named as the model used, in words, not a logo. |
+| English | All materials are in English. |
+| Stage one: fits the theme, applies PayPal's APIs | See the first row and *PayPal tools used*. |
+| Prizes: one Grand Prize or Honorable Mention, plus one Sponsor Prize | Opt into the Honorable Mentions listed above and the AG Grid and Render sponsor prizes. |
+
 ## Testing instructions (paste into Devpost; fill the two blanks, or drop that line)
 **Hosted (fastest):** open `https://preflight-kq1o.onrender.com`. Press *Try it with the demo series* (an invented
 three-book series with five planted errors and one change only the author can judge), then pay. Two ways, both PayPal's sandbox (test money, nothing real moves):
