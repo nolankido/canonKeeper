@@ -44,6 +44,16 @@ sponsor prize. Target: Best Use of Agentic Commerce; sponsor: AG Grid (Render cr
 | T24 | Nov 11 | Submit with Nolan (N6); license visible in the repo's About box; no code changes after this | All | Devpost shows Submitted | open |
 | T25 | Dec 1–15 | Judging operations: deploys frozen, nightly benchmarks paused, daily smoke test (`.github/workflows/live-check.yml`; a failed run emails Nolan) | Design | Hosted demo green every day of judging | smoke test live from Oct 27; freeze Dec 1 |
 
+## Judge review, 10-27 (a fresh agent scoring the live entry: about 33/50)
+Fixed the same day: the claims it found unbacked (entity count, cost table, PayPal client size,
+status list, an unsourced recall figure); every finding links to its row in the AG Grid bible,
+whose view lives in its address; a quote has its own address (reload-safe); MCP tool
+annotations; read-only share links (the job id is the owner's key); budget limits per purchase
+and end date; a real finding on the home page; one banner; Devpost gallery and prize list.
+Still open: sandbox buyer login in Devpost's private notes (N6) and the GitHub About link
+(Nolan); Holmes sample's two known-wrong calls and the duplicate Becher item (T2 tonight,
+then a measured candidate-dedupe change); a recording of a real assistant session.
+
 ## Nolan's steps
 | # | Step | By | Unblocks |
 |---|---|---|---|
