@@ -686,21 +686,26 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
     ) -> dict[str, Any]:
         return service.rule_on_finding(job_id, finding_index, ruling, note)
 
-    @tool(description="A budget's balance and every spend, credit and refund.")
+    @tool(
+        description="A budget's balance and every spend, credit and refund, by the budget_key "
+        "(pfk_…) open_budget returned."
+    )
     def budget_status(budget_key: str) -> dict[str, Any]:
         return service.budget_status(budget_key)
 
     @tool(
         description="Pay a quoted job (an audit or a draft check) from the budget and start it. "
         "Refused if the balance does not cover the price. A PayPal order the person has not "
-        "approved yet is voided and replaced by the budget payment; an approved one is not."
+        "approved yet is voided and replaced by the budget payment; an approved one is not. "
+        "budget_key is the pfk_… key open_budget returned."
     )
     def pay_with_budget(job_id: str, budget_key: str) -> dict[str, Any]:
         return service.pay_with_budget(job_id, budget_key)
 
     @tool(
         description="Close the budget: no more spending; the unused balance is refunded to the "
-        "person's PayPal."
+        "person's PayPal. Takes the budget_key (pfk_…) that open_budget returned, not the "
+        "budget's id."
     )
     def close_budget(budget_key: str) -> dict[str, Any]:
         return service.close_budget(budget_key)
