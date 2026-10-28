@@ -24,6 +24,7 @@ import json
 import re
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from playwright.async_api import Page, async_playwright
@@ -38,6 +39,7 @@ TURNS = [
     "Thanks. Close the budget.",
 ]
 MARK_TURN = 2  # the turn whose answer carries a confirm link for the person
+PERSON_WAIT_S = 45 * 60  # --person: how long to wait for the person's PayPal approval or click
 SYSTEM = (
     "You are an author's assistant. Use only the Preflight tools. Keep replies short: two or "
     "three sentences, or a short list. Never claim to approve a payment: the person does that."
@@ -171,6 +173,44 @@ async def confirm_mark(url: str) -> None:
         await browser.close()
 
 
+def _mcp(base: str, tool: str, **arguments: object) -> dict:
+    """One MCP tool call, made by this script (not the agent): to watch for the person's step."""
+    import urllib.request
+
+    body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+            "params": {"name": tool, "arguments": arguments}}  # fmt: skip
+    req = urllib.request.Request(
+        f"{base}/mcp", data=json.dumps(body).encode(),
+        headers={"content-type": "application/json",
+                 "accept": "application/json, text/event-stream"},
+    )  # fmt: skip
+    with urllib.request.urlopen(req, timeout=60) as r:
+        result = json.loads(r.read())["result"]
+    return result.get("structuredContent") or json.loads(result["content"][0]["text"])
+
+
+def _get(url: str) -> str:
+    import urllib.request
+
+    with urllib.request.urlopen(url, timeout=60) as r:
+        return r.read().decode("utf-8", "replace")
+
+
+def wait_for_person(out: Path, what: str, url: str, done: Callable[[], bool]) -> None:
+    """On a hosted server only the person may approve a payment or confirm a refund: say what
+    to do (stdout and person.txt, for whoever relays it) and wait until it is done."""
+    note = f"PERSON: {what}\n  {url}"
+    print(note, flush=True)
+    (out / "person.txt").write_text(note + "\n", encoding="utf-8")
+    deadline = time.monotonic() + PERSON_WAIT_S
+    while time.monotonic() < deadline:
+        if done():
+            print("PERSON: done", flush=True)
+            return
+        time.sleep(5)
+    raise SystemExit(f"waited {PERSON_WAIT_S // 60} minutes for: {what}")
+
+
 CHAT = """<!doctype html><meta charset="utf-8"><style>
 body{margin:0;background:#f4f1ea;font:19px/1.45 "DejaVu Sans",system-ui,sans-serif;color:#1d1b18}
 .top{background:#1d1b18;color:#f4f1ea;padding:13px 28px;font-weight:600}
@@ -282,6 +322,11 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=Path("build/agent"))
     ap.add_argument("--film-only", action="store_true", help="re-film a saved transcript")
     ap.add_argument(
+        "--person", action="store_true",
+        help="a person approves the budget and confirms the refund (required off localhost: "
+        "this script pays with PayPal's test card only on a local server)",
+    )  # fmt: skip
+    ap.add_argument(
         "--video-pace", type=float, default=0.8,
         help="also film agent-video.webm for the submission cut: a generic title, holds x this",
     )  # fmt: skip
@@ -296,8 +341,12 @@ def main() -> None:
                 turn["steps"] = steps(json.loads(raw.read_text(encoding="utf-8")))
         saved.write_text(json.dumps(transcript, indent=1, ensure_ascii=False), encoding="utf-8")
     else:
+        base = a.base.rstrip("/")
+        local = re.match(r"https?://(127\.0\.0\.1|localhost|\[::1\])[:/]", base + "/")
+        if not local and not a.person:
+            raise SystemExit("off localhost a person approves the payments: add --person")
         cfg = a.out / "mcp.json"
-        mcp = f"{a.base.rstrip('/')}/mcp"
+        mcp = f"{base}/mcp"
         cfg.write_text(json.dumps({"mcpServers": {"preflight": {"type": "http", "url": mcp}}}))
         transcript = {"mcp": mcp, "turns": [], "recorded_at": time.strftime("%Y-%m-%d %H:%M")}
         session = None
@@ -310,12 +359,31 @@ def main() -> None:
             print(f"turn {i + 1}: {len(turn['steps'])} steps")
             if i == 0:
                 _approve, budget_url = approve_url(events).split("\n")
-                asyncio.run(approve_budget(budget_url, a.out))
+                if a.person:
+                    wait_for_person(
+                        a.out, "approve the $20 budget on PayPal's page (sandbox: the buyer "
+                        "account, or a guest with the sandbox test card)", budget_url,
+                        lambda u=budget_url: 'class="status active"' in _get(u),
+                    )  # fmt: skip
+                else:
+                    asyncio.run(approve_budget(budget_url, a.out))
                 turn["then"] = "You approve the $20 on PayPal (sandbox, test money)."
             if i == MARK_TURN:
                 link = re.search(r'confirm_url\\?"?:\s*\\?"(https?://[^"\\]+)', json.dumps(events))
                 if link:
-                    asyncio.run(confirm_mark(link.group(1).replace("\\u0026", "&")))
+                    url = link.group(1).replace("\\u0026", "&")
+                    if a.person:
+                        job = re.search(r"/jobs/([^/?#]+)", url)
+                        jid = job.group(1) if job else ""
+                        wait_for_person(
+                            a.out, "press \"Mark it wrong\" on the highlighted finding", url,
+                            lambda j=jid: any(
+                                (f.get("author_review") or {}).get("verdict") == "wrong"
+                                for f in _mcp(base, "get_findings", job_id=j)["findings"]
+                            ),
+                        )  # fmt: skip
+                    else:
+                        asyncio.run(confirm_mark(url))
                     turn["then"] = "You confirm it on your job page: $0.50 back to the budget."
             transcript["turns"].append(turn)
         transcript["budget_url"] = budget_url

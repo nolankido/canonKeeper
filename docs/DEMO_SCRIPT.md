@@ -65,5 +65,14 @@ The voice is Piper (GPL, run as a separate program; not a dependency) with the L
 late or run past the end; shorten the line in narration.json, not the picture. Upload
 `narration.srt` to YouTube as the English subtitles.
 
+Against the hosted instance the session runs with `--person`: the script cannot approve a
+PayPal payment there, so it stops at the budget's approval and at the finding to mark wrong,
+prints the link (and writes `person.txt`), and carries on when the person has done it (it
+checks the budget's status and the finding's ruling; it waits up to 45 minutes each):
+
+```bash
+python scripts/video/agent_session.py --base https://preflight-kq1o.onrender.com --out build/agent --person
+```
+
 Devpost testing notes: if judges should try the hosted sandbox checkout, put the sandbox buyer's
 email and password in Devpost's private testing instructions, never in the repo.
