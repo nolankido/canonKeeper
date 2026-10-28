@@ -54,6 +54,18 @@ Still open: sandbox buyer login in Devpost's private notes (N6) and the GitHub A
 (Nolan); Holmes sample's two known-wrong calls and the duplicate Becher item (T2 tonight,
 then a measured candidate-dedupe change); a recording of a real assistant session.
 
+## Judge review 4, 10-27 evening (a fresh agent, practice video included: 33/50)
+Tech 8, Design 6, Impact 6, Innovation 7, Presentation 6. Fixed the same evening: the bible
+explorer links back to its report, book headers are short and wrap, the chart's axes use AG
+Charts 14's object form (a console warning before; the phone label size never applied), a
+finding's passage scrolls into view; the video says "six Holmes books" (three are story
+collections) and quotes the benchmark as its range; narration fills the dead air and says
+what the models do; the assistant clip starts on its first message and has a poster frame;
+Devpost's "$30 for six" is scoped to the Holmes books and the money-path review links its
+tests. Open: the final take must show recorded Gemini answers, not the stand-in banner (after
+T4); an agent session against the hosted URL (`agent_session.py --person`, two clicks by
+Nolan); the GitHub About link (Nolan).
+
 ## Nolan's steps
 | # | Step | By | Unblocks |
 |---|---|---|---|
