@@ -40,12 +40,13 @@ checkout → approve → job page ticks to *done* → *Open the report*.
 > contradictions in the demo series, each with its two passages."
 
 ## 1:20–2:05 — An assistant with a budget (Agentic Commerce) · 92 words
-Claude Desktop with the hosted connector (`<url>/mcp`). Type: *"Open a $20 Preflight budget."*
-Claude replies with an approval link; click it, approve on the sandbox PayPal page (Claude
-cannot). Then: *"Check my new draft of book four against the series."* Claude sends an upload
-link, the draft is uploaded, it quotes, pays from the budget and reads the findings back.
-Cut to the budget page: the spend, the balance.
-> "The same shop serves AI assistants over MCP. I give Claude a twenty-dollar budget. It can
+An MCP assistant connected to the hosted endpoint (`<url>/mcp`), shown as the recorder's own
+unbranded chat panel: the rules bar third-party trademarks in the video. Type: *"Open a $20
+Preflight budget."* The assistant replies with an approval link; approve it with PayPal on the
+budget page (the assistant cannot). Then: *"Check my new draft against the series."* It quotes
+the check, pays from the budget and reads the findings back. Cut to the budget page: the spend,
+the balance.
+> "The same shop serves AI assistants over MCP. I give my assistant a twenty-dollar budget. It can
 > open the order, but only I can approve it, on PayPal. From then on it works on its own:
 > it checks my next draft against everything already published, pays from the budget, and
 > brings back the contradictions. It can never spend past the balance, every spend is on a
@@ -74,9 +75,8 @@ Repo URL and hosted URL on screen.
 - Caches warm: `audit`, `check` and the Saltmarsh job must complete in seconds on camera. Run
   each once the day before; a re-run replays from `.canonkeeper/cache`.
 - Sandbox buyer: log in once in the recording browser before starting so checkout is two clicks.
-- Claude Desktop: add the connector before recording (Settings → Connectors → Add custom
-  connector → `<hosted url>/mcp`), and run the budget beat once off camera so the draft check
-  is cached. Show the approval click on PayPal: it is the point of the beat.
+- The assistant beat is filmed by `scripts/video/record.py` (below): no branded assistant UI on
+  screen, and the approval with PayPal is shown: it is the point of the beat.
 - Terminal font ≥ 18pt; report pages at 110% zoom; 1920×1080.
 - Never show `.env`, a real manuscript, a pen name, or anything under `drafts/`.
 - Keep the PayPal checkout on screen only as long as the approval takes; the product is the

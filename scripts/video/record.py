@@ -453,7 +453,7 @@ async def main() -> None:
             a.out,
             "honest",
             "<p class='big'>Measured, not eyeballed.</p>"
-            f"<p>{html.escape(a.bench) or 'A seeded-defect benchmark plants contradictions in public-domain novels and scores the whole pipeline.'}</p>"
+            f"<p>{html.escape(a.bench) or 'Contradictions are planted in the six Holmes novels and the whole pipeline is scored: precision 0.80, recall 0.40 on the last run, misses listed in the README.'}</p>"
             "<p>Private manuscripts run on a local model: nothing leaves the machine.</p>",
             7,
         )

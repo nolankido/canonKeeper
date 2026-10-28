@@ -144,10 +144,15 @@ on the free tier with a fallback ladder for overloaded models. Provider-agnostic
 locally on a laptop CPU with Ollama and `qwen3:4b` for private manuscripts (a sourced bible and
 candidate list; its verdicts are not trusted, and the evidence rule sends them to the author).
 
+Building it: the code, tests and documentation were written with Claude Code (Anthropic's coding
+agent) working in this repository, directed and reviewed by the author; commits it made carry a
+`Co-Authored-By` line. The prompts the product sends to Gemini, and every number in the README,
+come from runs in this repository (the benchmark's files are committed).
+
 ## Video beats (< 3:00)
 See docs/DEMO_SCRIPT.md (v2): problem, audience and value in 15 seconds → the Holmes audit and
-its bible explorer → buy an audit (sandbox checkout) → Claude Desktop, given a PayPal-funded
-budget, checks the next draft on its own → the guarantee and the budget refund → benchmark →
+its bible explorer → buy an audit (real PayPal sandbox checkout) → an AI assistant, given a
+PayPal-funded budget, checks the next draft on its own → the guarantee and the budget refund → benchmark →
 close.
 
 ## Testing instructions (paste into Devpost; fill the two blanks)
