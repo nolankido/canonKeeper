@@ -15,12 +15,20 @@ titles across four series imprints.
 
 | | |
 |---|---|
-| **What it does** | Reads every chapter, builds a *series bible* (every fact about every character and place, each carrying the exact sentence it came from), and reports what cannot all be true: each contradiction with both passages and a fix aimed at the *later* book (the earlier ones are published). Writing the next book? Check the draft against everything already published. |
+| **What it does** | Every contradiction across a series, with both passages and a fix to the later book |
 | **Who it's for** | Authors of long-running series, their editors, small presses |
-| **What it costs** | $5 + $4 per 100,000 tokens (about 73,000 words of fiction), shown with its arithmetic before you pay: a 100,000-word novel is about $10.50, the six Sherlock Holmes volumes $30.20. A draft check is $2 + the same rate on the draft alone. |
-| **How you pay** | PayPal Checkout (Orders v2; this hackathon build runs on PayPal's sandbox, so it is test money). Nothing reaches a model until PayPal confirms the capture of exactly the quoted amount; an audit that cannot finish is refunded in full through PayPal. **The finding guarantee:** mark a contradiction wrong and it is noted on the report beside the model's call, and $0.50 goes back through PayPal for each one, up to half the price. |
-| **Agents welcome** | The same service is an MCP server at `<url>/mcp` (streamable HTTP; or `canonkeeper mcp` on stdio): an author's AI assistant connects as a customer and never holds a PayPal credential (at most a budget's spending key, capped by the balance and the person's limits). It asks for an upload link, the person uploads the books and sees the price, the assistant orders, and the PayPal approval link always goes to the person. Or the person funds an **assistant budget** once through PayPal ($5-$200): the assistant pays for audits and draft checks from it without asking each time, never past the balance nor the person's limits (an optional most-per-purchase and end date, which the person can tighten on the budget page but nobody can loosen); every spend is on the budget's page, a failed audit is credited back, and closing it refunds the unused rest to PayPal. |
-| **What you get** | The report (HTML, prints to PDF); the series bible as an explorer ([an AG Grid of every fact](#the-bible-explorer-ag-grid): sort, filter, search, disputed facts flagged, each fact by book with every change marked, the passage one click away, CSV of whatever is shown), as cards, and as a spreadsheet; and the findings as JSON |
+| **What it costs** | $5 + $4 per 100k tokens, arithmetic shown first: a 100,000-word novel ≈ $10.50 |
+| **How you pay** | PayPal (sandbox here); nothing reaches a model before the capture; refunds through PayPal |
+| **Agents welcome** | A hosted MCP server: assistants buy from a PayPal-funded budget, and only the person approves |
+| **What you get** | The report, the series bible as an [AG Grid explorer](#the-bible-explorer-ag-grid) and a spreadsheet, the findings as JSON |
+
+The details: the bible ties every fact about every character and place to the exact sentence it
+came from; a draft of the next book can be checked against everything already published ($2 +
+the same rate on the draft). A failed audit is refunded in full; mark a contradiction wrong and
+$0.50 comes back, up to half the price. An assistant never holds a PayPal credential, only a
+budget's spending key capped by the balance and the person's limits (a most-per-purchase and an
+end date, which the person can tighten but nobody can loosen); it asks the person to approve
+every payment and to confirm every refund.
 
 ### For judges: two minutes
 
@@ -36,7 +44,8 @@ titles across four series imprints.
 
 *A real agent session, sped up: Claude (Claude Code, headless) buying from Preflight over MCP
 with a $20 PayPal-sandbox budget it can never overspend; the person approves the payment and
-confirms the one refund. [Transcript and PayPal ids](docs/agent-session/).*
+confirms the one refund. Real sandbox transactions on a local copy of Preflight, whose demo
+answers came from its rule-based stand-in. [Transcript and PayPal ids](docs/agent-session/).*
 
 Built during the PayPal AI Hackathon 2026 (the repository starts on Oct 26, 2026).
 

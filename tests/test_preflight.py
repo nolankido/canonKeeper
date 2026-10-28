@@ -441,10 +441,13 @@ def test_free_tier_privacy_banner(tmp_path):
         provider="gemini", gemini_api_key="x", workdir=tmp_path / "w", _env_file=None
     )
     app = create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pf")
-    assert "never an unpublished manuscript" in TestClient(app).get("/").text
+    home, other = TestClient(app).get("/").text, TestClient(app).get("/assistant").text
+    assert "do not upload an unpublished manuscript" in home  # its own privacy card, said once
+    assert "never an unpublished manuscript" not in home
+    assert "never an unpublished manuscript" in other  # every other page: the banner
     local = Settings(provider="openweights", workdir=tmp_path / "w2", _env_file=None)
     app2 = create_app(settings=local, paypal=FakePayPal(), workdir=tmp_path / "pf2")
-    assert "never an unpublished manuscript" not in TestClient(app2).get("/").text
+    assert "never an unpublished manuscript" not in TestClient(app2).get("/assistant").text
 
 
 def test_job_progress_is_recorded_while_running(client):

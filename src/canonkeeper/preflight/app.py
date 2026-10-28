@@ -428,7 +428,8 @@ def create_app(
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request) -> HTMLResponse:
         jobs = [j for j in (store.get(i) for i in mine(request)) if j is not None]
-        return render(request, "index.html", jobs=jobs, sample=_SAMPLES.exists())
+        # the home page says it in its own privacy card, so not in the banner too
+        return render(request, "index.html", jobs=jobs, sample=_SAMPLES.exists(), privacy_card=True)
 
     @app.get("/private", response_class=HTMLResponse)
     def private(request: Request) -> HTMLResponse:
