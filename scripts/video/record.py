@@ -222,13 +222,15 @@ async def scene_holmes(page: Page) -> None:
         4.5,
     )
     await caption(page, "Every cleared conflict must quote the passage that clears it.", 3.5)
-    await page.goto(f"{BASE}/sample/bible")
-    await page.wait_for_timeout(1500)
-    await caption(page, "Underneath: the series bible, every fact tied to its sentence.", 3)
-    await page.check("#disputed")
-    await page.wait_for_timeout(600)
-    await page.click('.ag-row[row-index="0"] >> nth=-1')
-    await caption(page, "Filter to where the books disagree; open any passage.", 3.5)
+    # every finding links to its own row in the AG Grid explorer: open Watson's
+    await page.goto(
+        f"{BASE}/sample/bible?view=bybook&disputed=1"
+        "&focus=John%20Watson%7Cwound&book=The%20Sign%20of%20the%20Four"
+    )
+    await page.wait_for_selector(".ag-row")
+    await page.wait_for_timeout(1200)
+    await caption(page, "Each finding opens the series bible: one column per book.", 3.5)
+    await caption(page, "Changed values are marked; the passage is underneath.", 3.5)
 
 
 async def scene_buy(page: Page) -> str:
