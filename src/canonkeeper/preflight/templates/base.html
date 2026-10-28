@@ -105,10 +105,10 @@
   <header><a href="/">Preflight</a><span>pay-per-audit continuity checking · by canonkeeper</span><nav><a href="/assistant" data-testid="nav-assistant">For AI assistants</a></nav></header>
   {# one banner, however many things a visitor should know about this instance #}
   {% set notes = [] %}
-  {% if paypal_mode == 'fake' and provider == 'mock' %}{% set _ = notes.append("Demo: payments are simulated (no money moves). " ~ ("The demo series is answered with real Gemini answers recorded earlier; anything else you upload gets a simple rule-based stand-in, not AI." if demo_recorded else "Findings come from a simple rule-based stand-in, not AI.") ~ " The steps are the real ones.") %}
+  {% if paypal_mode == 'fake' and provider == 'mock' %}{% set _ = notes.append("Demo: payments are simulated (no money moves). " ~ ("The demo series is answered with real Gemini answers recorded earlier; other books are answered offline by a rule-based stand-in." if demo_recorded else "Findings come from a simple rule-based stand-in, not AI.") ~ " The steps are the real ones.") %}
   {% elif paypal_mode == 'fake' %}{% set _ = notes.append("Demo: payments are simulated, no money moves.") %}
   {% elif paypal_mode == 'sandbox' %}{% set _ = notes.append("PayPal sandbox: test money only, nothing real is charged.") %}{% endif %}
-  {% if provider == 'mock' and paypal_mode != 'fake' %}{% set _ = notes.append("Demo: " ~ ("the demo series is answered with real Gemini answers recorded earlier; anything else gets" if demo_recorded else "findings come from") ~ " a simple rule-based stand-in, not AI.") %}{% endif %}
+  {% if provider == 'mock' and paypal_mode != 'fake' %}{% set _ = notes.append("Demo: the demo series is answered with real Gemini answers recorded earlier; other books are answered offline by a rule-based stand-in." if demo_recorded else "Demo: findings come from a simple rule-based stand-in, not AI.") %}{% endif %}
   {% if no_model %}{% set _ = notes.append(no_model) %}{% endif %}
   {% if trains_on_prompts and not privacy_card %}{% set _ = notes.append("It runs on Gemini's free tier, which may use uploaded text for training: public-domain books or the demo series only, never an unpublished manuscript (for those, run Preflight on your own computer).") %}{% endif %}
   {% if notes %}<div class="banner" role="note">{{ notes | join(" ") }}</div>{% endif %}
