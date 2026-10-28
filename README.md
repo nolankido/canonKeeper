@@ -32,6 +32,10 @@ titles across four series imprints.
 | 4 | [`preflight/payments.py`](src/canonkeeper/preflight/payments.py) | The money paths: one function pays a job, budgets never overdraw, refunds are recorded before PayPal is asked. |
 | 5 | [The benchmark](#does-it-actually-work-the-seeded-defect-benchmark) | Precision and recall measured on planted errors, misses included. |
 
+![An assistant connected to Preflight over MCP opens a budget, the person approves it on PayPal, then the assistant checks a draft, pays from the budget and reads back the two contradictions](docs/img/assistant-budget.gif)
+
+*An assistant buying a draft check from its budget over MCP, as filmed by `scripts/video/record.py` (sped up).*
+
 Built during the PayPal AI Hackathon 2026 (the repository starts on Oct 26, 2026).
 
 **See a finished audit first:** [the six Sherlock Holmes volumes](#what-it-found-in-sherlock-holmes),
