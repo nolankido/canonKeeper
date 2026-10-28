@@ -7,6 +7,10 @@
   <form action="/quote-demo" method="post" class="inline"><button type="submit" data-testid="cta-demo">Try it with the demo series</button></form>
   {% if sample %}<a class="btn secondary" href="/sample" data-testid="cta-sample">See a finished audit</a>{% endif %}
 </div>
+{% if sample %}<figure class="hero-shot" data-testid="hero-shot">
+  <a href="/sample"><img src="/static/report-watson.webp" width="688" height="358" alt="A finding from the Sherlock Holmes audit: John Watson's wound is in his shoulder in A Study in Scarlet but his leg in The Sign of the Four. Both passages are quoted, and the fix changes the later book."></a>
+  <figcaption>What you get, from the finished Sherlock Holmes audit: the two passages that disagree and a fix to the later book. <a href="/sample">The whole report</a>.</figcaption>
+</figure>{% endif %}
 <p class="note">The demo series is <strong>The Saltmarsh Chronicles</strong>, three invented books with five planted continuity errors and one change only the author can judge.{% if sample %} The finished audit is the six Sherlock Holmes volumes: 3,963 sourced facts and the canon's two famous slips, Watson's wound and Mrs. Hudson/Turner; <a href="/sample/bible?view=bybook&amp;disputed=1">explore its series bible</a>.{% endif %}</p>
 <ol class="flow">
   <li><b>Upload</b><span>your books, in reading order</span></li>

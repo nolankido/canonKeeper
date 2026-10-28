@@ -36,6 +36,8 @@
   ul.steps, ol.steps { padding-left: 1.3em; } ul.steps li, ol.steps li { margin: 6px 0; } ul.tools { padding-left: 1.1em; font-size: 14px; } ul.tools li { margin: 4px 0; } .hint { font: 12px var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
   h1 { font-size: 30px; margin: 0 0 6px; }
   .lede { color: var(--muted); margin: 0 0 16px; }
+  .hero-shot { margin: 22px 0 8px; } .hero-shot img { display: block; width: 100%; max-width: 640px; height: auto; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 36px rgba(40,30,10,.10); }
+  .hero-shot figcaption { font-size: 14px; color: var(--muted); margin-top: 10px; max-width: 640px; } .hero-shot figcaption a { color: var(--accent); }
   .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
   .cta-row button, .cta-row .btn { margin-top: 0; }
   .card.privacy { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
@@ -85,12 +87,15 @@
 <body>
 <main>
   <header><a href="/">Preflight</a><span>pay-per-audit continuity checking · by canonkeeper</span><nav><a href="/assistant" data-testid="nav-assistant">For AI assistants</a></nav></header>
-  {% if paypal_mode == 'fake' and provider == 'mock' %}<div class="banner">Demo: payments are simulated (no money moves). {% if demo_recorded %}The demo series is answered with real Gemini answers recorded earlier; anything else you upload gets a simple rule-based stand-in, not AI.{% else %}Findings come from a simple rule-based stand-in, not AI.{% endif %} The steps are the real ones.</div>
-  {% elif paypal_mode == 'fake' %}<div class="banner">Demo: payments are simulated, no money moves.</div>
-  {% elif paypal_mode == 'sandbox' %}<div class="banner">PayPal sandbox: test money only, nothing real is charged. Pay with a PayPal sandbox buyer account.</div>{% endif %}
-  {% if provider == 'mock' and paypal_mode != 'fake' %}<div class="banner">Demo: {% if demo_recorded %}the demo series is answered with real Gemini answers recorded earlier; anything else gets{% else %}findings come from{% endif %} a simple rule-based stand-in, not AI.</div>{% endif %}
-  {% if no_model %}<div class="banner">{{ no_model }}</div>{% endif %}
-  {% if trains_on_prompts %}<div class="banner">This instance runs on Gemini's free tier, which may use submitted text to improve Google's products. Upload public-domain books or the demo series only — never an unpublished manuscript. For private work, run canonkeeper on your own machine with a local model.</div>{% endif %}
+  {# one banner, however many things a visitor should know about this instance #}
+  {% set notes = [] %}
+  {% if paypal_mode == 'fake' and provider == 'mock' %}{% set _ = notes.append("Demo: payments are simulated (no money moves). " ~ ("The demo series is answered with real Gemini answers recorded earlier; anything else you upload gets a simple rule-based stand-in, not AI." if demo_recorded else "Findings come from a simple rule-based stand-in, not AI.") ~ " The steps are the real ones.") %}
+  {% elif paypal_mode == 'fake' %}{% set _ = notes.append("Demo: payments are simulated, no money moves.") %}
+  {% elif paypal_mode == 'sandbox' %}{% set _ = notes.append("PayPal sandbox: test money only, nothing real is charged.") %}{% endif %}
+  {% if provider == 'mock' and paypal_mode != 'fake' %}{% set _ = notes.append("Demo: " ~ ("the demo series is answered with real Gemini answers recorded earlier; anything else gets" if demo_recorded else "findings come from") ~ " a simple rule-based stand-in, not AI.") %}{% endif %}
+  {% if no_model %}{% set _ = notes.append(no_model) %}{% endif %}
+  {% if trains_on_prompts %}{% set _ = notes.append("It runs on Gemini's free tier, which may use uploaded text for training: public-domain books or the demo series only, never an unpublished manuscript (for those, run Preflight on your own computer).") %}{% endif %}
+  {% if notes %}<div class="banner" role="note">{{ notes | join(" ") }}</div>{% endif %}
   {% block body %}{% endblock %}
 </main>
 </body>

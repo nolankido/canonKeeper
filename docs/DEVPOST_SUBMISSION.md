@@ -115,6 +115,14 @@ bible that updates as each book is published, paid through PayPal Subscriptions.
 ## Built with
 python, fastapi, paypal-orders-v2, paypal-js-sdk, paypal-webhooks, mcp, gemini-api, ag-grid, ollama, pydantic, jinja2, rapidfuzz, tiktoken, render
 
+## Prizes to opt into
+- **Best Use of Agentic Commerce:** the hosted MCP server (`/mcp`, 19 annotated tools; how to
+  connect at `/assistant`), the PayPal-funded assistant budget, the person-only approval.
+- **AG Grid:** the series bible explorer (`/sample/bible`); every finding in a report opens it on
+  its own row.
+- **Render:** the service runs on Render from `render.yaml` (a Blueprint: one click, three
+  secrets), kept awake through judging, with a daily smoke test against it.
+
 ## PayPal tools used
 PayPal REST Orders v2 (sandbox): create order with `payment_source.paypal.experience_context`
 (`PAY_NOW`, return/cancel URLs), capture on return, idempotency via `PayPal-Request-Id`;
