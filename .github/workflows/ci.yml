@@ -39,3 +39,35 @@ jobs:
       - run: pytest -q
         env:
           CANONKEEPER_PROVIDER: mock  # default cp1252 locale on purpose: as users run it
+
+  package:
+    # `pip install git+https://github.com/nolankido/canonKeeper` must work: a non-editable
+    # install once failed (templates added to the wheel twice) while every test passed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build && python -m build --wheel
+      - run: python -m venv /tmp/clean && /tmp/clean/bin/pip install dist/*.whl
+      - name: The installed package serves its pages
+        working-directory: /tmp
+        run: |
+          /tmp/clean/bin/python - <<'PY'
+          import tempfile
+          from pathlib import Path
+          from fastapi.testclient import TestClient
+          from canonkeeper.config import Settings
+          from canonkeeper.preflight.app import create_app
+          from canonkeeper.preflight.paypal import FakePayPal
+          d = Path(tempfile.mkdtemp())
+          app = create_app(settings=Settings(provider="mock", workdir=d / "w", _env_file=None),
+                           paypal=FakePayPal(), workdir=d / "pf")
+          web = TestClient(app)
+          for path in ("/", "/sample", "/sample/bible", "/assistant", "/private",
+                       "/static/ag-grid-community-36.2.0.min.js", "/static/report-watson.webp"):
+              r = web.get(path)
+              assert r.status_code == 200, (path, r.status_code)
+          print("installed package OK")
+          PY

@@ -417,6 +417,11 @@ def create_app(
         jobs = [j for j in (store.get(i) for i in mine(request)) if j is not None]
         return render(request, "index.html", jobs=jobs, sample=_SAMPLES.exists())
 
+    @app.get("/private", response_class=HTMLResponse)
+    def private(request: Request) -> HTMLResponse:
+        """For an unpublished manuscript: run the same Preflight at home with a local model."""
+        return render(request, "private.html")
+
     @app.get("/assistant", response_class=HTMLResponse)
     async def assistant(request: Request) -> HTMLResponse:
         """How to connect an AI assistant over MCP, with the tools it gets (read from the

@@ -22,11 +22,11 @@
 
 <div class="card privacy" data-testid="privacy">
   {% if trains_on_prompts %}
-  <p><strong>Public-domain books only on this site.</strong> It runs on a free AI tier whose terms let Google use uploaded text to improve its products, so do not upload an unpublished manuscript here. To keep a manuscript private, run Preflight on your own computer with a local model: the text never leaves it (<a href="https://github.com/nolankido/canonKeeper#readme">how</a>).</p>
+  <p><strong>Public-domain books only on this site.</strong> It runs on a free AI tier whose terms let Google use uploaded text to improve its products, so do not upload an unpublished manuscript here. To keep a manuscript private, run Preflight on your own computer with a local model: the text never leaves it (<a href="/private">how, in four steps</a>).</p>
   {% elif provider == 'mock' %}
-  <p><strong>Your text stays on this server: in this demo nothing is sent to any model.</strong>{% if demo_recorded %} The demo series replays real Gemini answers recorded earlier.{% endif %} For a private manuscript with real findings, run Preflight on your own computer with a local model: the text never leaves it (<a href="https://github.com/nolankido/canonKeeper#readme">how</a>).</p>
+  <p><strong>Your text stays on this server: in this demo nothing is sent to any model.</strong>{% if demo_recorded %} The demo series replays real Gemini answers recorded earlier.{% endif %} For a private manuscript with real findings, run Preflight on your own computer with a local model: the text never leaves it (<a href="/private">how, in four steps</a>).</p>
   {% else %}
-  <p><strong>Where your text goes:</strong> to this site's model provider ({{ provider }}) for the audit, and nowhere else. To keep a manuscript entirely on your own computer, run Preflight there with a local model (<a href="https://github.com/nolankido/canonKeeper#readme">how</a>).</p>
+  <p><strong>Where your text goes:</strong> to this site's model provider ({{ provider }}) for the audit, and nowhere else. To keep a manuscript entirely on your own computer, run Preflight there with a local model (<a href="/private">how, in four steps</a>).</p>
   {% endif %}
 </div>
 

@@ -53,3 +53,12 @@ def test_every_tool_says_what_it_does_to_the_world(tmp_path):
     assert a["pay_with_budget"].destructive_hint and a["delete_job"].destructive_hint
     assert a["close_budget"].destructive_hint and a["close_budget"].open_world_hint
     assert not a["quote_series"].read_only_hint and not a["quote_series"].destructive_hint
+
+
+def test_the_private_page_gives_the_local_steps_and_the_home_page_links_it(tmp_path):
+    settings = Settings(provider="mock", workdir=tmp_path / "w", _env_file=None)
+    web = TestClient(create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pf"))
+    page = web.get("/private").text
+    assert "canonkeeper serve --provider openweights" in page and "ollama pull qwen3:4b" in page
+    assert "not verdicts to trust" in page  # the measured limit of a small model, said plainly
+    assert 'href="/private"' in web.get("/").text

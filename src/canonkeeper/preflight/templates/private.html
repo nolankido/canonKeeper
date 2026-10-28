@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}An unpublished manuscript{% endblock %}
+{% block body %}
+<h1>An unpublished manuscript stays on your computer</h1>
+<p class="lede">{% if trains_on_prompts %}This hosted Preflight runs on a free AI tier whose terms let the provider use what you send it, so it takes public-domain books and the demo series only. {% endif %}Preflight is open source: the same pages, the same series bible and the same report run on your own computer with a local model, and your text never leaves it.</p>
+
+<div class="card" data-testid="private-steps">
+  <h2>Run Preflight on your own computer</h2>
+  <ol class="steps">
+    <li>Install Python 3.11 or newer and <a href="https://ollama.com/download">Ollama</a>, then fetch a model: <code>ollama pull qwen3:4b</code> (2.5 GB; a laptop without a graphics card runs it).</li>
+    <li>Start Ollama with a large enough window: <code>OLLAMA_CONTEXT_LENGTH=16384 ollama serve</code></li>
+    <li>Install Preflight: <code>pip install git+https://github.com/nolankido/canonKeeper</code></li>
+    <li>Start it: <code>canonkeeper serve --provider openweights</code>, open <code>http://127.0.0.1:8787</code>, and upload your books as you would here. Nothing is charged: payments are simulated on your own copy.</li>
+  </ol>
+  <p class="note">Any OpenAI-compatible server works in place of Ollama (LM Studio, vLLM, a GPU box on your network): set <code>CANONKEEPER_BASE_URL</code>, <code>CANONKEEPER_EXTRACT_MODEL</code> and <code>CANONKEEPER_ADJUDICATE_MODEL</code>.</p>
+</div>
+
+<div class="card" data-testid="private-honest">
+  <h2>What a small local model gets right, measured</h2>
+  <p>On the three-book demo series with five planted errors, a 4-billion-parameter model on a laptop CPU built a bible in which <strong>every fact is tied to a verbatim sentence</strong>, and three of the five errors reached the list of conflicts. It is not a good judge: it called all three explainable. Preflight does not let a model clear a conflict without quoting the passage that explains it, so those three came back as <em>Needs your judgement</em> for you to read, not dismissed. So a small local model gives you a private, sourced bible and a list of conflicts to read yourself, not verdicts to trust (<a href="https://github.com/nolankido/canonKeeper#local-mode-measured">the full measurement</a>).</p>
+</div>
+
+<p><a class="btn secondary" href="/">Back to Preflight</a> <a class="btn secondary" href="/sample">See a finished audit</a></p>
+{% endblock %}

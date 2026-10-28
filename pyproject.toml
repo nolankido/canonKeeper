@@ -56,10 +56,6 @@ Issues = "https://github.com/nolankido/canonKeeper/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["src/canonkeeper"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"src/canonkeeper/preflight/templates" = "canonkeeper/preflight/templates"
-"src/canonkeeper/report/templates" = "canonkeeper/report/templates"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
