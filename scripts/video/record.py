@@ -540,8 +540,8 @@ async def main() -> None:
             "problem",
             "<p class='big'>Book six has to agree with book one.</p>"
             "<p>Preflight reads a whole series and shows every contradiction: both passages, "
-            "and a fix for the newer book.</p><p>For series authors and editors. "
-            "Paid per audit with PayPal.</p>",
+            "and a fix for the newer book.</p><p>For series authors and editors, who check "
+            "this today with a spreadsheet and a good memory. Paid per audit with PayPal.</p>",
             7,
         )
         await record("holmes", scene_holmes)
