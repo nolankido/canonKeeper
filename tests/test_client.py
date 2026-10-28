@@ -602,3 +602,34 @@ def test_a_log_timestamp_with_its_own_offset_is_not_shifted_by_the_machines_zone
         else:
             os.environ["TZ"] = before
         time.tzset()
+
+
+def test_a_logged_request_keeps_its_day_when_the_laptop_changes_time_zone(tmp_path):
+    """Logged 22:09 in Hawaii, read the next morning in California: the line carries its own
+    offset, so it still counts against the day the provider counted it on."""
+    import json
+    from datetime import UTC, datetime, timedelta, timezone
+
+    from canonkeeper.config import Settings
+    from canonkeeper.llm.client import OpenAICompatibleLLM, count_requests_today
+
+    now = datetime.now(UTC)
+    hawaii, far = timezone(timedelta(hours=-10)), timezone(timedelta(hours=+9))
+    rows = [
+        {"ts": now.astimezone(hawaii).isoformat(timespec="seconds"), "model": "flash",
+         "ok": True, "latency_s": 1.0},
+        {"ts": now.astimezone(far).isoformat(timespec="seconds"), "model": "flash",
+         "ok": True, "latency_s": 1.0},
+        {"ts": (now - timedelta(days=2)).astimezone(far).isoformat(timespec="seconds"),
+         "model": "flash", "ok": True, "latency_s": 1.0},
+    ]  # fmt: skip
+    log = tmp_path / "requests.jsonl"
+    log.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    s = Settings(provider="gemini", workdir=tmp_path, _env_file=None)
+    assert count_requests_today(log, s.day_reset_utc_offset) == {"flash": 2}
+
+    # and the client writes its own offset
+    llm = OpenAICompatibleLLM("x", "http://127.0.0.1:9", request_log=tmp_path / "own.jsonl")
+    llm._log(model="m", ok=True, latency_s=0.1)
+    ts = json.loads((tmp_path / "own.jsonl").read_text(encoding="utf-8"))["ts"]
+    assert datetime.fromisoformat(ts).tzinfo is not None

@@ -376,7 +376,12 @@ class OpenAICompatibleLLM:
         """One JSON line per attempt: what was sent, what came back, how long it took."""
         if not self._request_log:
             return
-        line = json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), **fields}) + "\n"
+        # with its UTC offset: a laptop that changes time zone (Hawaii to California) must not
+        # move yesterday's requests into today's quota, or today's out of it
+        from datetime import datetime
+
+        ts = datetime.now().astimezone().isoformat(timespec="seconds")
+        line = json.dumps({"ts": ts, **fields}) + "\n"
         try:
             with self._state:  # one whole line per attempt, even with requests in parallel
                 self._request_log.parent.mkdir(parents=True, exist_ok=True)
