@@ -380,7 +380,18 @@ retried.
 
 <p align="center">
 <img src="docs/img/preflight-quote.png" width="49%" alt="The live quote page on the PayPal sandbox: the price with its arithmetic, and PayPal's own buttons (PayPal, Venmo, Pay Later, card)">
-<img src="docs/img/preflight-job.png" width="49%" alt="Job page after payment: facts in bible, contradictions, open the report">
+<img src="docs/img/preflight-job.png" width="49%" alt="A job paid on the PayPal sandbox: the receipt with PayPal's order and capture ids, and a $0.50 guarantee refund">
+</p>
+
+**Tested on PayPal's real sandbox, end to end** (Oct 28, 2026): a demo audit paid with PayPal's
+card button (order `0VT10566WP533404Y`, capture `93D58029P7835205H`) and a finding marked wrong
+($0.50 partial refund `3AA80535F2725261T`), above; and the agent path below: a $10 budget funded
+through PayPal, $5.05 spent on an audit by an assistant over MCP, $0.50 credited back by the
+guarantee, and the budget closed with the unused $5.45 refunded through PayPal (refund
+`5B922440HT719290M`).
+
+<p align="center">
+<img src="docs/img/preflight-budget.png" width="60%" alt="An assistant budget on the PayPal sandbox: funded $10, $5.05 spent on an audit, $0.50 credited back, closed with $5.45 refunded to PayPal">
 </p>
 
 Nothing is sent to a model until the order is captured. Jobs persist as JSON on disk, run one

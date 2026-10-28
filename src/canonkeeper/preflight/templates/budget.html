@@ -19,7 +19,31 @@
   </div>
   {% if budget.status == 'ordered' %}
   <p>Waiting for you to approve the ${{ budget.amount_usd }} payment on PayPal. Nothing can be spent until PayPal confirms it.</p>
-  {% if budget.approve_url %}<a class="btn paypal" href="{{ budget.approve_url }}">Approve on PayPal</a>{% endif %}
+  {% if paypal_client_id and budget.order_id %}
+  <div id="paypal-buttons" data-testid="paypal-buttons" style="max-width: 420px; margin-top: 18px"></div>
+  <p id="paypal-message" class="note" role="status" aria-live="polite"></p>
+  <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id | urlencode }}&currency=USD&intent=capture&components=buttons&enable-funding=venmo,paylater"></script>
+  <script>
+  (function () {
+    var msg = document.getElementById("paypal-message");
+    if (!window.paypal) { msg.textContent = "PayPal's buttons did not load here; use the link below instead."; return; }
+    window.paypal.Buttons({
+      style: { layout: "vertical", label: "pay" },
+      // the order already exists (the assistant opened the budget): approve that one
+      createOrder: function () { return {{ budget.order_id | tojson }}; },
+      onApprove: function () {
+        msg.textContent = "Approved. Confirming the payment with PayPal…";
+        return fetch("/budget/{{ budget.id }}/check", { method: "POST", headers: { Accept: "application/json" } })
+          .then(function (r) { return r.json(); })
+          .then(function (d) { if (d.problem) { msg.textContent = "PayPal: " + d.problem; } else { window.location = d.budget_url; } });
+      },
+      onCancel: function () { msg.textContent = "Cancelled. Nothing was charged."; },
+      onError: function () { if (!msg.textContent) { msg.textContent = "PayPal could not start the checkout; use the link below instead."; } }
+    }).render("#paypal-buttons");
+  })();
+  </script>
+  {% if budget.approve_url %}<a class="btn secondary" href="{{ budget.approve_url }}">Or approve on PayPal's page</a>{% endif %}
+  {% elif budget.approve_url %}<a class="btn paypal" href="{{ budget.approve_url }}">Approve on PayPal</a>{% endif %}
   <form action="/budget/{{ budget.id }}/check" method="post" class="inline"><button type="submit" class="secondary">I've approved it — check payment</button></form>
   {% elif budget.status == 'active' %}
   <form action="/budget/{{ budget.id }}/close" method="post" data-testid="budget-close">

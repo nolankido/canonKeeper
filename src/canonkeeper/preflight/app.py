@@ -121,8 +121,14 @@ def make_paypal(
     settings_env: dict[str, str] | None = None, *, state_dir: Path | None = None
 ) -> PayPal:
     """`state_dir`: where the fake keeps its orders so `serve` and `mcp` share them."""
-    env = settings_env if settings_env is not None else paypal_env()
-    mode = env.get("PAYPAL_MODE", "fake" if not env.get("PAYPAL_CLIENT_ID") else "sandbox")
+    raw = settings_env if settings_env is not None else paypal_env()
+    # A value pasted with a trailing space or a Windows line ending ("sandbox\r") breaks every
+    # PayPal call with an error that does not say why: keys and modes never contain whitespace.
+    env = {k: v.strip().strip("'\"") for k, v in raw.items() if isinstance(v, str)}
+    env = {k: v for k, v in env.items() if v}
+    mode = env.get("PAYPAL_MODE", "fake" if not env.get("PAYPAL_CLIENT_ID") else "sandbox").lower()
+    if mode not in ("fake", "sandbox", "live"):
+        raise RuntimeError(f"PAYPAL_MODE must be fake, sandbox or live, not {mode!r}")
     if mode == "fake":
         return FakePayPal(state_path=state_dir / "fake-paypal.json" if state_dir else None)
     cid, secret = env.get("PAYPAL_CLIENT_ID"), env.get("PAYPAL_CLIENT_SECRET")
@@ -631,7 +637,15 @@ def create_app(
         return RedirectResponse(f"/budget/{budget_id}", status_code=303)
 
     @app.post("/budget/{budget_id}/check", response_model=None)
-    def budget_check(request: Request, budget_id: str) -> RedirectResponse | HTMLResponse:
+    def budget_check(
+        request: Request, budget_id: str
+    ) -> RedirectResponse | HTMLResponse | JSONResponse:
+        if wants_json(request):  # PayPal's buttons on the budget page, after the approval
+            problem = settle_budget(budget_or_404(budget_id), pp, service.budgets)
+            after = budget_or_404(budget_id)
+            return JSONResponse(
+                {"status": after.status, "problem": problem, "budget_url": f"/budget/{budget_id}"}
+            )
         return budget_return(request, budget_id)
 
     @app.post("/budget/{budget_id}/close", response_model=None)

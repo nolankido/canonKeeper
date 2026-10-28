@@ -154,3 +154,40 @@ def test_a_browser_gets_a_page_for_an_error_and_a_script_still_gets_json(tmp_pat
     assert missing.status_code == 422 and "series name" in missing.text
     assert web.get("/jobs/not-a-job").json() == {"detail": "Not Found"}  # no Accept: JSON
     assert web.get("/jobs/not-a-job", headers={"accept": "application/json"}).json()["detail"]
+
+
+def test_pasted_paypal_values_with_stray_whitespace_still_work():
+    """Regression: a key file with Windows line endings gave "sandbox\\r" and a broken client."""
+    from canonkeeper.preflight.app import make_paypal
+
+    pp = make_paypal({"PAYPAL_MODE": "sandbox\r", "PAYPAL_CLIENT_ID": " cid\r\n",
+                      "PAYPAL_CLIENT_SECRET": '"sec"\r'})  # fmt: skip
+    assert pp.mode == "sandbox" and pp.client_id == "cid"
+    import pytest
+
+    with pytest.raises(RuntimeError):
+        make_paypal({"PAYPAL_MODE": "sandbx", "PAYPAL_CLIENT_ID": "c", "PAYPAL_CLIENT_SECRET": "s"})
+
+
+def test_the_budget_page_offers_paypals_buttons_and_confirms_as_json(tmp_path):
+    from canonkeeper.preflight.paypal import FakePayPal
+
+    class Sandboxish(FakePayPal):
+        mode, client_id = "sandbox", "test-client-id"
+
+    settings = Settings(provider="mock", workdir=tmp_path / "w", _env_file=None)
+    app = create_app(settings=settings, paypal=Sandboxish(), workdir=tmp_path / "pf")
+    web, svc = TestClient(app), app.state.mcp_service
+    b = svc.open_budget("10")
+    page = web.get(f"/budget/{b['budget_id']}").text
+    order = svc.budgets.get(b["budget_id"]).order_id
+    assert 'data-testid="paypal-buttons"' in page and f'return "{order}";' in page
+    assert "Or approve on PayPal" in page
+    j = {"accept": "application/json"}
+    assert (
+        web.post(f"/budget/{b['budget_id']}/check", headers=j).json()["problem"]
+        == "not approved yet"
+    )
+    svc.paypal.approve(order)
+    done = web.post(f"/budget/{b['budget_id']}/check", headers=j).json()
+    assert done == {"status": "active", "problem": None, "budget_url": f"/budget/{b['budget_id']}"}
