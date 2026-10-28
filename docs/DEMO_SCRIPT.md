@@ -89,9 +89,14 @@ beat of v2 with captions drawn into the page, including the assistant scene: it 
 server's own MCP endpoint the way Claude Desktop would (open a budget, check the draft, pay from
 the budget, read the findings) and films the person's side, the PayPal approval and the budget
 page. `scripts/video/assemble.py` trims, fades and joins the scenes into
-`build/video/preflight.mp4` (about 2:30, silent, 1280×720). It is a starting point: replace the
-simulated checkout and chat with screen recordings of the real sandbox and Claude Desktop, add
-the voiceover, and keep it under three minutes.
+`build/video/preflight.mp4` (about 2:50, silent, 1280×720).
+
+Against a server with PayPal **sandbox** keys, both payments are real: the recorder pays through
+PayPal's own card button as a guest with PayPal's published sandbox test card (no PayPal login),
+films PayPal's pop-up full width and splices it in where it opened, and the cut plays the form
+fills at 1.7×. The assistant panel is labelled generically ("Your AI assistant"), not with any
+product's name, because the rules bar third-party trademarks in the video. Without sandbox keys
+the same scenes run on the simulated checkout.
 
 ```bash
 canonkeeper serve --provider mock --port 8787 &

@@ -21,6 +21,8 @@ import argparse
 import asyncio
 import html
 import json
+import subprocess
+import time
 import urllib.request
 from pathlib import Path
 
@@ -28,6 +30,14 @@ from playwright.async_api import Page, async_playwright
 
 W, H = 1280, 720
 BASE = "http://127.0.0.1:8787"
+# PayPal's published sandbox test card (developer.paypal.com/credit-card-number-generator):
+# against a sandbox server the checkout scenes pay through PayPal's real card pop-up as a guest.
+CARD = "4012000033330026"
+
+# PayPal's card form opens in a pop-up, recorded as its own video; the recorder splices it into
+# the scene at the moment it opened. (opened, closed, pop-up page), seconds from the scene start.
+SPLITS: list[tuple[float, float, Page]] = []
+CLIP_T0 = 0.0
 
 CAPTION_JS = """
 (text) => {
@@ -55,9 +65,12 @@ font-size:22px;color:#6b665e;margin-top:28px}} .big{{font-size:44px;font-weight:
 </style></head><body><div class="w">{body}</div></body></html>"""
 
 
+PACE = 0.8  # caption hold times are scaled by this to keep the cut under three minutes
+
+
 async def caption(page: Page, text: str, hold: float) -> None:
     await page.evaluate(CAPTION_JS, text)
-    await page.wait_for_timeout(int(hold * 1000))
+    await page.wait_for_timeout(int(hold * PACE * 1000))
 
 
 async def smooth_scroll_to(page: Page, selector_js: str, offset: int = 90, ms: int = 1200) -> None:
@@ -72,6 +85,61 @@ async def smooth_scroll_to(page: Page, selector_js: str, offset: int = 90, ms: i
         [selector_js, offset],
     )
     await page.wait_for_timeout(ms + 200)
+
+
+def sandbox(page: Page) -> bool:
+    """The server takes payment through PayPal's own buttons (sandbox), not the fake page."""
+    return any("smart/buttons" in f.url for f in page.frames)
+
+
+async def pay_by_card(page: Page) -> None:
+    """Pay through PayPal's card button as a guest with the published sandbox test card."""
+    frame = next(f for f in page.frames if "smart/buttons" in f.url)
+    opened = time.monotonic() - CLIP_T0
+    async with page.context.expect_page() as info:
+        await frame.click("[data-funding-source='card']")
+    pop = await info.value
+    await pop.set_viewport_size({"width": W, "height": H})  # film it full width, not a sliver
+    await pop.wait_for_load_state()
+    await pop.wait_for_timeout(3500)
+
+    async def no_cookies() -> None:
+        close = pop.locator("#bannerCloseButton")
+        if await close.is_visible():
+            await close.click()  # close PayPal's cookie banner without accepting
+
+    await no_cookies()
+    await pop.evaluate(CAPTION_JS, "PayPal's own checkout. Sandbox: test money only.")
+    await pop.select_option("#country", "US")
+    await pop.wait_for_timeout(1500)
+    for sel, val in [
+        ("#cardNumber", CARD), ("#cardExpiry", "11/29"), ("#cardCvv", "321"),
+        ("#firstName", "Test"), ("#lastName", "Buyer"), ("#billingLine1", "2 Main St"),
+        ("#billingCity", "San Jose"), ("#billingPostalCode", "95131"),
+        ("#phone", "4085550101"), ("#email", "test-buyer@example.com"),
+    ]:  # fmt: skip
+        await pop.fill(sel, val)
+        await pop.wait_for_timeout(120)
+        await no_cookies()  # PayPal's banner comes back over the caption
+    await pop.select_option("#billingState", "CA")
+    await no_cookies()
+    await pop.wait_for_timeout(800)
+    try:
+        await pop.locator("[data-testid=pomaGuestSubmitButton]").click(timeout=20000)  # guest
+        await pop.wait_for_event("close", timeout=90000)
+    except Exception:
+        shot = Path(f"paypal-popup-{int(time.time())}.png")
+        await pop.screenshot(path=str(shot), full_page=True)
+        raise RuntimeError(f"PayPal's pop-up did not complete; see {shot.resolve()}") from None
+    SPLITS.append((opened, time.monotonic() - CLIP_T0, pop))
+
+
+def _cut(src: Path, dst: Path, start: float, end: float | None = None) -> None:
+    args = ["ffmpeg", "-v", "error", "-y", "-ss", f"{start:.2f}", "-i", str(src)]
+    if end is not None:
+        args += ["-t", f"{max(0.1, end - start):.2f}"]
+    args += ["-c:v", "libvpx", "-b:v", "3M", "-deadline", "realtime", "-an", str(dst)]
+    subprocess.run(args, check=True)
 
 
 def card(body: str) -> str:
@@ -127,7 +195,7 @@ async def scene_holmes(page: Page) -> None:
     await caption(page, "Underneath: the series bible, every fact tied to its sentence.", 3)
     await page.check("#disputed")
     await page.wait_for_timeout(600)
-    await page.click(".ag-row[row-index=\"0\"] >> nth=-1")
+    await page.click('.ag-row[row-index="0"] >> nth=-1')
     await caption(page, "Filter to where the books disagree; open any passage.", 3.5)
 
 
@@ -140,16 +208,23 @@ async def scene_buy(page: Page) -> str:
         page, "The price is known before anything runs: it is a function of the token count.", 4
     )
     await caption(page, "$5 base + $4 per 100k tokens, with the arithmetic on the page.", 3)
-    await page.click("form[action$='/order'] button")
-    await page.wait_for_load_state("networkidle")
-    await caption(
-        page,
-        "PayPal Orders v2: create the order, the buyer approves, we capture. "
-        "(Simulated here; sandbox in the live demo.)",
-        4.5,
-    )
-    await page.click("form button")
-    await page.wait_for_load_state("networkidle")
+    if sandbox(page):
+        await caption(page, "Pay with PayPal: PayPal, Venmo, Pay Later or a card.", 3)
+        await pay_by_card(page)
+        await page.wait_for_url("**/jobs/**", timeout=60000)
+        await page.wait_for_load_state("networkidle")
+        await caption(page, "PayPal captured it. Only now does anything reach a model.", 3.5)
+    else:
+        await page.click("form[action$='/order'] button")
+        await page.wait_for_load_state("networkidle")
+        await caption(
+            page,
+            "PayPal Orders v2: create the order, the buyer approves, we capture. "
+            "(Simulated here; sandbox in the live demo.)",
+            4.5,
+        )
+        await page.click("form button")
+        await page.wait_for_load_state("networkidle")
     job_url = page.url
     await caption(page, "No model is called until the payment is captured.", 3)
     await page.wait_for_timeout(1500)
@@ -199,7 +274,7 @@ body{margin:0;background:#f4f1ea;font:20px/1.45 "DejaVu Sans",system-ui,sans-ser
 .ai{background:#fff;border:1px solid #e3ddd0}
 .tool{font:15px/1.4 "DejaVu Sans Mono",monospace;color:#6b655c;margin:4px 0 4px 6px}
 .tool b{color:#3b4f8a}
-</style><body><div class="top">Claude Desktop<span>connector: Preflight · __BASE__/mcp</span></div>
+</style><body><div class="top">Your AI assistant<span>connected to Preflight over MCP · __BASE__/mcp</span></div>
 <div id="log"></div></body>"""
 
 ADD_JS = """([cls, text]) => {
@@ -236,14 +311,20 @@ async def scene_agent(page: Page, out: Path, job_url: str, draft: Path) -> str:
     await caption(page, "The assistant can open the order. Only the person can approve it.", 3)
 
     # the person, on PayPal
-    await page.goto(b["approve_url"])
-    await caption(
-        page, "The person approves on PayPal (simulated here; the sandbox in the live demo).", 3
-    )
-    await page.click("form button")
-    await page.wait_for_load_state("networkidle")
-    budget_url = page.url.split("/return")[0]
+    budget_url = b["budget_url"]
     await page.goto(budget_url)
+    await page.wait_for_timeout(4000)
+    if sandbox(page):
+        await caption(page, "The person approves the budget with PayPal: only they can.", 3)
+        await pay_by_card(page)
+        await page.wait_for_timeout(5000)
+        await page.goto(budget_url)
+    else:
+        await page.goto(b["approve_url"])
+        await caption(page, "The person approves on PayPal (simulated here).", 3)
+        await page.click("form button")
+        await page.wait_for_load_state("networkidle")
+        await page.goto(budget_url)
     await caption(
         page, "Funded once. From here the assistant works on its own, inside the limit.", 3.5
     )
@@ -321,13 +402,30 @@ async def main() -> None:
                 record_video_size={"width": W, "height": H},
             )
             page = await ctx.new_page()
+            global CLIP_T0
+            CLIP_T0 = time.monotonic()
+            SPLITS.clear()
             result = await fn(page, *args)
             video = page.video
             await ctx.close()
             src = Path(await video.path()) if video else None
-            if src:
-                src.rename(a.out / f"{len(order):02d}-{name}.webm")
+            if not src:
+                return result
+            # the scene up to each PayPal pop-up, the pop-up itself, then the rest
+            start = 0.0
+            for k, (opened, closed, pop) in enumerate(list(SPLITS)):
+                _cut(src, a.out / f"{len(order):02d}-{name}.webm", start, opened)
                 order.append(name)
+                popv = Path(await pop.video.path()) if pop.video else None
+                if popv:
+                    popv.rename(a.out / f"{len(order):02d}-{name}-paypal{k}.webm")
+                    order.append(f"{name}-paypal{k}")
+                name, start = f"{name}-after{k}", closed
+            if SPLITS:
+                _cut(src, a.out / f"{len(order):02d}-{name}.webm", start)
+            else:
+                src.rename(a.out / f"{len(order):02d}-{name}.webm")
+            order.append(name)
             return result
 
         await record(
@@ -366,6 +464,9 @@ async def main() -> None:
         )
         await browser.close()
     (a.out / "order.json").write_text(json.dumps(order), encoding="utf-8")
+    # PayPal's form fills are real but long: the cut plays them fast-forwarded
+    fast = {n: 1.7 for n in order if "-paypal" in n}
+    (a.out / "speeds.json").write_text(json.dumps(fast), encoding="utf-8")
     print("recorded:", order)
 
 

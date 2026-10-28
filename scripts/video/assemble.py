@@ -39,6 +39,8 @@ LIMIT_S = 180.0  # Devpost: under three minutes
 def main(folder: Path, replace: dict[str, Path] | None = None) -> Path:
     replace = replace or {}
     order = json.loads((folder / "order.json").read_text(encoding="utf-8"))
+    speeds_file = folder / "speeds.json"  # scenes record.py fast-forwards (PayPal's form fills)
+    speeds = json.loads(speeds_file.read_text(encoding="utf-8")) if speeds_file.exists() else {}
     unknown = set(replace) - set(order)
     if unknown:
         raise SystemExit(
@@ -50,7 +52,8 @@ def main(folder: Path, replace: dict[str, Path] | None = None) -> Path:
         src = external or folder / f"{i:02d}-{name}.webm"
         dst = folder / f"{i:02d}-{name}.mp4"
         skip = 0.0 if external else TRIM_START
-        d = duration(src) - skip
+        speed = 1.0 if external else float(speeds.get(name, 1.0))
+        d = (duration(src) - skip) / speed
         fit = (
             "scale=1280:720:force_original_aspect_ratio=decrease,"
             "pad=1280:720:(ow-iw)/2:(oh-ih)/2:color=0xfaf8f3,setsar=1,"
@@ -58,7 +61,8 @@ def main(folder: Path, replace: dict[str, Path] | None = None) -> Path:
             else ""
         )
         vf = (
-            f"{fit}fps=30,format=yuv420p,fade=t=in:st=0:d={FADE},"
+            f"{fit}{f'setpts=PTS/{speed},' if speed != 1.0 else ''}fps=30,format=yuv420p,"
+            f"fade=t=in:st=0:d={FADE},"
             f"fade=t=out:st={max(0.0, d - FADE):.2f}:d={FADE}"
         )
         subprocess.run(
@@ -95,7 +99,8 @@ def main(folder: Path, replace: dict[str, Path] | None = None) -> Path:
             check=True,
         )
         clips.append(dst)
-        print(f"{name:10} {d:6.1f}s{'  (replaced: ' + str(external) + ')' if external else ''}")
+        note = f"  (replaced: {external})" if external else (f"  ({speed}x)" if speed != 1 else "")
+        print(f"{name:14} {d:6.1f}s{note}")
     lst = folder / "concat.txt"
     lst.write_text("".join(f"file '{c.name}'\n" for c in clips), encoding="utf-8")
     final = folder / "preflight.mp4"
