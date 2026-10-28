@@ -12,7 +12,7 @@
  {"cue": "Pay", "text": "PayPal runs the checkout: create the order, approve, capture."},
  {"cue": "No model is called", "text": "Nothing reaches a model until PayPal confirms the capture of exactly the quoted amount."},
  {"cue": "The audit ran", "text": "Then Gemini reads every chapter and pulls out each fact with its quote, and a stronger Gemini model judges every conflict with the whole series in front of it."},
- {"cue": "Five planted", "text": "A minute later, the report: five planted contradictions, each with both passages and a fix."},
+ {"cue": "Five contradictions", "text": "A minute later, the report: five contradictions, each with both passages and a fix to the newer book."},
  {"cue": "turn:1", "text": "The same shop serves AI assistants over MCP. This is a real, recorded session. I ask for a twenty-dollar budget, at most six dollars a purchase."},
  {"cue": "then:1", "text": "The assistant can open the order, but only I can approve it, on PayPal."},
  {"cue": "call:pay_with_budget", "text": "From then on it works on its own: it pays from the budget, runs the audit, and brings back the findings."},

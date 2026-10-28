@@ -317,7 +317,7 @@ async def scene_buy(page: Page) -> str:
     await page.click("a.btn[href$='/report']")
     await page.wait_for_load_state("networkidle")
     await page.evaluate("document.body.style.zoom = '0.8'")
-    await caption(page, "Five planted errors, each with both passages and a fix.", 4)
+    await caption(page, "Five contradictions, each with both passages and a fix to the newer book.", 4)
     await page.mouse.wheel(0, 500)
     await page.wait_for_timeout(1500)
     return job_url

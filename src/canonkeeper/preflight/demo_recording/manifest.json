@@ -1,0 +1,30 @@
+{
+  "provider": "gemini",
+  "settings": {
+    "extract_model": "gemini-3.5-flash-lite",
+    "adjudicate_model": "gemini-3.6-flash",
+    "extract_mode": "two-pass",
+    "extract_hints": false,
+    "extract_hint_passes": "",
+    "extract_reasoning_effort": "medium",
+    "extract_sweep_reasoning_effort": "low",
+    "adjudicate_reasoning_effort": "medium",
+    "extract_chunk_tokens": 3500,
+    "adjudicate_context_tokens": 60000,
+    "adjudicate_batch_size": 8,
+    "max_candidates_per_run": 200,
+    "temperature": 0.0
+  },
+  "recorded_on": "2026-10-28",
+  "entries": 10,
+  "results": {
+    "audit": {
+      "claims": 45,
+      "contradictions": 5
+    },
+    "check": {
+      "claims": 53,
+      "contradictions": 2
+    }
+  }
+}
