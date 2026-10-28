@@ -37,7 +37,7 @@
   <p class="note">{% if job.kind != 'check' %}The bible also reads as <a href="/jobs/{{ job.id }}/bible">cards, one per character</a>. {% endif %}Keep a copy: <a href="/jobs/{{ job.id }}/download/report.html">report (HTML)</a> · <a href="/jobs/{{ job.id }}/download/report.json">findings (JSON)</a>{% if job.kind != 'check' %} · <a href="/jobs/{{ job.id }}/download/bible.html">series bible (HTML)</a> · <a href="/jobs/{{ job.id }}/download/bible-grid.html">bible explorer (HTML)</a> · <a href="/jobs/{{ job.id }}/download/bible.csv">bible as a spreadsheet (CSV)</a>{% endif %}</p>
   {% if share_url %}<div class="share" data-testid="share">
     <label for="share-url">Share the report with an editor or co-author: a read-only link to the report and the bible</label>
-    <input id="share-url" type="text" value="{{ share_url }}" readonly onfocus="this.select()" data-testid="share-url">
+    <div class="copyrow"><input id="share-url" type="text" value="{{ share_url }}" readonly onfocus="this.select()" data-testid="share-url"><button type="button" class="secondary" data-copy="#share-url">Copy</button></div>
     <p class="note">Keep this page's own address to yourself: it is the key that marks findings wrong, asks for refunds and deletes the files.</p>
   </div>{% endif %}
 {% elif job.status == 'deleted' %}

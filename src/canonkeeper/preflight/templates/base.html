@@ -36,6 +36,7 @@
   ul.steps, ol.steps { padding-left: 1.3em; } ul.steps li, ol.steps li { margin: 6px 0; } ul.tools { padding-left: 1.1em; font-size: 14px; } ul.tools li { margin: 4px 0; } .hint { font: 12px var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
   h1 { font-size: 30px; margin: 0 0 6px; }
   .lede { color: var(--muted); margin: 0 0 16px; }
+  .copyrow { display: flex; gap: 8px; align-items: stretch; } .copyrow input { flex: 1; min-width: 0; margin: 0; } .copyrow button { margin: 0; white-space: nowrap; }
   .hero-shot { margin: 22px 0 8px; } .hero-shot img { display: block; width: 100%; max-width: 640px; height: auto; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 36px rgba(40,30,10,.10); }
   .hero-shot figcaption { font-size: 14px; color: var(--muted); margin-top: 10px; max-width: 640px; } .hero-shot figcaption a { color: var(--accent); }
   .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
@@ -98,5 +99,17 @@
   {% if notes %}<div class="banner" role="note">{{ notes | join(" ") }}</div>{% endif %}
   {% block body %}{% endblock %}
 </main>
+<script>
+  // "Copy" buttons next to an address the person passes on (the MCP address, a share link)
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-copy]");
+    if (!b) return;
+    var field = document.querySelector(b.getAttribute("data-copy"));
+    if (!field) return;
+    var done = function () { var t = b.textContent; b.textContent = "Copied"; setTimeout(function () { b.textContent = t; }, 1500); };
+    if (navigator.clipboard) { navigator.clipboard.writeText(field.value).then(done, function () { field.select(); }); }
+    else { field.select(); }
+  });
+</script>
 </body>
 </html>

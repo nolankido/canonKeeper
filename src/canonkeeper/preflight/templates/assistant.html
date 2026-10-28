@@ -7,7 +7,7 @@
 <div class="card" data-testid="connect">
   <h2>1. Connect it</h2>
   <label for="mcp-url">Preflight's MCP address (streamable HTTP, no sign-in)</label>
-  <input id="mcp-url" type="text" value="{{ mcp_url }}" readonly data-testid="mcp-url" onfocus="this.select()">
+  <div class="copyrow"><input id="mcp-url" type="text" value="{{ mcp_url }}" readonly data-testid="mcp-url" onfocus="this.select()"><button type="button" class="secondary" data-copy="#mcp-url">Copy</button></div>
   <ul class="steps">
     <li><b>Claude</b> (web or desktop): add a custom connector and paste the address above.</li>
     <li><b>Claude Code</b>: <code>claude mcp add --transport http preflight {{ mcp_url }}</code></li>
