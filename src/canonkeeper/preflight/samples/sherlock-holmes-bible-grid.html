@@ -139,17 +139,19 @@
     // the earliest book gave
     function first(d) { if (!d || !d.books) return ""; for (var i = 0; i < matrix.books.length; i++) { var v = d.books[matrix.books[i]]; if (v) return v; } return ""; }
     var cols = [
-      { field: "entity", headerName: "Who / what", pinned: narrow ? null : "left", width: narrow ? 120 : 190, filter: "agTextColumnFilter" },
+      { field: "entity", headerName: "Who / what", pinned: "left", width: narrow ? 104 : 190, filter: "agTextColumnFilter" },
       { field: "fact", headerName: "Fact", pinned: narrow ? null : "left", width: narrow ? 90 : 130, filter: "agTextColumnFilter" },
       { colId: "flag", headerName: "⚠", headerTooltip: "Disputed: the books give two different values", width: 56, cellClass: "flag", cellDataType: "text",
         valueGetter: function (p) { return p.data && p.data.disputed ? "⚠" : ""; } }
     ];
+    var perBook = [];
     matrix.books.forEach(function (b) {
-      cols.push({ colId: "book:" + b, headerName: b, headerTooltip: b, width: 150, minWidth: 110, flex: 1, filter: "agTextColumnFilter",
+      perBook.push({ colId: "book:" + b, headerName: b, headerTooltip: b, width: 150, minWidth: 110, flex: 1, filter: "agTextColumnFilter",
         cellDataType: "text",
         valueGetter: function (p) { return (p.data && p.data.books && p.data.books[b]) || ""; },
         cellClassRules: { changed: function (p) { var v = p.value; return !!v && !!p.data && p.data.disputed && v !== first(p.data); } } });
     });
+    cols.push({ headerName: "What each book says, in reading order", children: perBook });
     return cols;
   }
   function setView(v) {
