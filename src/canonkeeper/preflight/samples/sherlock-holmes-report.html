@@ -63,12 +63,20 @@
     input, label, .filters { display: none !important; }
   }
   a.seebible { display: inline-block; margin-top: 10px; font-size: 14px; }
+  #triage-search { width: 100%; padding: 8px 10px; font: inherit; font-size: 15px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); margin-bottom: 8px; }
+  #triage-grid { height: 440px; }
+  #triage-grid .v-contradiction { color: var(--hi); font-weight: 600; }
+  #triage-grid .v-judgement { color: var(--med); font-weight: 600; }
+  #triage-grid .v-cleared { color: var(--ok); }
+  .f.flash { box-shadow: 0 0 0 3px var(--accent); transition: box-shadow .6s; }
+  @media print { #triage { display: none; } }
 </style>
 </head>
 <body>
 <main>
   <div class="topbar"><b>Preflight</b><a href="/" data-testid="back-to-job">← Preflight: audit your own series</a></div>
   <h1>Sherlock Holmes</h1>
+  
   <div class="sub">6 books · continuity audit</div>
   
 
@@ -86,10 +94,20 @@
   
   <nav class="jump"><a href="#contradictions">4 contradictions</a> · <a href="#review">5 need your judgement</a> · <a href="#cleared">18 reviewed and cleared</a> · <a href="/sample/bible" data-testid="bible-link">explore the series bible</a></nav>
 
+  
+  <section id="triage" data-testid="triage">
+    <h2>Every finding at a glance</h2>
+    <p class="sub">Sort or filter any column, search everything at once, and click a row to open its finding below.</p>
+    <input id="triage-search" type="search" placeholder="Search findings: a name, a book, a check…" aria-label="Search the findings">
+    <div id="triage-grid" aria-label="Every finding in this report"></div>
+  </section>
+  <script id="triage-rows" type="application/json">[{"author": "", "books": "A Study in Scarlet \u2192 The Sign of the Four \u2192 The Adventures of Sherlock Holmes \u2192 The Memoirs of Sherlock Holmes", "check": "differing detail", "finding": "John Watson\u2019s wound: shoulder / left arm in A Study in Scarlet, leg in The Sign of the Four, limb in The Adventures of Sherlock Holmes, and 1 more", "i": 0, "severity": "high", "verdict": "contradiction", "who": "John Watson"}, {"author": "marked wrong", "books": "The Memoirs of Sherlock Holmes", "check": "name changes", "finding": "Mrs. Barclay\u2019s surname: Barclay vs Devoy (both in The Memoirs of Sherlock Holmes)", "i": 1, "severity": "high", "verdict": "contradiction", "who": "Mrs. Barclay"}, {"author": "marked wrong", "books": "The Sign of the Four \u2192 The Hound of the Baskervilles", "check": "differing detail", "finding": "Sherlock Holmes\u2019s eye colour: dark in The Sign of the Four vs grey in The Hound of the Baskervilles", "i": 2, "severity": "medium", "verdict": "contradiction", "who": "Sherlock Holmes"}, {"author": "", "books": "The Sign of the Four \u2192 The Adventures of Sherlock Holmes", "check": "one role, two people", "finding": "The landlady of Sherlock Holmes\u0027s household is Mrs. Hudson (The Sign of the Four \u00b7 The Science of Deduction), Mrs. Turner (The Adventures of Sherlock Holmes \u00b7 I. A Scandal in Bohemia)", "i": 3, "severity": "medium", "verdict": "contradiction", "who": "Mrs. Hudson"}, {"author": "", "books": "The Adventures of Sherlock Holmes", "check": "origin disagrees", "finding": "Dr. Becher: nationality German in The Adventures of Sherlock Holmes, but Englishman in the same book", "i": 4, "severity": "", "verdict": "needs your judgement", "who": "Dr. Becher"}, {"author": "", "books": "The Memoirs of Sherlock Holmes \u2192 The Adventures of Sherlock Holmes", "check": "one role, two people", "finding": "The housekeeper of Sherlock Holmes\u0027s household is Mrs. Hudson (The Memoirs of Sherlock Holmes \u00b7 XI. The Naval Treaty), Helen Stoner (The Adventures of Sherlock Holmes \u00b7 VIII. The Adventure of the Speckled Band) (tie for Helen Stoner is only that Sherlock Holmes is in the scene)", "i": 5, "severity": "", "verdict": "needs your judgement", "who": "Mrs. Hudson"}, {"author": "", "books": "The Sign of the Four", "check": "differing detail", "finding": "Jonathan Small\u2019s wound: right leg vs palm of his hand vs right side vs above the knee (all in The Sign of the Four)", "i": 6, "severity": "", "verdict": "needs your judgement", "who": "Jonathan Small"}, {"author": "", "books": "The Adventures of Sherlock Holmes", "check": "differing detail", "finding": "Dr. Becher\u2019s nationality: German vs Englishman (both in The Adventures of Sherlock Holmes)", "i": 7, "severity": "", "verdict": "needs your judgement", "who": "Dr. Becher"}, {"author": "", "books": "The Hound of the Baskervilles", "check": "differing detail", "finding": "Baskerville\u2019s eye colour: dark vs hazel (both in The Hound of the Baskervilles)", "i": 8, "severity": "", "verdict": "needs your judgement", "who": "Baskerville"}, {"author": "", "books": "A Study in Scarlet", "check": "differing detail", "finding": "Lucy Ferrier\u2019s hair colour: fair vs chestnut (both in A Study in Scarlet)", "i": 9, "severity": "", "verdict": "explained in the text", "who": "Lucy Ferrier"}, {"author": "", "books": "A Study in Scarlet", "check": "differing detail", "finding": "Jefferson Hope\u2019s hair colour: dark vs black vs grizzled (all in A Study in Scarlet)", "i": 10, "severity": "", "verdict": "explained in the text", "who": "Jefferson Hope"}, {"author": "", "books": "A Study in Scarlet \u2192 The Memoirs of Sherlock Holmes", "check": "differing detail", "finding": "Sherlock Holmes\u2019s height: over six feet in A Study in Scarlet vs tall in The Memoirs of Sherlock Holmes", "i": 11, "severity": "", "verdict": "not a conflict", "who": "Sherlock Holmes"}, {"author": "", "books": "A Study in Scarlet \u2192 The Memoirs of Sherlock Holmes", "check": "differing detail", "finding": "Lucy Ferrier\u2019s parent: John Ferrier in A Study in Scarlet vs Effie / John Hebron in The Memoirs of Sherlock Holmes", "i": 12, "severity": "", "verdict": "not a conflict", "who": "Lucy Ferrier"}, {"author": "", "books": "The Adventures of Sherlock Holmes \u2192 The Return of Sherlock Holmes", "check": "differing detail", "finding": "Lord Saltire\u2019s parent: Jephro Rucastle / Mrs. Rucastle in The Adventures of Sherlock Holmes vs The Duke of Holdernesse in The Return of Sherlock Holmes", "i": 13, "severity": "", "verdict": "not a conflict", "who": "Lord Saltire"}, {"author": "", "books": "The Memoirs of Sherlock Holmes", "check": "differing detail", "finding": "John Straker\u2019s wound: head vs thigh (both in The Memoirs of Sherlock Holmes)", "i": 14, "severity": "", "verdict": "not a conflict", "who": "John Straker"}, {"author": "", "books": "The Memoirs of Sherlock Holmes \u2192 The Return of Sherlock Holmes", "check": "differing detail", "finding": "Sherlock Holmes\u2019s wound: throat / left hand / knuckles in The Memoirs of Sherlock Holmes vs lip / forehead in The Return of Sherlock Holmes", "i": 15, "severity": "", "verdict": "not a conflict", "who": "Sherlock Holmes"}, {"author": "", "books": "The Hound of the Baskervilles", "check": "differing detail", "finding": "Baskerville\u2019s birthplace: Canada vs South Coast (both in The Hound of the Baskervilles)", "i": 16, "severity": "", "verdict": "not a conflict", "who": "Baskerville"}, {"author": "", "books": "The Hound of the Baskervilles", "check": "differing detail", "finding": "Stapleton\u2019s eye colour: grey vs light (both in The Hound of the Baskervilles)", "i": 17, "severity": "", "verdict": "not a conflict", "who": "Stapleton"}, {"author": "", "books": "The Return of Sherlock Holmes", "check": "differing detail", "finding": "Lady Brackenstall\u2019s hair colour: fair vs golden-haired (both in The Return of Sherlock Holmes)", "i": 18, "severity": "", "verdict": "not a conflict", "who": "Lady Brackenstall"}, {"author": "", "books": "The Sign of the Four", "check": "back from the dead", "finding": "Captain Arthur Morstan dies in The Sign of the Four \u00b7 The Story of the Bald-Headed Man but appears again in The Sign of the Four \u00b7 The Strange Story of Jonathan Small", "i": 19, "severity": "", "verdict": "not a conflict", "who": "Captain Arthur Morstan"}, {"author": "", "books": "A Study in Scarlet", "check": "back from the dead", "finding": "Enoch J. Drebber dies in A Study in Scarlet \u00b7 The Lauriston Gardens Mystery but appears again in A Study in Scarlet \u00b7 Light in the Darkness", "i": 20, "severity": "", "verdict": "not a conflict", "who": "Enoch J. Drebber"}, {"author": "", "books": "A Study in Scarlet", "check": "back from the dead", "finding": "Joseph Stangerson dies in A Study in Scarlet \u00b7 Tobias Gregson Shows What He Can Do but appears again in A Study in Scarlet \u00b7 The Avenging Angels", "i": 21, "severity": "", "verdict": "not a conflict", "who": "Joseph Stangerson"}, {"author": "", "books": "The Memoirs of Sherlock Holmes \u2192 The Hound of the Baskervilles", "check": "back from the dead", "finding": "Sherlock Holmes dies in The Memoirs of Sherlock Holmes \u00b7 XII. The Final Problem but appears again in The Hound of the Baskervilles \u00b7 Sir Henry Baskerville", "i": 22, "severity": "", "verdict": "not a conflict", "who": "Sherlock Holmes"}, {"author": "", "books": "The Hound of the Baskervilles", "check": "back from the dead", "finding": "Sir Charles Baskerville dies in The Hound of the Baskervilles \u00b7 The Curse of the Baskervilles but appears again in The Hound of the Baskervilles \u00b7 Extract from the Diary of Dr. Watson", "i": 23, "severity": "", "verdict": "not a conflict", "who": "Sir Charles Baskerville"}, {"author": "", "books": "The Sign of the Four", "check": "name changes", "finding": "Dost Akbar\u2019s first name: Dost vs Akbar (both in The Sign of the Four)", "i": 24, "severity": "", "verdict": "not a conflict", "who": "Dost Akbar"}, {"author": "", "books": "The Sign of the Four", "check": "one role, two people", "finding": "The governess of Mrs. Cecil Forrester\u0027s household is Mary Morstan (The Sign of the Four \u00b7 The Statement of the Case), Mrs. Cecil Forrester (The Sign of the Four \u00b7 The Statement of the Case) (tie for Mrs. Cecil Forrester is only that Mrs. Cecil Forrester is in the scene)", "i": 25, "severity": "", "verdict": "not a conflict", "who": "Mary Morstan"}, {"author": "", "books": "The Sign of the Four", "check": "one role, two people", "finding": "The landlady of John Watson\u0027s household is Mrs. Hudson (The Sign of the Four \u00b7 The Science of Deduction), Mrs. Cecil Forrester (The Sign of the Four \u00b7 The Great Agra Treasure) (tie for Mrs. Hudson, Mrs. Cecil Forrester is only that John Watson is in the scene)", "i": 26, "severity": "", "verdict": "not a conflict", "who": "Mrs. Hudson"}]</script>
+  
+
   <h2 id="contradictions">Contradictions</h2>
   
   
-  <div class="f high">
+  <div class="f high" id="f0">
     <span class="tag high">high</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="John Watson.wound_location is &#39;shoulder&#39; (A Study in Scarlet · MR. SHERLOCK HOLMES.), &#39;left arm&#39; (A Study in Scarlet · THE SCIENCE OF DEDUCTION.), &#39;leg&#39; (The Sign of the Four · The Science of Deduction), &#39;limb&#39; (The Adventures of Sherlock Holmes · X. THE ADVENTURE OF THE NOBLE BACHELOR), &#39;old wound&#39; (The Memoirs of Sherlock Holmes · II. The Adventure of the Cardboard Box)">John Watson’s wound: shoulder / left arm in A Study in Scarlet, leg in The Sign of the Four, limb in The Adventures of Sherlock Holmes, and 1 more</strong>
     
@@ -124,7 +142,7 @@
     <a class="seebible" href="/sample/bible?view=bybook&amp;focus=John%20Watson%7Cwound&amp;book=The%20Sign%20of%20the%20Four">Every book's value for this fact, in the bible explorer →</a>
   </div>
   
-  <div class="f high overruled">
+  <div class="f high overruled" id="f1">
     <span class="tag high">high</span><span class="tag" title="name_drift">name changes</span>
     <strong title="Mrs. Barclay.surname is &#39;Barclay&#39; in The Memoirs of Sherlock Holmes · VIII. The Crooked Man but &#39;Devoy&#39; in The Memoirs of Sherlock Holmes · VIII. The Crooked Man">Mrs. Barclay’s surname: Barclay vs Devoy (both in The Memoirs of Sherlock Holmes)</strong>
     <div class="review wrong"><b>The author marked this call wrong.</b> Nancy Devoy is her maiden name: she married Colonel Barclay. Not a second surname.</div>
@@ -144,7 +162,7 @@
     <a class="seebible" href="/sample/bible?view=bybook&amp;focus=Mrs.%20Barclay%7Csurname&amp;book=The%20Memoirs%20of%20Sherlock%20Holmes">Every book's value for this fact, in the bible explorer →</a>
   </div>
   
-  <div class="f medium overruled">
+  <div class="f medium overruled" id="f2">
     <span class="tag medium">medium</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Sherlock Holmes.eye_color is &#39;dark&#39; (The Sign of the Four · A Break in the Chain), &#39;grey&#39; (The Hound of the Baskervilles · Death on the Moor)">Sherlock Holmes’s eye colour: dark in The Sign of the Four vs grey in The Hound of the Baskervilles</strong>
     <div class="review wrong"><b>The author marked this call wrong.</b> The &#34;keen dark eyes&#34; are Holmes disguised as an old sailor in The Sign of the Four, not his own.</div>
@@ -164,7 +182,7 @@
     <a class="seebible" href="/sample/bible?view=bybook&amp;focus=Sherlock%20Holmes%7Ceye%20colour&amp;book=The%20Hound%20of%20the%20Baskervilles">Every book's value for this fact, in the bible explorer →</a>
   </div>
   
-  <div class="f medium">
+  <div class="f medium" id="f3">
     <span class="tag medium">medium</span><span class="tag" title="role_collision">one role, two people</span>
     <strong title="the landlady of Sherlock Holmes&#39;s household is Mrs. Hudson (The Sign of the Four · The Science of Deduction), Mrs. Turner (The Adventures of Sherlock Holmes · I. A SCANDAL IN BOHEMIA)">The landlady of Sherlock Holmes&#39;s household is Mrs. Hudson (The Sign of the Four · The Science of Deduction), Mrs. Turner (The Adventures of Sherlock Holmes · I. A Scandal in Bohemia)</strong>
     
@@ -189,7 +207,7 @@
   
   <h2 id="review">Needs your judgement</h2>
   
-  <div class="f medium">
+  <div class="f medium" id="f4">
     <span class="tag medium">ambiguous</span><span class="tag" title="origin_mismatch">origin disagrees</span>
     <strong title="Dr. Becher.nationality is &#39;german&#39; (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB) but nationality is &#39;englishman&#39; (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB)">Dr. Becher: nationality German in The Adventures of Sherlock Holmes, but Englishman in the same book</strong>
     
@@ -207,7 +225,7 @@
     <p>The first passage asks a question speculating whether Dr. Becher is German, while the second passage definitively corrects the query by stating he is an Englishman. The text is loose enough that a speculative question and a corrective answer are consistent.</p>
   </div>
   
-  <div class="f medium">
+  <div class="f medium" id="f5">
     <span class="tag medium">ambiguous</span><span class="tag" title="role_collision">one role, two people</span>
     <strong title="the housekeeper of Sherlock Holmes&#39;s household is Mrs. Hudson (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), Helen Stoner (The Adventures of Sherlock Holmes · VIII. THE ADVENTURE OF THE SPECKLED BAND) (tie for Helen Stoner is only that Sherlock Holmes is in the scene)">The housekeeper of Sherlock Holmes&#39;s household is Mrs. Hudson (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), Helen Stoner (The Adventures of Sherlock Holmes · VIII. The Adventure of the Speckled Band) (tie for Helen Stoner is only that Sherlock Holmes is in the scene)</strong>
     
@@ -225,7 +243,7 @@
     <p>The first passage describes Mrs. Hudson serving tea at Baker Street, while the second passage quotes Helen Stoner referring to an elderly housekeeper in her own household. Neither passage asserts that Helen Stoner is the housekeeper of Holmes&#39;s household.</p>
   </div>
   
-  <div class="f medium">
+  <div class="f medium" id="f6">
     <span class="tag medium">ambiguous</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Jonathan Small.wound_location is &#39;right leg&#39; (The Sign of the Four · Sherlock Holmes Gives a Demonstration), &#39;palm of his hand&#39; (The Sign of the Four · Sherlock Holmes Gives a Demonstration), &#39;right side&#39; (The Sign of the Four · The End of the Islander), &#39;above the knee&#39; (The Sign of the Four · The Strange Story of Jonathan Small)">Jonathan Small’s wound: right leg vs palm of his hand vs right side vs above the knee (all in The Sign of the Four)</strong>
     
@@ -253,7 +271,7 @@
     <p>The passages describe distinct physical features and injuries—an amputated right leg (a wooden stump above the knee) and skin missing from the palm of his hand. Because they describe different body parts, they can be read as consistent.</p>
   </div>
   
-  <div class="f medium">
+  <div class="f medium" id="f7">
     <span class="tag medium">ambiguous</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Dr. Becher.nationality is &#39;german&#39; (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB), &#39;englishman&#39; (The Adventures of Sherlock Holmes · IX. THE ADVENTURE OF THE ENGINEER’S THUMB)">Dr. Becher’s nationality: German vs Englishman (both in The Adventures of Sherlock Holmes)</strong>
     
@@ -271,7 +289,7 @@
     <p>The first passage is a character asking a question (&#39;is Dr. Becher a German...?&#39;), which is subsequently answered and clarified by the second passage stating that Dr. Becher is an Englishman. As a question and answer, the text can be read consistently.</p>
   </div>
   
-  <div class="f medium">
+  <div class="f medium" id="f8">
     <span class="tag medium">ambiguous</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Baskerville.eye_color is &#39;dark&#39; (The Hound of the Baskervilles · Sir Henry Baskerville), &#39;hazel&#39; (The Hound of the Baskervilles · Baskerville Hall)">Baskerville’s eye colour: dark vs hazel (both in The Hound of the Baskervilles)</strong>
     
@@ -295,7 +313,7 @@
   <h2 id="cleared">Reviewed and cleared</h2>
   <details><summary>18 candidates judged deliberate or not a conflict, each on a quoted passage</summary>
   
-  <div class="f other">
+  <div class="f other" id="f9">
     <span class="tag ok">deliberate</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Lucy Ferrier.hair_color is &#39;fair&#39; (A Study in Scarlet · ON THE GREAT ALKALI PLAIN.), &#39;chestnut&#39; (A Study in Scarlet · THE FLOWER OF UTAH.)">Lucy Ferrier’s hair colour: fair vs chestnut (both in A Study in Scarlet)</strong>
     
@@ -303,7 +321,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>In three years he was better off than his neighbours, in six he was well-to-do, in nine he was rich, and in twelve there were not half a dozen men in the whole of Salt Lake City who could compare with him.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f10">
     <span class="tag ok">deliberate</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Jefferson Hope.hair_color is &#39;dark&#39; (A Study in Scarlet · THE FLOWER OF UTAH.), &#39;black&#39; (A Study in Scarlet · THE AVENGING ANGELS.), &#39;grizzled&#39; (A Study in Scarlet · THE AVENGING ANGELS.)">Jefferson Hope’s hair colour: dark vs black vs grizzled (all in A Study in Scarlet)</strong>
     
@@ -311,7 +329,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>Year passed into year, his black hair turned grizzled, but still he wandered on, a human bloodhound, with his mind wholly set upon the one object upon which he had devoted his life.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f11">
     <span class="tag ok">not_conflict</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Sherlock Holmes.height is &#39;over six feet&#39; (A Study in Scarlet · THE SCIENCE OF DEDUCTION.), &#39;tall&#39; (The Memoirs of Sherlock Holmes · III. The Yellow Face)">Sherlock Holmes’s height: over six feet in A Study in Scarlet vs tall in The Memoirs of Sherlock Holmes</strong>
     
@@ -319,7 +337,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>In height he was rather over six feet, and so excessively lean that he seemed to be considerably taller.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f12">
     <span class="tag ok">not_conflict</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Lucy Ferrier.child_of is &#39;John Ferrier&#39; (A Study in Scarlet · ON THE GREAT ALKALI PLAIN.), &#39;Effie&#39; (The Memoirs of Sherlock Holmes · III. The Yellow Face), &#39;John Hebron&#39; (The Memoirs of Sherlock Holmes · III. The Yellow Face)">Lucy Ferrier’s parent: John Ferrier in A Study in Scarlet vs Effie / John Hebron in The Memoirs of Sherlock Holmes</strong>
     
@@ -327,7 +345,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>It was our misfortune that our only child took after his people rather than mine. It is often so in such matches, and little Lucy is darker far than ever her father was.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f13">
     <span class="tag ok">not_conflict</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Lord Saltire.child_of is &#39;Jephro Rucastle&#39; (The Adventures of Sherlock Holmes · XII. THE ADVENTURE OF THE COPPER BEECHES), &#39;Mrs. Rucastle&#39; (The Adventures of Sherlock Holmes · XII. THE ADVENTURE OF THE COPPER BEECHES), &#39;The Duke of Holdernesse&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE PRIORY SCHOOL)">Lord Saltire’s parent: Jephro Rucastle / Mrs. Rucastle in The Adventures of Sherlock Holmes vs The Duke of Holdernesse in The Return of Sherlock Holmes</strong>
     
@@ -335,7 +353,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>Heir and only child, Lord Saltire.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f14">
     <span class="tag ok">not_conflict</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="John Straker.wound_location is &#39;head&#39; (The Memoirs of Sherlock Holmes · I. Silver Blaze), &#39;thigh&#39; (The Memoirs of Sherlock Holmes · I. Silver Blaze)">John Straker’s wound: head vs thigh (both in The Memoirs of Sherlock Holmes)</strong>
     
@@ -343,7 +361,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>His head had been shattered by a savage blow from some heavy weapon, and he was wounded on the thigh, where there was a long, clean cut, inflicted evidently by some very sharp instrument.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f15">
     <span class="tag ok">not_conflict</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Sherlock Holmes.wound_location is &#39;throat&#39; (The Memoirs of Sherlock Holmes · VII. The Reigate Squires), &#39;left hand&#39; (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), &#39;knuckles&#39; (The Memoirs of Sherlock Holmes · XI. The Naval Treaty), &#39;lip&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE SOLITARY CYCLIST), &#39;forehead&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE SOLITARY CYCLIST)">Sherlock Holmes’s wound: throat / left hand / knuckles in The Memoirs of Sherlock Holmes vs lip / forehead in The Return of Sherlock Holmes</strong>
     
@@ -351,7 +369,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>I feel that young man’s grip on my throat now</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f16">
     <span class="tag ok">not_conflict</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Baskerville.birthplace is &#39;canada&#39; (The Hound of the Baskervilles · The Problem), &#39;south coast&#39; (The Hound of the Baskervilles · Baskerville Hall)">Baskerville’s birthplace: Canada vs South Coast (both in The Hound of the Baskervilles)</strong>
     
@@ -359,7 +377,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>On the death of Sir Charles we inquired for this young gentleman and found that he had been farming in Canada.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f17">
     <span class="tag ok">not_conflict</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Stapleton.eye_color is &#39;grey&#39; (The Hound of the Baskervilles · The Stapletons of Merripit House), &#39;light&#39; (The Hound of the Baskervilles · The Light upon the Moor [Second Report of Dr. Watson])">Stapleton’s eye colour: grey vs light (both in The Hound of the Baskervilles)</strong>
     
@@ -367,7 +385,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>for Stapleton was neutral tinted, with light hair and grey eyes</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f18">
     <span class="tag ok">not_conflict</span><span class="tag" title="slot_mismatch">differing detail</span>
     <strong title="Lady Brackenstall.hair_color is &#39;fair&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE ABBEY GRANGE), &#39;golden-haired&#39; (The Return of Sherlock Holmes · THE ADVENTURE OF THE ABBEY GRANGE)">Lady Brackenstall’s hair colour: fair vs golden-haired (both in The Return of Sherlock Holmes)</strong>
     
@@ -375,7 +393,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>She was a blonde, golden-haired, blue-eyed</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f19">
     <span class="tag ok">not_conflict</span><span class="tag" title="dead_speaks">back from the dead</span>
     <strong title="Captain Arthur Morstan dies in The Sign of the Four · The Story of the Bald-Headed Man but acts in The Sign of the Four · The Strange Story of Jonathan Small">Captain Arthur Morstan dies in The Sign of the Four · The Story of the Bald-Headed Man but appears again in The Sign of the Four · The Strange Story of Jonathan Small</strong>
     
@@ -383,7 +401,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>When I stooped over him I found, to my horror, that he was dead.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f20">
     <span class="tag ok">not_conflict</span><span class="tag" title="dead_speaks">back from the dead</span>
     <strong title="Enoch J. Drebber dies in A Study in Scarlet · THE LAURISTON GARDENS MYSTERY but acts in A Study in Scarlet · LIGHT IN THE DARKNESS.">Enoch J. Drebber dies in A Study in Scarlet · The Lauriston Gardens Mystery but appears again in A Study in Scarlet · Light in the Darkness</strong>
     
@@ -391,7 +409,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>At two in the morning Drebber had been found in the Brixton Road.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f21">
     <span class="tag ok">not_conflict</span><span class="tag" title="dead_speaks">back from the dead</span>
     <strong title="Joseph Stangerson dies in A Study in Scarlet · TOBIAS GREGSON SHOWS WHAT HE CAN DO. but acts in A Study in Scarlet · THE AVENGING ANGELS.">Joseph Stangerson dies in A Study in Scarlet · Tobias Gregson Shows What He Can Do but appears again in A Study in Scarlet · The Avenging Angels</strong>
     
@@ -399,7 +417,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>Rumour reported that Drebber had managed to convert a large part of his property into money, and that he had departed a wealthy man, while his companion, Stangerson, was comparatively poor.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f22">
     <span class="tag ok">not_conflict</span><span class="tag" title="dead_speaks">back from the dead</span>
     <strong title="Sherlock Holmes dies in The Memoirs of Sherlock Holmes · XII. The Final Problem but acts in The Hound of the Baskervilles · Sir Henry Baskerville">Sherlock Holmes dies in The Memoirs of Sherlock Holmes · XII. The Final Problem but appears again in The Hound of the Baskervilles · Sir Henry Baskerville</strong>
     
@@ -407,7 +425,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>Now, however, I have arrived at a point in my narrative where I am compelled to abandon this method and to trust once more to my recollections, aided by the diary which I kept at the time.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f23">
     <span class="tag ok">not_conflict</span><span class="tag" title="dead_speaks">back from the dead</span>
     <strong title="Sir Charles Baskerville dies in The Hound of the Baskervilles · The Curse of the Baskervilles but acts in The Hound of the Baskervilles · Extract from the Diary of Dr. Watson">Sir Charles Baskerville dies in The Hound of the Baskervilles · The Curse of the Baskervilles but appears again in The Hound of the Baskervilles · Extract from the Diary of Dr. Watson</strong>
     
@@ -415,7 +433,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>I know why he was at the gate at that hour. It was to meet a woman.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f24">
     <span class="tag ok">not_conflict</span><span class="tag" title="name_drift">name changes</span>
     <strong title="Dost Akbar.first_name is &#39;Dost&#39; in The Sign of the Four · The Strange Story of Jonathan Small but &#39;Akbar&#39; in The Sign of the Four · The Strange Story of Jonathan Small">Dost Akbar’s first name: Dost vs Akbar (both in The Sign of the Four)</strong>
     
@@ -423,7 +441,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>He has with him as travelling-companion my foster-brother Dost Akbar, who knows his secret.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f25">
     <span class="tag ok">not_conflict</span><span class="tag" title="role_collision">one role, two people</span>
     <strong title="the governess of Mrs. Cecil Forrester&#39;s household is Mary Morstan (The Sign of the Four · The Statement of the Case), Mrs. Cecil Forrester (The Sign of the Four · The Statement of the Case) (tie for Mrs. Cecil Forrester is only that Mrs. Cecil Forrester is in the scene)">The governess of Mrs. Cecil Forrester&#39;s household is Mary Morstan (The Sign of the Four · The Statement of the Case), Mrs. Cecil Forrester (The Sign of the Four · The Statement of the Case) (tie for Mrs. Cecil Forrester is only that Mrs. Cecil Forrester is in the scene)</strong>
     
@@ -431,7 +449,7 @@
     <div class="claim"><div class="loc">Why it is cleared</div><q>I had at that time just entered the family of Mrs. Cecil Forrester in the capacity of governess.</q></div>
   </div>
   
-  <div class="f other">
+  <div class="f other" id="f26">
     <span class="tag ok">not_conflict</span><span class="tag" title="role_collision">one role, two people</span>
     <strong title="the landlady of John Watson&#39;s household is Mrs. Hudson (The Sign of the Four · The Science of Deduction), Mrs. Cecil Forrester (The Sign of the Four · The Great Agra Treasure) (tie for Mrs. Hudson, Mrs. Cecil Forrester is only that John Watson is in the scene)">The landlady of John Watson&#39;s household is Mrs. Hudson (The Sign of the Four · The Science of Deduction), Mrs. Cecil Forrester (The Sign of the Four · The Great Agra Treasure) (tie for Mrs. Hudson, Mrs. Cecil Forrester is only that John Watson is in the scene)</strong>
     
@@ -455,5 +473,66 @@
   const openCleared = () => { if (location.hash === "#cleared") document.querySelectorAll("#cleared ~ details").forEach(d => d.open = true); };
   addEventListener("hashchange", openCleared); openCleared();
 </script>
+
+<script>
+(function () {
+  // the triage grid: AG Grid Community, from this site or (a saved copy) the pinned CDN copy
+  var rows = JSON.parse(document.getElementById("triage-rows").textContent);
+  function open(i) {
+    var card = document.getElementById("f" + i);
+    if (!card) return;
+    var d = card.closest("details"); if (d) d.open = true;
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    card.classList.add("flash"); setTimeout(function () { card.classList.remove("flash"); }, 1600);
+    try { history.replaceState(null, "", "#f" + i); } catch (e) {}
+  }
+  function start() {
+    var narrow = window.innerWidth < 640;
+    var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var theme = agGrid.themeQuartz
+      .withPart(dark ? agGrid.colorSchemeDarkWarm : agGrid.colorSchemeLightWarm)
+      .withParams({ fontFamily: "inherit", headerFontWeight: 600 });
+    var vclass = { "contradiction": "v-contradiction", "needs your judgement": "v-judgement" };
+    var order = { "contradiction": 0, "needs your judgement": 1, "explained in the text": 2, "not a conflict": 3 };
+    var api = agGrid.createGrid(document.getElementById("triage-grid"), {
+      theme: theme,
+      rowData: rows,
+      columnDefs: [
+        { field: "verdict", headerName: "Call", width: narrow ? 128 : 160, wrapText: true, autoHeight: true, filter: "agTextColumnFilter", sort: "asc",
+          comparator: function (a, b) { return (order[a] ?? 9) - (order[b] ?? 9); },
+          cellClass: function (p) { return vclass[p.value] || "v-cleared"; } },
+        { field: "severity", headerName: "Severity", width: 104, hide: narrow, filter: "agTextColumnFilter",
+          comparator: function (a, b) { var o = { high: 0, medium: 1, low: 2 }; return (o[a] ?? 9) - (o[b] ?? 9); } },
+        { field: "finding", headerName: "Finding", flex: 1, minWidth: 200, wrapText: true, autoHeight: true, filter: "agTextColumnFilter" },
+        { field: "who", headerName: "Who", hide: true, filter: "agTextColumnFilter" },
+        { field: "check", headerName: "Check", width: 130, hide: narrow, wrapText: true, autoHeight: true, filter: "agTextColumnFilter" },
+        { field: "books", headerName: "Books", hide: true, filter: "agTextColumnFilter" },
+        { field: "author", headerName: "Author", width: 110, hide: narrow || !rows.some(function (r) { return r.author; }), wrapText: true, autoHeight: true, filter: "agTextColumnFilter" }
+      ],
+      defaultColDef: { sortable: true, resizable: true,
+                       cellStyle: { lineHeight: "1.4", paddingTop: "9px", paddingBottom: "9px" } },
+      onRowClicked: function (e) { open(e.data.i); }
+    });
+    document.getElementById("triage-search").addEventListener("input", function (e) {
+      api.setGridOption("quickFilterText", e.target.value);
+    });
+  }
+  var sources = [
+    { src: "/static/ag-grid-community-36.2.0.min.js" },
+    { src: "https://cdn.jsdelivr.net/npm/ag-grid-community@36.2.0/dist/ag-grid-community.min.js",
+      integrity: "sha384-icvtRKM0YJJgeDhXnWY8UlF1PVBFd4K8Pj61la+vG+EU+awBeoP0xGPZhCD2SQOV" }
+  ];
+  (function load(list) {
+    if (!list.length) { document.getElementById("triage").style.display = "none"; return; }
+    var s = document.createElement("script");
+    s.src = list[0].src;
+    if (list[0].integrity) { s.integrity = list[0].integrity; s.crossOrigin = "anonymous"; }
+    s.onload = function () { window.agGrid ? start() : load(list.slice(1)); };
+    s.onerror = function () { load(list.slice(1)); };
+    document.head.appendChild(s);
+  })(sources);
+})();
+</script>
+
 </body>
 </html>

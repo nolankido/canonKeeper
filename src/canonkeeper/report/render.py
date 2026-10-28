@@ -7,6 +7,7 @@ from pathlib import Path
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from canonkeeper.models import AuditReport, Finding
+from canonkeeper.report.bible import GRID_SCRIPT
 from canonkeeper.report.display import _book, check, fact, headline, label, where
 
 _env = Environment(
@@ -47,6 +48,45 @@ def model_credit(report: AuditReport) -> str:
     return f"Facts read by {m.get('extract', 'an extraction model')}; conflicts judged by {judged}."
 
 
+VERDICT_LABELS = {
+    "contradiction": "contradiction",
+    "ambiguous": "needs your judgement",
+    "deliberate": "explained in the text",
+    "not_conflict": "not a conflict",
+}
+REVIEW_LABELS = {
+    "wrong": "marked wrong",
+    "right": "confirmed",
+    "error": "ruled: an error",
+    "fine": "ruled: not a problem",
+}
+
+
+def triage_rows(report: AuditReport) -> list[dict[str, object]]:
+    """One row per finding for the report's triage grid (AG Grid): what it is, how sure, which
+    check raised it, the books involved, and the author's call. `i` is its card's anchor."""
+    rows: list[dict[str, object]] = []
+    for i, f in enumerate(report.findings):
+        claims = f.candidate.claims
+        books: list[str] = []
+        for c in claims:
+            if _book(c) not in books:
+                books.append(_book(c))
+        rows.append(
+            {
+                "i": i,
+                "finding": headline(f.candidate),
+                "verdict": VERDICT_LABELS.get(f.verdict, f.verdict),
+                "severity": f.severity if f.verdict == "contradiction" else "",
+                "check": check(f.candidate.heuristic),
+                "who": claims[0].subject if claims else "",
+                "books": " → ".join(books),
+                "author": REVIEW_LABELS.get(f.author_review.verdict, "") if f.author_review else "",
+            }
+        )
+    return rows
+
+
 def report_html(
     report: AuditReport,
     *,
@@ -69,6 +109,9 @@ def report_html(
         bible_url=bible_url,
         shared=shared,
         credit=model_credit(report) if customer else "",
+        triage=triage_rows(report),
+        ix=lambda f: next(i for i, g in enumerate(report.findings) if g is f),
+        grid_script=GRID_SCRIPT,
     )
 
 

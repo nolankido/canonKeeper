@@ -63,6 +63,13 @@
     input, label, .filters { display: none !important; }
   }
   a.seebible { display: inline-block; margin-top: 10px; font-size: 14px; }
+  #triage-search { width: 100%; padding: 8px 10px; font: inherit; font-size: 15px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); margin-bottom: 8px; }
+  #triage-grid { height: 440px; }
+  #triage-grid .v-contradiction { color: var(--hi); font-weight: 600; }
+  #triage-grid .v-judgement { color: var(--med); font-weight: 600; }
+  #triage-grid .v-cleared { color: var(--ok); }
+  .f.flash { box-shadow: 0 0 0 3px var(--accent); transition: box-shadow .6s; }
+  @media print { #triage { display: none; } }
 </style>
 </head>
 <body>
@@ -88,10 +95,20 @@
   {% set cleared = others | rejectattr("verdict", "equalto", "ambiguous") | list %}
   <nav class="jump"><a href="#contradictions">{{ errors | length }} contradiction{{ '' if errors | length == 1 else 's' }}</a>{% if review %} · <a href="#review">{{ review | length }} need{{ 's' if review | length == 1 else '' }} your judgement</a>{% endif %}{% if cleared %} · <a href="#cleared">{{ cleared | length }} reviewed and cleared</a>{% endif %}{% if bible_url %} · <a href="{{ bible_url }}" data-testid="bible-link">explore the series bible</a>{% endif %}</nav>
 
+  {% if triage | length > 1 %}
+  <section id="triage" data-testid="triage">
+    <h2>Every finding at a glance</h2>
+    <p class="sub">Sort or filter any column, search everything at once, and click a row to open its finding below.</p>
+    <input id="triage-search" type="search" placeholder="Search findings: a name, a book, a check…" aria-label="Search the findings">
+    <div id="triage-grid" aria-label="Every finding in this report"></div>
+  </section>
+  <script id="triage-rows" type="application/json">{{ triage | tojson }}</script>
+  {% endif %}
+
   <h2 id="contradictions">Contradictions</h2>
   {% if not errors %}<p>None found. Either the series is clean or the bible needs more extraction coverage.</p>{% endif %}
   {% for f in errors %}
-  <div class="f {{ f.severity }}{% if f.author_review and f.author_review.verdict == 'wrong' %} overruled{% endif %}">
+  <div class="f {{ f.severity }}{% if f.author_review and f.author_review.verdict == 'wrong' %} overruled{% endif %}" id="f{{ ix(f) }}">
     <span class="tag {{ f.severity }}">{{ f.severity }}</span><span class="tag" title="{{ f.candidate.heuristic }}">{{ f.candidate.heuristic | check }}</span>
     <strong title="{{ f.candidate.reason }}">{{ f.candidate | headline }}</strong>
     {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ {'wrong': 'The author marked this call wrong', 'right': 'The author confirmed this', 'error': 'The author ruled: a real error to fix', 'fine': 'The author ruled: not a problem'}[f.author_review.verdict] }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
@@ -111,7 +128,7 @@
   {% set ruled = review | selectattr('author_review') | list %}
   <h2 id="review">Needs your judgement{% if ruled %} · {{ ruled | length }} of {{ review | length }} ruled{% endif %}</h2>
   {% for f in review %}
-  <div class="f medium">
+  <div class="f medium" id="f{{ ix(f) }}">
     <span class="tag medium">ambiguous</span><span class="tag" title="{{ f.candidate.heuristic }}">{{ f.candidate.heuristic | check }}</span>
     <strong title="{{ f.candidate.reason }}">{{ f.candidate | headline }}</strong>
     {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ {'wrong': 'The author marked this call wrong', 'right': 'The author confirmed this', 'error': 'The author ruled: a real error to fix', 'fine': 'The author ruled: not a problem'}[f.author_review.verdict] }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
@@ -130,7 +147,7 @@
   <h2 id="cleared">Reviewed and cleared</h2>
   <details><summary>{{ cleared | length }} candidates judged deliberate or not a conflict, each on a quoted passage</summary>
   {% for f in cleared %}
-  <div class="f other">
+  <div class="f other" id="f{{ ix(f) }}">
     <span class="tag ok">{{ f.verdict }}</span><span class="tag" title="{{ f.candidate.heuristic }}">{{ f.candidate.heuristic | check }}</span>
     <strong title="{{ f.candidate.reason }}">{{ f.candidate | headline }}</strong>
     {% if f.author_review %}<div class="review {{ f.author_review.verdict }}"><b>{{ {'wrong': 'The author marked this call wrong', 'right': 'The author confirmed this', 'error': 'The author ruled: a real error to fix', 'fine': 'The author ruled: not a problem'}[f.author_review.verdict] }}.</b>{% if f.author_review.note %} {{ f.author_review.note }}{% endif %}</div>{% endif %}
@@ -154,5 +171,66 @@
   const openCleared = () => { if (location.hash === "#cleared") document.querySelectorAll("#cleared ~ details").forEach(d => d.open = true); };
   addEventListener("hashchange", openCleared); openCleared();
 </script>
+{% if triage | length > 1 %}
+<script>
+(function () {
+  // the triage grid: AG Grid Community, from this site or (a saved copy) the pinned CDN copy
+  var rows = JSON.parse(document.getElementById("triage-rows").textContent);
+  function open(i) {
+    var card = document.getElementById("f" + i);
+    if (!card) return;
+    var d = card.closest("details"); if (d) d.open = true;
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    card.classList.add("flash"); setTimeout(function () { card.classList.remove("flash"); }, 1600);
+    try { history.replaceState(null, "", "#f" + i); } catch (e) {}
+  }
+  function start() {
+    var narrow = window.innerWidth < 640;
+    var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var theme = agGrid.themeQuartz
+      .withPart(dark ? agGrid.colorSchemeDarkWarm : agGrid.colorSchemeLightWarm)
+      .withParams({ fontFamily: "inherit", headerFontWeight: 600 });
+    var vclass = { "contradiction": "v-contradiction", "needs your judgement": "v-judgement" };
+    var order = { "contradiction": 0, "needs your judgement": 1, "explained in the text": 2, "not a conflict": 3 };
+    var api = agGrid.createGrid(document.getElementById("triage-grid"), {
+      theme: theme,
+      rowData: rows,
+      columnDefs: [
+        { field: "verdict", headerName: "Call", width: narrow ? 128 : 160, wrapText: true, autoHeight: true, filter: "agTextColumnFilter", sort: "asc",
+          comparator: function (a, b) { return (order[a] ?? 9) - (order[b] ?? 9); },
+          cellClass: function (p) { return vclass[p.value] || "v-cleared"; } },
+        { field: "severity", headerName: "Severity", width: 104, hide: narrow, filter: "agTextColumnFilter",
+          comparator: function (a, b) { var o = { high: 0, medium: 1, low: 2 }; return (o[a] ?? 9) - (o[b] ?? 9); } },
+        { field: "finding", headerName: "Finding", flex: 1, minWidth: 200, wrapText: true, autoHeight: true, filter: "agTextColumnFilter" },
+        { field: "who", headerName: "Who", hide: true, filter: "agTextColumnFilter" },
+        { field: "check", headerName: "Check", width: 130, hide: narrow, wrapText: true, autoHeight: true, filter: "agTextColumnFilter" },
+        { field: "books", headerName: "Books", hide: true, filter: "agTextColumnFilter" },
+        { field: "author", headerName: "Author", width: 110, hide: narrow || !rows.some(function (r) { return r.author; }), wrapText: true, autoHeight: true, filter: "agTextColumnFilter" }
+      ],
+      defaultColDef: { sortable: true, resizable: true,
+                       cellStyle: { lineHeight: "1.4", paddingTop: "9px", paddingBottom: "9px" } },
+      onRowClicked: function (e) { open(e.data.i); }
+    });
+    document.getElementById("triage-search").addEventListener("input", function (e) {
+      api.setGridOption("quickFilterText", e.target.value);
+    });
+  }
+  var sources = [
+    { src: {{ grid_script | tojson }} },
+    { src: "https://cdn.jsdelivr.net/npm/ag-grid-community@36.2.0/dist/ag-grid-community.min.js",
+      integrity: "sha384-icvtRKM0YJJgeDhXnWY8UlF1PVBFd4K8Pj61la+vG+EU+awBeoP0xGPZhCD2SQOV" }
+  ];
+  (function load(list) {
+    if (!list.length) { document.getElementById("triage").style.display = "none"; return; }
+    var s = document.createElement("script");
+    s.src = list[0].src;
+    if (list[0].integrity) { s.integrity = list[0].integrity; s.crossOrigin = "anonymous"; }
+    s.onload = function () { window.agGrid ? start() : load(list.slice(1)); };
+    s.onerror = function () { load(list.slice(1)); };
+    document.head.appendChild(s);
+  })(sources);
+})();
+</script>
+{% endif %}
 </body>
 </html>

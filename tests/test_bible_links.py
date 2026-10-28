@@ -45,3 +45,20 @@ def test_the_sample_report_links_watsons_wound_to_its_row():
     )
     grid = (SAMPLES / "sherlock-holmes-bible-grid.html").read_text(encoding="utf-8")
     assert "focusOn(" in grid
+
+
+def test_the_report_has_a_triage_grid_of_every_finding_linked_to_its_card():
+    """Judge review: one grid was "competent"; the report now triages every finding in AG Grid,
+    each row opening its own card."""
+    import json
+    import re
+
+    html = (SAMPLES / "sherlock-holmes-report.html").read_text(encoding="utf-8")
+    rows = json.loads(re.search(r'<script id="triage-rows"[^>]*>(.*?)</script>', html, re.S)[1])
+    assert len(rows) == html.count('<div class="f ')  # one row per finding card
+    for r in rows:
+        assert f'id="f{r["i"]}"' in html
+    calls = {r["verdict"] for r in rows}
+    assert {"contradiction", "needs your judgement"} <= calls
+    assert any(r["author"] == "marked wrong" for r in rows)
+    assert "ag-grid-community" in html and 'id="triage-grid"' in html

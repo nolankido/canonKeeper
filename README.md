@@ -225,6 +225,11 @@ pinned CDN fallback), in two views:
 
 ![Each fact by book: John Watson's wound moving from the shoulder to the leg across the Holmes books, each change marked](docs/img/bible-by-book.png)
 
+**In the report, too.** Every report opens with *Every finding at a glance*: an AG Grid of every
+finding (the model's call, severity, the check that raised it, the author's own call), sortable,
+filterable and searchable; clicking a row opens that finding's card with its passages. On the
+Holmes sample that is 27 findings, four of them contradictions.
+
 Every finished audit gets its own explorer (`/jobs/<id>/bible-grid.html`, also downloadable as
 one self-contained file), and the Holmes one is at `/sample/bible`. The view lives in the
 address (`?view=bybook&disputed=1&q=…&focus=<who>|<fact>&book=<book>`), so every finding in a

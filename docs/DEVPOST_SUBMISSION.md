@@ -118,8 +118,9 @@ python, fastapi, paypal-orders-v2, paypal-js-sdk, paypal-webhooks, mcp, gemini-a
 ## Prizes to opt into
 - **Best Use of Agentic Commerce:** the hosted MCP server (`/mcp`, 19 annotated tools; how to
   connect at `/assistant`), the PayPal-funded assistant budget, the person-only approval.
-- **AG Grid:** the series bible explorer (`/sample/bible`); every finding in a report opens it on
-  its own row.
+- **AG Grid:** two grids. The series bible explorer (`/sample/bible`: every fact by passage, or
+  each fact by book with changes marked), which every finding in a report opens on its own row;
+  and the report's triage grid of every finding (`/sample`), each row opening its card.
 - **Render:** the service runs on Render from `render.yaml` (a Blueprint: one click, three
   secrets), kept awake through judging, with a daily smoke test against it.
 
