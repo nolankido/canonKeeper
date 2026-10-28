@@ -35,17 +35,11 @@ Severity (meaningful for "contradiction")
 - low:    minor props, phrasing-level slips.
 
 Each candidate names the screen that raised it. What they mean:
-- slot_mismatch:   one entity, one single-valued attribute, two values. Before calling a
-                   physical description a contradiction, read the scene: a character in
-                   disguise or costume, seen by someone who is deceived, or described as they
-                   were years earlier is "deliberate" when the text says so.
+- slot_mismatch:   one entity, one single-valued attribute, two values.
 - dead_speaks:     an entity is dead at one point and acts later. A flashback, a narrated
                    backstory, or a report of past deeds is not a conflict; a scene set after
                    the death in which the person acts is.
-- name_drift:      two different given names or surnames for one person. A woman's maiden
-                   and married surnames, a nickname or pet name, a title, or an alias the
-                   character is known to use are not contradictions when the text supports
-                   them (a marriage, "she was born a ...", "known as ...").
+- name_drift:      two different given names or surnames for one person.
 - origin_mismatch: nationality and birthplace point to different countries.
 - timeline:        years that go backwards for a birth or death.
 - role_collision:  two different people hold a one-per-household role (the landlady, the
