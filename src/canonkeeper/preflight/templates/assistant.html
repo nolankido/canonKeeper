@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Use it from your AI assistant{% endblock %}
+{% block body %}
+<h1>Let your AI assistant buy the audits</h1>
+<p class="lede">Everything on this site is also an MCP server, so an assistant such as Claude can quote an audit, pay for it and read the findings back to you. It works inside limits you set with PayPal: it never holds a PayPal login or key, and only you can approve a payment.</p>
+
+<div class="card" data-testid="connect">
+  <h2>1. Connect it</h2>
+  <label for="mcp-url">Preflight's MCP address (streamable HTTP, no sign-in)</label>
+  <input id="mcp-url" type="text" value="{{ mcp_url }}" readonly data-testid="mcp-url" onfocus="this.select()">
+  <ul class="steps">
+    <li><b>Claude</b> (web or desktop): add a custom connector and paste the address above.</li>
+    <li><b>Claude Code</b>: <code>claude mcp add --transport http preflight {{ mcp_url }}</code></li>
+    <li><b>Any other MCP client</b> that speaks streamable HTTP: the same address.</li>
+  </ul>
+</div>
+
+<div class="card" data-testid="say">
+  <h2>2. Ask for what you want</h2>
+  <ol class="steps">
+    <li>“Open a $20 Preflight budget.” It replies with a PayPal link. <b>You</b> approve it; the assistant cannot.</li>
+    <li>“Audit the Saltmarsh demo series and pay from the budget.” It quotes, pays and waits for the report.</li>
+    <li>“Check the demo draft against the series.” It reads back each contradiction with both passages.</li>
+    <li>“Close the budget.” What is left goes back to your PayPal account.</li>
+  </ol>
+  <p class="note">For your own books, ask it for an upload link: you upload the files on this site and see the price before anything is bought.{% if trains_on_prompts %} This site runs on a free AI tier that may use submitted text for training, so public-domain books only.{% endif %}</p>
+</div>
+
+<div class="card" data-testid="limits">
+  <h2>3. What it can and cannot do</h2>
+  <table>
+    <tr><th>The assistant can</th><th>It cannot</th></tr>
+    <tr><td>open a budget or a single-audit order</td><td>approve a payment: only you can, on PayPal</td></tr>
+    <tr><td>pay for audits and draft checks from a budget</td><td>spend past the budget's balance</td></tr>
+    <tr><td>mark a finding wrong (each gives back a set amount, up to half the price)</td><td>hold your PayPal login, a key or a card</td></tr>
+    <tr><td>close the budget</td><td>send money anywhere but back to your PayPal account</td></tr>
+  </table>
+  <p class="note">Nothing is sent to a model before PayPal has captured the payment. Every spend, credit and refund is listed on the budget's page, which the PayPal approval takes you to. A failed audit is credited back to the budget; a single order is refunded through PayPal with one button.</p>
+</div>
+
+<details class="card" data-testid="tools">
+  <summary>The {{ tools | length }} tools it gets</summary>
+  <ul class="tools">
+    {% for t in tools %}<li><code>{{ t.name }}</code> {{ t.summary }}</li>{% endfor %}
+  </ul>
+</details>
+
+<p><a class="btn secondary" href="/">Or use the website yourself</a></p>
+{% endblock %}

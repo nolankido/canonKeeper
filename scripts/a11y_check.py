@@ -31,6 +31,7 @@ def main(axe_dir: str, ids_path: str, base: str) -> int:
         "report": f"/jobs/{done}/report", "bible": f"/jobs/{done}/bible",
         "explorer": f"/jobs/{done}/bible-grid.html", "budget": f"/budget/{budget}",
         "sample": "/sample", "sample explorer": "/sample/bible", "error": "/jobs/nope",
+        "assistant": "/assistant",
     }  # fmt: skip
     axe = (Path(axe_dir) / "node_modules/axe-core/axe.min.js").read_text(encoding="utf-8")
     broken = 0

@@ -408,6 +408,16 @@ def create_app(
         jobs = [j for j in (store.get(i) for i in mine(request)) if j is not None]
         return render(request, "index.html", jobs=jobs, sample=_SAMPLES.exists())
 
+    @app.get("/assistant", response_class=HTMLResponse)
+    async def assistant(request: Request) -> HTMLResponse:
+        """How to connect an AI assistant over MCP, with the tools it gets (read from the
+        server itself, so the list cannot drift from what the assistant sees)."""
+        tools = [
+            {"name": t.name, "summary": (t.description or "").split(". ")[0].rstrip(".") + "."}
+            for t in await mcp_server.list_tools()
+        ]
+        return render(request, "assistant.html", mcp_url=f"{base}/mcp", tools=tools)
+
     @app.post("/quote-demo")
     def quote_demo(request: Request) -> HTMLResponse:
         """Quote the invented three-book Saltmarsh series (five planted errors), so a visitor

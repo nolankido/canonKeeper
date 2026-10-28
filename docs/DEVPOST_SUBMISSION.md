@@ -167,7 +167,8 @@ six-volume Sherlock Holmes audit without paying.
 connector → `https://preflight-kq1o.onrender.com/mcp`. Ask: "Open a $20 Preflight budget." Approve the link it gives
 you with the sandbox buyer, then: "Audit the Saltmarsh demo series and pay from the budget."
 When it is done: "Check the demo series' next draft against it." Finally: "Close the budget": the
-unused balance goes back to PayPal.
+unused balance goes back to PayPal. The page `/assistant` on the site has the address, these prompts, what
+the assistant can and cannot do, and its tool list.
 
 The hosted instance runs on Gemini's free tier, which may use submitted text for training:
 please upload only public-domain text or the demo series.

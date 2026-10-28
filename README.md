@@ -26,7 +26,7 @@ titles across four series imprints.
 |---|---|---|
 | 1 | [preflight-kq1o.onrender.com](https://preflight-kq1o.onrender.com) | *Try it with the demo series*: the price with its arithmetic, PayPal's own buttons (sandbox: test money only), the audit, the report. Nothing reaches a model before PayPal confirms the capture. |
 | 2 | [/sample](https://preflight-kq1o.onrender.com/sample) and [/sample/bible](https://preflight-kq1o.onrender.com/sample/bible) | The real audit of six Sherlock Holmes books, and its bible in AG Grid: choose *Each fact by book* and search "John Watson". |
-| 3 | `https://preflight-kq1o.onrender.com/mcp` | Add it as a custom connector in an MCP assistant and say "Open a $20 Preflight budget", approve on PayPal, then "Audit the Saltmarsh demo series and pay from the budget". |
+| 3 | [/assistant](https://preflight-kq1o.onrender.com/assistant): MCP at `https://preflight-kq1o.onrender.com/mcp` | Add it as a custom connector in an MCP assistant and say "Open a $20 Preflight budget", approve on PayPal, then "Audit the Saltmarsh demo series and pay from the budget". |
 | 4 | [`preflight/payments.py`](src/canonkeeper/preflight/payments.py) | The money paths: one function pays a job, budgets never overdraw, refunds are recorded before PayPal is asked. |
 | 5 | [The benchmark](#does-it-actually-work-the-seeded-defect-benchmark) | Precision and recall measured on planted errors, misses included. |
 

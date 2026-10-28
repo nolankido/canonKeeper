@@ -30,6 +30,10 @@
   @media (max-width: 700px) { ol.flow { grid-template-columns: 1fr 1fr; } }
   header a { color: inherit; text-decoration: none; font-weight: 700; font-size: 22px; }
   header span { color: var(--muted); font-size: 14px; }
+  header nav { margin-left: auto; } header nav a { font-size: 14px; font-weight: 600; color: var(--accent); }
+  @media (max-width: 700px) { header { flex-wrap: wrap; } header nav { margin-left: 0; width: 100%; } }
+  .card > h2:first-child { margin-top: 0; }
+  ul.steps, ol.steps { padding-left: 1.3em; } ul.steps li, ol.steps li { margin: 6px 0; } ul.tools { padding-left: 1.1em; font-size: 14px; } ul.tools li { margin: 4px 0; }
   h1 { font-size: 30px; margin: 0 0 6px; }
   .lede { color: var(--muted); margin: 0 0 16px; }
   .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
@@ -80,7 +84,7 @@
 </head>
 <body>
 <main>
-  <header><a href="/">Preflight</a><span>pay-per-audit continuity checking · by canonkeeper</span></header>
+  <header><a href="/">Preflight</a><span>pay-per-audit continuity checking · by canonkeeper</span><nav><a href="/assistant" data-testid="nav-assistant">For AI assistants</a></nav></header>
   {% if paypal_mode == 'fake' and provider == 'mock' %}<div class="banner">Demo: payments are simulated (no money moves). {% if demo_recorded %}The demo series is answered with real Gemini answers recorded earlier; anything else you upload gets a simple rule-based stand-in, not AI.{% else %}Findings come from a simple rule-based stand-in, not AI.{% endif %} The steps are the real ones.</div>
   {% elif paypal_mode == 'fake' %}<div class="banner">Demo: payments are simulated, no money moves.</div>
   {% elif paypal_mode == 'sandbox' %}<div class="banner">PayPal sandbox: test money only, nothing real is charged. Pay with a PayPal sandbox buyer account.</div>{% endif %}
