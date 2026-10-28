@@ -289,12 +289,12 @@ src/canonkeeper/
   audit/       candidate heuristics + batched adjudicator with 1M-ctx assembly (adjudication model)
   report/      audit report + bible viewer (HTML), JSON
   demo.py      the invented Saltmarsh series with planted errors
-  preflight/   the paid service: pricing, PayPal Orders v2 client (+fake), job store/runner, FastAPI app
+  preflight/   the paid service: pricing, PayPal client (+fake), payments, budgets, jobs, FastAPI app, MCP server
   eval/        defect injection + precision/recall scoring
   llm/         OpenAI-compatible client (Gemini / local / Meta), pacing + backoff, rule-based mock, disk cache, cost tally
   cli.py       doctor · demo · fetch · estimate · build · bible · audit · check · eval · serve
 evals/corpora/ public-domain series manifests used for benchmarking
-docs/          ARCHITECTURE.md · DEMO_SCRIPT.md
+docs/          ARCHITECTURE.md · PREFLIGHT.md · DEMO_SCRIPT.md · gallery/ (Devpost images)
 ```
 
 ## Models and providers
@@ -323,7 +323,7 @@ cached on disk by (model, prompt), so re-running an audit is free.
 ### What it costs
 
 `canonkeeper estimate` prints this for your series before you spend anything. On the Gemini
-free tier the answer is $0; at list price for a ~900k-token, six-novel series:
+free tier the answer is $0; at list price, measured on the six Holmes novels:
 
 | step | model (default) | measured on Holmes (630k tokens) | ≈ list price |
 |---|---|---|---|
@@ -339,59 +339,27 @@ and let the disk cache do the rest.
 
 ## Preflight in detail (PayPal)
 
-A series audit has a knowable price before it runs — the token count is known the moment the
-files land — which makes it a natural pay-per-job service. `canonkeeper serve` runs it:
-
 ```
-upload series ──▶ quote ($5 + $4 per 100k tokens, shown with the arithmetic)
-      ──▶ PayPal Orders v2 checkout (sandbox) ──▶ capture ──▶ audit runs in the background
-      ──▶ report + bible pages, job page shows live progress
-
-writing the next book? ──▶ upload the draft on the finished audit's page
-      ──▶ quote ($2 + $4 per 100k draft tokens) ──▶ same checkout
-      ──▶ only the places the draft disagrees with the published books
+upload series ──▶ quote ($5 + $4 per 100k tokens, arithmetic shown) ──▶ PayPal checkout
+      ──▶ capture of exactly the quoted amount ──▶ the audit runs ──▶ report + bible
+writing the next book? ──▶ a draft check ($2 + the same rate on the draft) ──▶ same checkout
 ```
 
-```bash
-canonkeeper serve                      # no keys: demo mode (rule-based answers, simulated PayPal)
-GEMINI_API_KEY=… canonkeeper serve     # real audits on the Gemini free tier, PayPal still simulated
-PAYPAL_CLIENT_ID=… PAYPAL_CLIENT_SECRET=… canonkeeper serve   # real PayPal sandbox (or put them in .env)
-canonkeeper doctor --paypal            # proves the credentials: OAuth + a sandbox order, never captured
-canonkeeper doctor --round-trip        # sandbox: $1 order you approve as the buyer → capture → verify → refund
-```
-
-`render.yaml` deploys the same service as a free Render web service (set the three keys in the
-dashboard, or none for demo mode); `--public-url` is what PayPal sends the buyer back to. The
-free plan sleeps after ~15 idle minutes and its disk does not survive a restart: while an audit
-runs the service pings its own URL so it is not put to sleep mid-job, but download the report
-you want to keep. After a deploy, `python scripts/smoke_hosted.py <url> --order` checks the
-key, the PayPal mode, the sample, a demo quote and the redirect to PayPal's approval page,
-without approving anything or running a model.
-
-**Built to survive the judging period on free tiers.** A free Render instance that sleeps loses its
-disk, and a free model tier has a daily request cap. So: `PREFLIGHT_KEEP_AWAKE_UNTIL` (set to the day
-after judging in `render.yaml`) keeps the instance awake, which one instance can do all month within
-Render's free hours; an order the day's model quota cannot finish is refused *before* a PayPal order
-exists ("nothing was charged", with the reset time), on the web page and over MCP; and real Gemini
-answers for the demo series ship in the package (`preflight/demo_recording/`, made by
-`scripts/record_demo.py`), so a cold instance runs the demo with zero requests, and a keyless local
-run answers the demo series with those recorded answers, labelled as such on every page and on the
-report, instead of the rule-based stand-in. A test fails if a prompt change makes the recording stale.
-
-**Three ways a payment reaches Preflight, one rule for all of them.** With sandbox or live
-credentials the quote page shows PayPal's own JS SDK buttons (PayPal, Venmo and Pay Later where the
-buyer is eligible), approved in PayPal's window; the plain redirect to PayPal's page stays beside them
-and is what an AI agent's link uses. If the buyer approves and closes the tab, PayPal's webhook
-(`/paypal/webhook`: `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, each signature verified
-with PayPal) or the "check payment" button finishes the job. Every route ends in the same `settle()`,
-which asks PayPal for the order and pays the job only on a completed capture of the quoted amount, so
-a forged notice could not mark anything paid. The job page carries a receipt: amount, order,
-capture, and any refund.
-
-After payment the money path is one function (`preflight/payments.py`): a job is paid only on a
-completed capture of the quoted amount, a buyer who approved and closed the tab can press
-"check payment", and an audit that fails can be refunded in full through PayPal instead of
-retried.
+- **One rule for every way a payment arrives.** PayPal's JS SDK buttons, the redirect to
+  PayPal's page (what an assistant's link uses), the "check payment" button and PayPal's verified
+  webhooks all end in one function, `settle()` in
+  [`preflight/payments.py`](src/canonkeeper/preflight/payments.py): a job is paid only on a
+  completed capture of the quoted amount, and nothing reaches a model before that.
+- **Money goes back the same way.** A failed audit is refunded in full; a finding marked wrong
+  returns $0.50 (up to half the price); closing an assistant budget refunds the unused rest. Each
+  refund is recorded with its `PayPal-Request-Id` before PayPal is asked, so a retry never pays
+  twice.
+- **Agents are customers, never approvers.** The hosted MCP server's 19 annotated tools quote,
+  order, pay from a PayPal-funded budget (with the person's limits) and read findings; the
+  approval link always goes to the person.
+- **Built to last the judging period on free tiers:** kept awake on Render, a quota check that
+  refuses an order before PayPal when the day's model quota can't finish it, real Gemini answers
+  for the demo series shipped in the package, and a daily smoke test.
 
 <p align="center">
 <img src="docs/img/preflight-quote.png" width="49%" alt="The live quote page on the PayPal sandbox: the price with its arithmetic, and PayPal's own buttons (PayPal, Venmo, Pay Later, card)">
@@ -400,73 +368,19 @@ retried.
 
 **Tested on PayPal's real sandbox, end to end** (Oct 28, 2026): a demo audit paid with PayPal's
 card button (order `0VT10566WP533404Y`, capture `93D58029P7835205H`) and a finding marked wrong
-($0.50 partial refund `3AA80535F2725261T`), above; and the agent path below: a $10 budget funded
-through PayPal, $5.05 spent on an audit by an assistant over MCP, $0.50 credited back by the
-guarantee, and the budget closed with the unused $5.45 refunded through PayPal (refund
-`5B922440HT719290M`).
+($0.50 partial refund `3AA80535F2725261T`); and a $10 assistant budget funded through PayPal,
+$5.05 spent on an audit over MCP, $0.50 credited back, and closed with the unused $5.45 refunded
+(refund `5B922440HT719290M`).
 
-<p align="center">
-<img src="docs/img/preflight-budget.png" width="60%" alt="An assistant budget on the PayPal sandbox: funded $10, $5.05 spent on an audit, $0.50 credited back, closed with $5.45 refunded to PayPal">
-</p>
-
-Nothing is sent to a model until the order is captured. Jobs persist as JSON on disk, run one
-at a time (free-tier pacing is per project, so parallelism would only contend), and a failed
-job can be retried at no extra cost because every model response is cached. The PayPal client
-(`PayPalClient`, about 170 lines) is Orders v2 (OAuth → create with `PAY_NOW` → capture,
-idempotent on `PayPal-Request-Id`), Payments v2 refunds, and webhook verification and
-registration; `FakePayPal` mirrors the state machine for tests and demos.
-
-**Agentic commerce.** `canonkeeper mcp` exposes the same service to an AI assistant over MCP:
-`quote_series → order_audit → (the person approves on PayPal) → confirm_payment → audit_status
-→ get_findings`, then `check_draft` for each new book (same order/confirm loop), plus `delete_job` (manuscripts, bible, reports and cached responses go;
-a receipt stays — the web job page has the same button). The agent prices the job and creates the order; it never holds the buyer's
-credentials and cannot approve the payment itself — the approval link goes to the person.
-Add it to Claude Desktop or Cursor with `{"command": "canonkeeper", "args": ["mcp"]}`, or watch
-the whole flow from a client: `python scripts/mcp_flow_demo.py books/*.txt` (with
-`canonkeeper serve` running) spawns the server over stdio, quotes, orders, shows that
-`confirm_payment` refuses to run anything before the person approves, then collects the findings.
-
-Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) (submissions due
-**Nov 12, 2026**).
+Everything else (the commands, Render, the webhook, the stdio MCP server, the full status list)
+is in [docs/PREFLIGHT.md](docs/PREFLIGHT.md).
 
 ## Status
 
-Working offline pipeline; real-model runs on the Gemini free tier. See
-[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) for the demo plan and the roadmap below for what lands when.
-
-- [x] corpus loading, chapterizing, provenance offsets
-- [x] claim extraction with quote grounding
-- [x] bible store, alias resolution, slot index
-- [x] candidate heuristics (slot mismatch, dead-speaks, timeline, name drift, origin
-      mismatch, household role collision)
-- [x] predicate / value normalisation at ingest
-- [x] batched adjudicator, series-as-prefix for prompt caching, budgeted context assembly
-- [x] audit report + bible viewer (HTML/JSON)
-- [x] seeded-defect eval harness
-- [x] offline demo with a rule-based provider
-- [x] CLI, tests, CI
-- [x] chapterizer verified against the real Gutenberg layouts of all six Holmes volumes
-- [x] `check` on an unpublished draft, with the deliberate-reveal case in the demo
-- [x] Gemini free-tier provider with pacing, backoff, JSON-mode fallback; `doctor` command
-- [x] first real run on Sherlock Holmes (Watson's wound found; 2,331 sourced facts)
-- [x] second benchmark run with the descriptive sweep: P 0.80 / R 0.40 rescored, artifacts committed
-- [x] Preflight: upload → quote → PayPal checkout → capture → audit → report (`canonkeeper serve`)
-- [x] PayPal sandbox credentials and Orders v2 create verified (`canonkeeper doctor --paypal`)
-- [x] payment hardening: one `settle()` for every way a payment is noticed, capture must be
-      COMPLETED for the quoted amount, "check payment" for a closed tab, refunds for failed
-      audits (Payments v2), path-safe job ids, no open redirect; tests on Linux and Windows
-- [x] capture + refund exercised against the live sandbox: a paid audit, a guarantee refund, and a
-      budget funded, spent, credited and closed with the rest refunded (the PayPal ids are in the
-      screenshots above)
-- [x] full sandbox checkout filmed by `scripts/video/record.py` (PayPal's own guest card form)
-- [x] Preflight as an MCP server (`canonkeeper mcp`): an author's assistant quotes, orders,
-      hands the person the PayPal approval link, confirms, and reads the findings as data
-- [x] MCP flow exercised end to end from a real MCP client (`scripts/mcp_flow_demo.py`)
-- [x] customers can delete their files; uploads capped for a public host; `render.yaml`
-- [x] the job page's address is the owner's key (mark wrong, refund, delete); a finished report
-      is shared through a separate read-only link (`/r/<id>`) that never contains it
-- [x] local-model mode run against Ollama (`qwen3:4b`, CPU) — see *Local mode, measured*
-- [ ] demo video
+Done: the engine, the paid service on the live PayPal sandbox, the hosted MCP server with
+assistant budgets, the AG Grid bible explorer and report triage, the seeded-defect benchmark, CI
+on Linux and Windows. Still to come before Nov 12: the final video and the last benchmark runs.
+The item-by-item list is in [docs/PREFLIGHT.md](docs/PREFLIGHT.md#status-item-by-item).
 
 ## License
 
