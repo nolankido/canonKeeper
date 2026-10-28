@@ -104,14 +104,14 @@
   <p>If you know a finding is not a real contradiction (a disguise the model missed, a name that changed for a reason), mark it. It is noted on the report beside the model's call{% if job.order_id or job.budget_id %}, and ${{ guarantee_each }} of the price goes back to you for each one, up to ${{ guarantee_cap }} (half the price){% endif %}.</p>
   <div class="items">
     {% for c in contradictions %}
-    <div class="item">
-      <div class="what">{{ c.headline }}</div>
+    <div class="item{% if asked_mark == c.index %} asked{% endif %}" id="mark-{{ c.index }}">
+      <div class="what">{{ c.headline }}{% if asked_mark == c.index and not c.marked %} <span class="status quoted">your assistant asked you to confirm this one</span>{% endif %}</div>
       {% if c.marked %}
       <div><span class="status done">marked wrong</span>{% if c.marked.amount != '0.00' %} · ${{ c.marked.amount }} back{% else %} · noted (guarantee cap reached){% endif %}</div>
       {% else %}
-      <details class="mark"><summary>This one is wrong…</summary>
+      <details class="mark"{% if asked_mark == c.index %} open{% endif %}><summary>This one is wrong…</summary>
       <form action="/jobs/{{ job.id }}/findings/{{ c.index }}/wrong" method="post">
-        <input name="note" type="text" placeholder="why (optional)" aria-label="Why it is wrong">
+        <input name="note" type="text" placeholder="why (optional)" aria-label="Why it is wrong"{% if asked_mark == c.index and asked_note %} value="{{ asked_note }}"{% endif %}>
         <button type="submit" class="secondary" data-testid="mark-wrong-{{ c.index }}">Mark it wrong</button>
       </form></details>
       {% endif %}

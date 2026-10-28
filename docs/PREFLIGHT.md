@@ -90,7 +90,8 @@ carry MCP annotations (read-only, cannot be undone, talks to PayPal). Two ways t
   the limits, or stop all spending, on the budget's page; nobody can loosen them.
 
 The assistant never holds the buyer's credentials and cannot approve a payment: the approval link
-always goes to the person. `audit_status` hands back a read-only `share_url` for an editor;
+always goes to the person. Money comes back the same way: `mark_finding_wrong` only returns a
+link where the person confirms it on their job page, and the refund moves on their click. `audit_status` hands back a read-only `share_url` for an editor;
 the job id itself stays private, because it is the key that marks findings wrong, refunds and
 deletes. `python scripts/mcp_flow_demo.py books/*.txt` (with `canonkeeper serve` running) shows
 the whole exchange from a client over stdio, including `confirm_payment` refusing to run anything

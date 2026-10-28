@@ -35,6 +35,7 @@ from dataclasses import asdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from canonkeeper.config import Settings, load_settings
 from canonkeeper.models import Candidate
@@ -220,6 +221,31 @@ class PreflightService:
         if problem:
             return {"job_id": job_id, "marked": False, "reason": problem}
         return {"job_id": job_id, "marked": True, "given_back": f"{amount:.2f} {CURRENCY}"}
+
+    def ask_to_mark_wrong(self, job_id: str, finding_index: int, note: str = "") -> dict[str, Any]:
+        """What the assistant's tool does: money comes back only when the PERSON confirms on
+        their job page, as it only leaves when they approve on PayPal. Nothing changes here."""
+        job = self.store.get(job_id)
+        if job is None:
+            raise ValueError("unknown job")
+        if job.status != "done":
+            return {"job_id": job_id, "marked": False, "reason": "only a finished audit's findings can be marked"}  # fmt: skip
+        rows = {r["index"]: r for r in self.get_findings(job_id)["findings"] or []}
+        if finding_index not in rows:
+            return {"job_id": job_id, "marked": False, "reason": "no such contradiction in this report"}  # fmt: skip
+        if any(g["finding"] == str(finding_index) for g in job.guarantee):
+            return {"job_id": job_id, "marked": True, "reason": "already marked wrong"}
+        query = {"mark": str(finding_index)} | ({"note": note} if note else {})
+        url = f"{self.base}/jobs/{job.id}?{urlencode(query)}#mark-{finding_index}"
+        return {
+            "job_id": job_id,
+            "marked": False,
+            "confirm_url": url,
+            "finding": rows[finding_index]["summary"],
+            "next": "give the person confirm_url: they press 'Mark it wrong' there and the "
+            "money comes back to them (0.50 each, at most half the price). You cannot do it "
+            "for them.",
+        }
 
     def rule_on_finding(
         self, job_id: str, finding_index: int, ruling: str, note: str = ""
@@ -491,7 +517,7 @@ TOOL_HINTS: dict[str, tuple[str, dict[str, bool]]] = {
     "upload_status": ("Has the person uploaded?", {"ro": True}),
     "open_budget": ("Open a PayPal-funded budget", {"world": True}),
     "confirm_budget": ("Confirm the budget's PayPal payment", {"idem": True, "world": True}),
-    "mark_finding_wrong": ("Mark a finding wrong (part refund)", {"world": True}),
+    "mark_finding_wrong": ("Ask the person to mark a finding wrong", {"ro": True}),
     "rule_on_finding": ("Record the author's ruling", {"idem": True}),
     "budget_status": ("Budget balance and receipts", {"ro": True}),
     "pay_with_budget": ("Pay for a job from the budget", {"destroy": True}),
@@ -606,12 +632,13 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
         return service.confirm_budget(budget_id)
 
     @tool(
-        description="When the person says a reported contradiction is wrong: note it on the "
-        "report and give part of the price back (0.50 each, at most half the price). "
-        "finding_index is the finding's `index` from get_findings."
+        description="When the person says a reported contradiction is wrong: returns a link where "
+        "THEY confirm it; it is then noted on the report and part of the price comes back to "
+        "them (0.50 each, at most half the price). finding_index is the finding's `index` from "
+        "get_findings."
     )
     def mark_finding_wrong(job_id: str, finding_index: int, note: str = "") -> dict[str, Any]:
-        return service.mark_finding_wrong(job_id, finding_index, note)
+        return service.ask_to_mark_wrong(job_id, finding_index, note)
 
     @tool(
         description="Record the author's ruling on an item the audit left to them ('needs your "

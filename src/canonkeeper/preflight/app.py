@@ -775,10 +775,13 @@ def create_app(
                 via_agent=request.query_params.get("via") == "assistant",
             )
         share = store.share(job.id) if job.status == "done" else None
+        mark = request.query_params.get("mark", "")
         return render(
             request,
             "job.html",
             job=job,
+            asked_mark=int(mark) if mark.isdigit() else None,
+            asked_note=request.query_params.get("note", "")[:300],
             share_url=f"{base}/r/{share}" if share else None,
             quote=quote(job.tokens, words=job.words, books=len(job.books)),
             **review_context(job),
