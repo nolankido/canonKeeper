@@ -14,8 +14,10 @@ Preflight — pay-per-audit continuity checking for series authors (built on can
 Upload your series, get a quote, pay with PayPal, get every contradiction with its proof.
 
 ## Inspiration
-I publish series fiction. Book six has to agree with book one, written three years earlier,
-and the only tool for that is a spreadsheet and memory. Readers notice when it fails.
+I publish series fiction: more than 80 titles across four imprints. Book six has to agree with
+book one, written three years earlier, and the only tool for that is a spreadsheet and memory.
+Readers notice when it fails. I built the tool I wanted, then made it something an author, or
+an author's AI assistant, can buy one audit at a time.
 
 ## What it does
 **Book six has to agree with book one.** Preflight reads a whole series and shows every place it
