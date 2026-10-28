@@ -35,7 +35,7 @@ sponsor prize. Target: Best Use of Agentic Commerce; sponsor: AG Grid (Render cr
 | T15 | Nov 3 | AG Grid Community bible explorer: every fact with its passage, sort, filter, disputed rows flagged, CSV out (sponsor prize) | Design, sponsor | Smooth on the Holmes bible (3,963 facts) | done 10-27 (AG Grid Community 36.2.0, vendored; /sample/bible) |
 | T16 | Nov 4 | One visual system across home, quote, job, report, bible; PayPal-branded pay button; phone width; print; fresh-eyes screenshot review | Design | Review finds nothing it would change | done 10-27: fresh-agent screenshot review, its findings fixed (af83773); the PayPal mark comes from the JS SDK buttons on the sandbox |
 | T17 | Nov 4 | Video script v2: problem, audience and value in the first 15 seconds; real sandbox checkout; Claude Desktop buying a draft check from its budget; real numbers | Presentation | Script timed under 2:50 | done 10-27 (script v2: 363 words, 2:25 of speech) |
-| T18 | Nov 7 (after N3) | Record every scene on the hosted instance; splice Nolan's two clips; captions | Presentation | Full cut assembled | open |
+| T18 | Nov 7 (after N3) | Record every scene on the hosted instance; splice Nolan's two clips; captions | Presentation | Full cut assembled | in progress 10-27: the recorder films PayPal's real sandbox checkout and budget approval itself (96c6a86); final take after the T4 recording so findings are real Gemini answers |
 | T19 | Nov 8 | Narration (decision 4), final cut, fresh-agent review against the Presentation criterion | Presentation | Final file under 2:55 handed to Nolan | open |
 | T20 | Nov 9 | Devpost text final: description, AI tools and how each is used (Gemini models; built with Claude Code), testing instructions, gallery images | Presentation | Every rule's requirement checked off | open |
 | T21 | Nov 10 | Judge rehearsal: a fresh agent uses only the Devpost text and the hosted URL; fix what trips it | All | Rehearsal reaches the report | local rehearsal done 10-27 (its findings fixed: 708a11f and before); repeat on the hosted URL Nov 10 |
@@ -49,7 +49,7 @@ sponsor prize. Target: Best Use of Agentic Commerce; sponsor: AG Grid (Render cr
 |---|---|---|---|
 | N1 | Render deploy: GitHub sign-in, New → Blueprint, paste GEMINI_API_KEY / PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET, send the URL; then (optional, 3 min) developer.paypal.com → the sandbox app → Webhooks → add `<url>/paypal/webhook` for CHECKOUT.ORDER.APPROVED and PAYMENT.CAPTURE.COMPLETED and paste its ID as PAYPAL_WEBHOOK_ID | Oct 29 | T5 |
 | N2 | `canonkeeper doctor --round-trip`, approve as the sandbox buyer | Oct 28 | proof of the real money path |
-| N3 | Record the real sandbox checkout, and Claude Desktop buying an audit through the hosted MCP (Settings → Connectors → Add custom connector → `<render url>/mcp`) (after T6–T9) | Nov 7 | T18 |
+| N3 | (No longer needed: the sandbox checkout and budget approval are filmed by the recorder; a branded assistant UI stays out of the video for the trademark rule.) Was: record the real sandbox checkout, and Claude Desktop buying an audit through the hosted MCP (Settings → Connectors → Add custom connector → `<render url>/mcp`) (after T6–T9) | Nov 7 | T18 |
 | N4 | Voiceover, if decision 4 is "own voice" | Nov 8 | T19 |
 | N5 | Upload the final cut to YouTube, public | Nov 9 | T20, T24 |
 | N6 | Submit on Devpost; sandbox buyer login only in the private testing notes | Nov 11 | the entry |
