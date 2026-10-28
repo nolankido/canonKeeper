@@ -158,6 +158,12 @@ def _strip_numbering(name: str) -> str:
     return (stem or p.stem) + p.suffix
 
 
+def _as_text_name(name: str) -> str:
+    """A Word manuscript is kept as the text read from it: "The Harbour.docx" → .txt."""
+    p = Path(name)
+    return p.with_suffix(".txt").name if p.suffix.lower() == ".docx" else name
+
+
 _JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 _SHARE_ID = re.compile(r"[A-Za-z0-9_-]{16}")
 MAX_BOOKS = 40
@@ -259,7 +265,7 @@ class JobStore:
         d = self.dir(job_id)
         shutil.copytree(src / "books", d / "books")
         shutil.copy2(src / "bible.jsonl", d / "bible.jsonl")
-        stem = _strip_numbering(name) or "draft.txt"
+        stem = _as_text_name(_strip_numbering(name) or "draft.txt")
         safe = "".join(ch if ch.isalnum() or ch in "-_." else "-" for ch in stem)
         safe = safe.lstrip(".") or "draft.txt"  # never "..", never a hidden file
         demo = parent.demo and _is_demo_draft(draft_text)
@@ -404,7 +410,7 @@ class JobStore:
         names: list[str] = []
         tokens = words = 0
         for i, name in enumerate(fname for fname, _ in files):
-            stem = _strip_numbering(name)
+            stem = _as_text_name(_strip_numbering(name))
             safe = f"{i + 1:02d}-" + "".join(
                 ch if ch.isalnum() or ch in "-_." else "-" for ch in stem
             )

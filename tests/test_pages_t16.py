@@ -239,9 +239,9 @@ def test_uploads_are_checked_on_the_server_not_only_by_the_file_picker(tmp_path)
     docx = web.post(
         "/quote",
         data={"series_name": "S"},
-        files=[("files", ("01-a.docx", b"Ann has green eyes.", "application/octet-stream"))],
+        files=[("files", ("01-a.pdf", b"Ann has green eyes.", "application/pdf"))],
     )
-    assert docx.status_code == 400 and "not a .txt or .md file" in docx.text
+    assert docx.status_code == 400 and "not a .docx, .txt or .md file" in docx.text
     with pytest.raises(ValueError, match="is empty"):
         svc.quote_series("S", [{"name": "01-a.txt", "text": ""}])
     assert svc.store.all() == []

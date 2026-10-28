@@ -37,15 +37,60 @@ class Series:
         raise KeyError(key)
 
 
+_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+MAX_DOCX_XML = 200 * 10**6  # the document part, unzipped: far beyond any novel, short of a bomb
+
+
+def docx_text(data: bytes, name: str = "file.docx") -> str:
+    """The text of a Word (.docx) manuscript: one paragraph per block, separated by blank lines
+    (how the chapterizer and the extractor read a book). Headings, tabs and line breaks are
+    kept; comments, footnotes and tracked deletions are not part of the book and are left out.
+    Uses only the standard library."""
+    import io
+    import xml.etree.ElementTree as ET
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            info = z.getinfo("word/document.xml")
+            if info.file_size > MAX_DOCX_XML:
+                raise ValueError(f"{Path(name).name} is too large to read")
+            root = ET.fromstring(z.read(info))
+    except (zipfile.BadZipFile, KeyError, ET.ParseError):
+        raise ValueError(
+            f"{Path(name).name} could not be read as a Word document; save it as .docx again, "
+            "or as plain text (.txt), and upload that"
+        ) from None
+    paragraphs = []
+    for p in root.iter(f"{_W}p"):
+        parts = []
+        for el in p.iter():
+            if el.tag == f"{_W}t" and el.text:
+                parts.append(el.text)
+            elif el.tag == f"{_W}tab":
+                parts.append("\t")
+            elif el.tag in (f"{_W}br", f"{_W}cr"):
+                parts.append("\n")
+            elif el.tag == f"{_W}delText":
+                continue
+        text = "".join(parts).strip()
+        if text:
+            paragraphs.append(text)
+    return "\n\n".join(paragraphs) + "\n"
+
+
 def decode_text(data: bytes, name: str = "file") -> str:
     """Text from a manuscript file, whatever a word processor saved it as, with "\n" line
     endings (as `Path.read_text` gives): Windows files end lines with "\r\n", and paragraphs
     are found by blank lines.
 
     UTF-8 (with or without a BOM) is the norm; Word's "Unicode text" is UTF-16 with a BOM;
-    older Windows tools write Windows-1252, whose curly quotes are invalid UTF-8. Anything
-    else with NUL bytes (a .docx, a PDF) is refused with a message that says what to do.
+    older Windows tools write Windows-1252, whose curly quotes are invalid UTF-8. A Word .docx
+    is read for its text (`docx_text`). Anything else with NUL bytes (a PDF, an old .doc) is
+    refused with a message that says what to do.
     """
+    if name.lower().endswith(".docx"):
+        return docx_text(data, name)
     return _decode(data, name).replace("\r\n", "\n").replace("\r", "\n")
 
 
@@ -67,8 +112,8 @@ def _decode(data: bytes, name: str) -> str:
         if head[0::2].count(0) > len(head) // 4 and not head[1::2].count(0):
             return data.decode("utf-16-be", errors="replace")
         raise ValueError(
-            f"{Path(name).name} is not a text file; save it as plain text (.txt) or Markdown"
-            " (.md) and upload that"
+            f"{Path(name).name} is not a text file; save it as Word (.docx), plain text (.txt)"
+            " or Markdown (.md) and upload that"
         )
     try:
         return data.decode("utf-8")

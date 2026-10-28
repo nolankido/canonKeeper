@@ -397,6 +397,8 @@ def test_upload_limits(tmp_path):
     with pytest.raises(ValueError, match="at most"):
         store.create_from_upload("s", [(f"{i}.txt", b"x") for i in range(MAX_BOOKS + 1)])
     with pytest.raises(ValueError, match="not a text file"):
+        store.create_from_upload("s", [("book.pdf", b"%PDF-1.7\x00\x00binary")])
+    with pytest.raises(ValueError, match="could not be read as a Word document"):
         store.create_from_upload("s", [("book.docx", b"PK\x03\x04\x00\x00binary")])
     with pytest.raises(ValueError, match="too large"):
         store.create_from_upload("s", [("big.txt", b"a" * (40 * 10**6 + 1))])
@@ -822,8 +824,10 @@ def test_uploads_in_word_processor_encodings_are_read_not_refused(tmp_path):
     crlf = prose.replace("\n", "\r\n") * 2
     assert decode_upload(crlf.encode("utf-8")) == prose * 2  # Windows line endings
     assert decode_upload(crlf.encode("utf-16")) == prose * 2
-    with pytest.raises(ValueError, match="save it as plain text"):
+    with pytest.raises(ValueError, match="could not be read as a Word document"):
         decode_upload(b"PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00", "book.docx")
+    with pytest.raises(ValueError, match="save it as Word"):
+        decode_upload(b"%PDF-1.7\x00\x00\x00 binary", "book.pdf")
 
     store = JobStore(tmp_path / "pf")
     job, _ = store.create_from_upload("S", [("01-the-harbour.txt", prose.encode("utf-16"))])
@@ -1540,3 +1544,38 @@ def test_a_passage_cannot_break_out_of_the_grid_page(tmp_path):
     view = EntityView("Ann", [], 1, "01", [SlotView("eye_color", [("green", [claim])])])
     html = write_bible_grid([view], "S", tmp_path / "g.html", n_claims=1).read_text()
     assert "<script>alert(1)" not in html and "\\u003c/script\\u003e" in html
+
+
+def _docx(paragraphs: list[str]) -> bytes:
+    """A minimal Word document, as Word saves one: a zip with word/document.xml."""
+    import io
+    import zipfile
+    from xml.sax.saxutils import escape
+
+    w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    body = "".join(f"<w:p><w:r><w:t>{escape(t)}</w:t></w:r></w:p>" for t in paragraphs)
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="{w}"><w:body>{body}</w:body></w:document>'
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("[Content_Types].xml", "<Types/>")
+        z.writestr("word/document.xml", xml)
+    return buf.getvalue()
+
+
+def test_a_word_manuscript_is_read_for_its_text_and_kept_as_text(tmp_path):
+    """Authors write in Word: a .docx upload is read (paragraphs, chapter headings), quoted on
+    its text, and stored as .txt so every later step reads plain text."""
+    from canonkeeper.corpus.chapterize import chapterize
+    from canonkeeper.preflight.jobs import JobStore
+
+    para = "Ivy Marlowe has green eyes. She walked to Saltmarsh along the flats. " * 40
+    data = _docx(["CHAPTER I. THE HARBOUR", para, "CHAPTER II. THE ANCHOR", para])
+    store = JobStore(tmp_path / "pf")
+    job, q = store.create_from_upload("Saltmarsh", [("01 - The Harbour.docx", data)])
+    assert job.books == ["01-The-Harbour.txt"] and q.total_usd > 0
+    text = (store.dir(job.id) / "books" / "01-The-Harbour.txt").read_text(encoding="utf-8")
+    assert "<w:" not in text and text.startswith("CHAPTER I. THE HARBOUR\n\n")
+    assert [c.title for c in chapterize(text)] == [
+        "CHAPTER I. THE HARBOUR",
+        "CHAPTER II. THE ANCHOR",
+    ]

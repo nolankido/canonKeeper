@@ -147,8 +147,8 @@
   <h2 style="margin-top:0">Writing the next book?</h2>
   {% if checks %}<p data-testid="checks">Drafts checked against this series: {% for c in checks %}<a href="/jobs/{{ c.id }}">{{ c.draft }}</a> ({{ c.status | label }}{% if c.status == 'done' %}, {{ c.contradictions }} contradiction{{ '' if c.contradictions == 1 else 's' }}{% endif %}){{ ', ' if not loop.last }}{% endfor %}.</p>{% endif %}
   <p>Check a draft against everything this audit learned about the series. You get only the places where the draft disagrees with the published books, each with a fix to the draft. Priced on the draft alone.</p>
-  <label for="draft">Draft (.txt or .md)</label>
-  <input id="draft" name="draft" type="file" accept=".txt,.md,text/plain,text/markdown" required>
+  <label for="draft">Draft (Word .docx, .txt or .md)</label>
+  <input id="draft" name="draft" type="file" accept=".docx,.txt,.md,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
   <button type="submit">Get a quote for the check</button>
 </form>
 {% endif %}

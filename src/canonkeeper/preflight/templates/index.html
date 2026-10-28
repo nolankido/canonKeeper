@@ -39,8 +39,8 @@
 <form class="card" action="/quote" method="post" enctype="multipart/form-data">
   <label for="series_name">Series name</label>
   <input id="series_name" name="series_name" type="text" placeholder="e.g. The Saltmarsh Chronicles" required>
-  <label for="files">Manuscripts (.txt or .md), one file per book — they are sorted by filename, so prefix with 01-, 02-, …</label>
-  <input id="files" name="files" type="file" multiple accept=".txt,.md,text/plain,text/markdown" required>
+  <label for="files">Manuscripts (Word .docx, .txt or .md), one file per book — they are sorted by filename, so prefix with 01-, 02-, …</label>
+  <input id="files" name="files" type="file" multiple accept=".docx,.txt,.md,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
   <button type="submit">Get a quote</button>
   <p class="note">Nothing is sent to a model until you pay. Files are kept on this server only for the audit, and the job page has a button that deletes them along with everything derived from them.</p>
 </form>

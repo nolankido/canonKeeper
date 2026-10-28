@@ -22,8 +22,8 @@
 <form class="card" action="/upload/{{ token }}" method="post" enctype="multipart/form-data">
   <label for="series_name">Series name</label>
   <input id="series_name" name="series_name" type="text" value="{{ record.series_name }}" required>
-  <label for="files">Manuscripts (.txt or .md), one file per book, prefixed 01-, 02-, … in reading order</label>
-  <input id="files" name="files" type="file" multiple accept=".txt,.md,text/plain,text/markdown" required>
+  <label for="files">Manuscripts (Word .docx, .txt or .md), one file per book, prefixed 01-, 02-, … in reading order</label>
+  <input id="files" name="files" type="file" multiple accept=".docx,.txt,.md,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
   <button type="submit">Upload and see the price</button>
   <p class="note">This link works once and expires 24 hours after your assistant asked for it.</p>
 </form>
