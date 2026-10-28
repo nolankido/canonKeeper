@@ -231,13 +231,21 @@ async def film(
             record_video_size={"width": W, "height": H},
         )  # fmt: skip
         page: Page = await ctx.new_page()
+        t0 = time.monotonic()
+        cues: list[dict] = []  # for narrate.py: when each turn and each tool call appears
+
+        def cue(text: str) -> None:
+            cues.append({"t": round(time.monotonic() - t0, 2), "text": text})
+
         await page.goto(chat.as_uri())
         await page.wait_for_timeout(hold(800))
-        for turn in transcript["turns"]:
+        for n, turn in enumerate(transcript["turns"], 1):
+            cue(f"turn:{n}")
             await page.evaluate(ADD, ["m you", html.escape(turn["prompt"])])
             await page.wait_for_timeout(hold(1300))
             for s in turn["steps"]:
                 if s["kind"] == "call":
+                    cue(f"call:{s['name']}")
                     args = ", ".join(
                         f"{k}={json.dumps(v, ensure_ascii=False)[:40]}"
                         for k, v in s["args"].items()
@@ -251,8 +259,10 @@ async def film(
                     await page.evaluate(ADD, ["m ai", markdown(s["text"])])
                     await page.wait_for_timeout(hold(1000 * min(8.0, 1.8 + len(s["text"]) / 45)))
             if turn.get("then"):
+                cue(f"then:{n}")
                 await page.evaluate(ADD, ["you-act", html.escape(turn["then"])])
                 await page.wait_for_timeout(hold(1600))
+        cue("budget")
         await page.goto(budget_url)
         await page.wait_for_timeout(hold(3500))
         await page.evaluate("window.scrollTo({top: 400, behavior: 'smooth'})")
@@ -262,6 +272,7 @@ async def film(
     video = sorted(raw.glob("*.webm"), key=lambda f: f.stat().st_mtime)[-1]
     dest = out / name
     video.replace(dest)
+    dest.with_suffix(".cues.json").write_text(json.dumps(cues, indent=1), encoding="utf-8")
     return dest
 
 

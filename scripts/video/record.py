@@ -42,6 +42,9 @@ CARD = "4012000033330026"
 # the scene at the moment it opened. (opened, closed, pop-up page), seconds from the scene start.
 SPLITS: list[tuple[float, float, Page]] = []
 CLIP_T0 = 0.0
+# every caption as it appears, (seconds from the scene start, text): narrate.py times the voice
+# to these, so the narration follows the picture whatever PayPal's pop-up took this time
+SCENE_CUES: list[tuple[float, str]] = []
 
 CAPTION_JS = """
 (text) => {
@@ -73,6 +76,8 @@ PACE = 0.8  # caption hold times are scaled by this to keep the cut under three 
 
 
 async def caption(page: Page, text: str, hold: float) -> None:
+    if text:
+        SCENE_CUES.append((time.monotonic() - CLIP_T0, text))
     await page.evaluate(CAPTION_JS, text)
     await page.wait_for_timeout(int(hold * PACE * 1000))
 
@@ -475,6 +480,7 @@ async def main() -> None:
     globals()["BASE"] = a.base.rstrip("/")
     a.out.mkdir(parents=True, exist_ok=True)
     order: list[str] = []
+    cues: list[dict] = []
 
     async with async_playwright() as p:
         browser = await p.chromium.launch()
@@ -489,6 +495,8 @@ async def main() -> None:
             global CLIP_T0
             CLIP_T0 = time.monotonic()
             SPLITS.clear()
+            SCENE_CUES.clear()
+            SCENE_CUES.append((0.0, f"scene:{name}"))
             result = await fn(page, *args)
             video = page.video
             await ctx.close()
@@ -496,6 +504,12 @@ async def main() -> None:
             if not src:
                 return result
             # the scene up to each PayPal pop-up, the pop-up itself, then the rest
+            parts = [(name, 0.0)]
+            for k, (opened, closed, _pop) in enumerate(SPLITS):
+                parts += [(f"{name}-paypal{k}", opened), (f"{name}-after{k}", closed)]
+            for t, text in SCENE_CUES:
+                part, t0 = [(n, s) for n, s in parts if s <= t][-1]
+                cues.append({"scene": part, "t": round(t - t0, 2), "text": text})
             start = 0.0
             for k, (opened, closed, pop) in enumerate(list(SPLITS)):
                 _cut(src, a.out / f"{len(order):02d}-{name}.webm", start, opened)
@@ -521,7 +535,7 @@ async def main() -> None:
             "<p>Preflight reads a whole series and shows every contradiction: both passages, "
             "and a fix for the newer book.</p><p>For series authors and editors. "
             "Paid per audit with PayPal.</p>",
-            6,
+            7,
         )
         await record("holmes", scene_holmes)
         job_url = await record("buy", scene_buy)
@@ -530,6 +544,12 @@ async def main() -> None:
             # wrong, money back to the budget, the budget closed and the rest refunded
             shutil.copyfile(a.agent_clip, a.out / f"{len(order):02d}-agent.webm")
             order.append("agent")
+            cues.append({"scene": "agent", "t": 0.0, "text": "scene:agent"})
+            film_cues = a.agent_clip.with_suffix(".cues.json")  # the film's own: one per turn
+            if film_cues.exists():
+                cues.extend(
+                    {"scene": "agent", **c} for c in json.loads(film_cues.read_text("utf-8"))
+                )
         else:
             budget_url = await record("agent", scene_agent, a.out, job_url, a.draft)
             await record("in-charge", scene_in_charge, job_url, budget_url)
@@ -554,6 +574,7 @@ async def main() -> None:
         )
         await browser.close()
     (a.out / "order.json").write_text(json.dumps(order), encoding="utf-8")
+    (a.out / "cues.json").write_text(json.dumps(cues, indent=1), encoding="utf-8")
     # PayPal's form fills are real but long: the cut plays them fast-forwarded
     fast = {n: 1.7 for n in order if "-paypal" in n}
     (a.out / "speeds.json").write_text(json.dumps(fast), encoding="utf-8")

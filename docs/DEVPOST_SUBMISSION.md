@@ -203,10 +203,18 @@ funding, spend, credit and refund), the AG Grid bible, the receipt with a findin
 Rebuild with `scripts/gallery.py` (see its docstring).
 
 ## Video beats (< 3:00)
-See docs/DEMO_SCRIPT.md (v2): problem, audience and value in 15 seconds → the Holmes audit and
-its bible explorer → buy an audit (real PayPal sandbox checkout) → an AI assistant, given a
-PayPal-funded budget, checks the next draft on its own → the guarantee and the budget refund → benchmark →
-close.
+See docs/DEMO_SCRIPT.md (v3): the problem in one card → the Holmes audit, its triage grid and
+the bible explorer's chart → buying an audit (real PayPal sandbox checkout) → a real recorded AI
+assistant session: a PayPal-funded budget, two purchases, a finding marked wrong by the person, the
+budget closed and refunded → benchmark → close. Narrated; captions on screen.
+
+YouTube description (paste):
+> Preflight reads a whole fiction series and shows every contradiction, with both passages and a
+> fix for the newer book; authors pay per audit with PayPal, and AI assistants buy over MCP from a
+> budget the person funds and limits. Code (MIT): https://github.com/nolankido/canonKeeper ·
+> try it: https://preflight-kq1o.onrender.com. Books: Sherlock Holmes (public domain) and an
+> invented demo series. Voice: synthesized with Piper using the LibriTTS-R voice (CC BY 4.0,
+> Koizumi et al., 2023). Payments shown are PayPal sandbox (test money).
 
 ## Testing instructions (paste into Devpost; fill the two blanks, or drop that line)
 **Hosted (fastest):** open `https://preflight-kq1o.onrender.com`. Press *Try it with the demo series* (an invented

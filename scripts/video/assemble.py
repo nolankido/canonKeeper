@@ -10,7 +10,8 @@ under three minutes for Devpost; the script says so if it does not.
 
 Each scene is trimmed of the blank frames Playwright records before the first paint, gets a
 short fade in and out, and the result is concatenated. A silent audio track is added so
-YouTube and editors treat it as a normal video; record a voiceover over it if you like.
+YouTube and editors treat it as a normal video; `narrate.py` lays the voice-over on it, using the
+`timeline.json` written here (where each scene starts in the cut).
 """
 
 from __future__ import annotations
@@ -47,6 +48,8 @@ def main(folder: Path, replace: dict[str, Path] | None = None) -> Path:
             f"no such scene: {', '.join(sorted(unknown))} (scenes: {', '.join(order)})"
         )
     clips = []
+    timeline: dict[str, dict[str, float]] = {}  # where each scene starts in the cut: narrate.py
+    at = 0.0
     for i, name in enumerate(order):
         external = replace.get(name)
         src = external or folder / f"{i:02d}-{name}.webm"
@@ -99,6 +102,8 @@ def main(folder: Path, replace: dict[str, Path] | None = None) -> Path:
             check=True,
         )
         clips.append(dst)
+        timeline[name] = {"start": round(at, 3), "skip": skip, "speed": speed}
+        at += duration(dst)
         note = f"  (replaced: {external})" if external else (f"  ({speed}x)" if speed != 1 else "")
         print(f"{name:14} {d:6.1f}s{note}")
     lst = folder / "concat.txt"
@@ -124,6 +129,7 @@ def main(folder: Path, replace: dict[str, Path] | None = None) -> Path:
         ],
         check=True,
     )
+    (folder / "timeline.json").write_text(json.dumps(timeline, indent=1), encoding="utf-8")
     total = duration(final)
     print(f"total  {total:6.1f}s -> {final}")
     if total >= LIMIT_S:
