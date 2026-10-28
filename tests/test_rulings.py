@@ -138,3 +138,14 @@ def test_a_series_page_lists_its_draft_checks_and_a_checks_report_says_what_it_i
     svc.mark_finding_wrong(job, first["index"])
     receipt = web.get(f"/jobs/{job}").text
     assert f"$0.50 back: {first['summary']}" in receipt.replace("&#39;", "'").replace("&amp;", "&")
+
+
+def test_an_assistant_reading_the_findings_is_told_what_is_left_to_the_author(shop):
+    """A real agent session (scripts/video/agent_session.py) noticed the demo promises one item
+    for the author to judge, but get_findings had returned only contradictions."""
+    _web, svc = shop
+    job, i = _done_with_ambiguous(svc)
+    got = svc.get_findings(job)
+    assert [r["index"] for r in got["needs_your_judgement"]] == [i]
+    assert "rule_on_finding" in got["note"]
+    assert all(r["verdict"] == "contradiction" for r in got["findings"])

@@ -462,40 +462,49 @@ class PreflightService:
             }
         report = json.loads(p.read_text(encoding="utf-8"))
         rows = []
+        judge = []  # what the model left to the author: always surfaced, never buried
         for index, f in enumerate(report["findings"]):
-            if f["verdict"] != "contradiction" and not include_cleared:
-                continue
-            rows.append(
-                {
-                    "index": index,  # what mark_finding_wrong and rule_on_finding take
-                    "summary": headline(Candidate.model_validate(f["candidate"])),
-                    "check": f["candidate"]["heuristic"],
-                    "verdict": f["verdict"],
-                    "severity": f["severity"],
-                    "subject": f["candidate"]["claims"][0]["subject"],
-                    "predicate": f["candidate"]["claims"][0]["predicate"],
-                    "values": [
-                        {
-                            "predicate": c["predicate"],
-                            "value": c["object"],
-                            "book": c["provenance"].get("book_title") or c["provenance"]["book"],
-                            "chapter": c["provenance"]["chapter"],
-                            "quote": c["provenance"]["quote"],
-                        }
-                        for c in f["candidate"]["claims"]
-                    ],
-                    "explanation": f["explanation"],
-                    "suggested_fix": f.get("suggested_fix"),
-                    "author_review": f.get("author_review"),
-                }
-            )
-        return {
+            row = {
+                "index": index,  # what mark_finding_wrong and rule_on_finding take
+                "summary": headline(Candidate.model_validate(f["candidate"])),
+                "check": f["candidate"]["heuristic"],
+                "verdict": f["verdict"],
+                "severity": f["severity"],
+                "subject": f["candidate"]["claims"][0]["subject"],
+                "predicate": f["candidate"]["claims"][0]["predicate"],
+                "values": [
+                    {
+                        "predicate": c["predicate"],
+                        "value": c["object"],
+                        "book": c["provenance"].get("book_title") or c["provenance"]["book"],
+                        "chapter": c["provenance"]["chapter"],
+                        "quote": c["provenance"]["quote"],
+                    }
+                    for c in f["candidate"]["claims"]
+                ],
+                "explanation": f["explanation"],
+                "suggested_fix": f.get("suggested_fix"),
+                "author_review": f.get("author_review"),
+            }
+            if f["verdict"] == "contradiction" or include_cleared:
+                rows.append(row)
+            elif f["verdict"] == "ambiguous":
+                judge.append(row)
+        out: dict[str, Any] = {
             "job_id": job_id,
             "series": report["series"],
             "facts": report["claims_total"],
             "candidates": report["candidates_total"],
             "findings": rows,
         }
+        if not include_cleared:
+            out["needs_your_judgement"] = judge
+            if judge:
+                out["note"] = (
+                    f"{len(judge)} item(s) the model could not call either way: tell the person "
+                    "and record their ruling with rule_on_finding"
+                )
+        return out
 
     def list_jobs(self) -> list[dict[str, Any]]:
         return [

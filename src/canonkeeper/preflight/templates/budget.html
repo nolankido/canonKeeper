@@ -80,14 +80,14 @@
   <table>
     <tr><th>When (UTC)</th><th>What</th><th>Amount</th></tr>
     {% if budget.funded_at %}<tr><td>{{ budget.funded_at[:16] | replace('T', ' ') }}</td><td>Funded through PayPal</td><td>+${{ budget.amount_usd }}</td></tr>{% endif %}
-    {% for s in budget.spends %}{% set j = jobs.get(s.job_id) %}
-    <tr><td>{{ s.at[:16] | replace('T', ' ') }}</td><td>{{ 'Draft check' if s.kind == 'check' else 'Audit' }}: {% if j %}<a href="/jobs/{{ j.id }}">{{ j.series_name }}{% if j.draft %} · {{ j.draft }}{% endif %}</a> ({{ j.status }}){% else %}<code>{{ s.job_id }}</code>{% endif %}</td><td>−${{ s.amount }}</td></tr>
-    {% endfor %}
-    {% for c in budget.credits %}
-    <tr><td>{{ c.at[:16] | replace('T', ' ') }}</td><td>Credited back: {{ c.reason }} (<a href="/jobs/{{ c.job_id }}">job</a>)</td><td>+${{ c.amount }}</td></tr>
-    {% endfor %}
-    {% for r in budget.refunds %}
-    <tr><td>{{ r.at[:16] | replace('T', ' ') }}</td><td>{{ 'Refund on its way to PayPal' if r.status == 'SENDING' else 'Refunded to PayPal' }} ({{ r['for'] }}){% if r.refund_id %} · <code>{{ r.refund_id }}</code>{% endif %}</td><td>−${{ r.amount }}</td></tr>
+    {% for kind, m in moves %}
+    {% if kind == 'spend' %}{% set j = jobs.get(m.job_id) %}
+    <tr><td>{{ m.at[:16] | replace('T', ' ') }}</td><td>{{ 'Draft check' if m.kind == 'check' else 'Audit' }}: {% if j %}<a href="/jobs/{{ j.id }}">{{ j.series_name }}{% if j.draft %} · {{ j.draft }}{% endif %}</a> ({{ j.status }}){% else %}<code>{{ m.job_id }}</code>{% endif %}</td><td>−${{ m.amount }}</td></tr>
+    {% elif kind == 'credit' %}
+    <tr><td>{{ m.at[:16] | replace('T', ' ') }}</td><td>Credited back: {{ m.reason }} (<a href="/jobs/{{ m.job_id }}">job</a>)</td><td>+${{ m.amount }}</td></tr>
+    {% else %}
+    <tr><td>{{ m.at[:16] | replace('T', ' ') }}</td><td>{{ 'Refund on its way to PayPal' if m.status == 'SENDING' else 'Refunded to PayPal' }} ({{ m['for'] }}){% if m.refund_id %} · <code>{{ m.refund_id }}</code>{% endif %}</td><td>−${{ m.amount }}</td></tr>
+    {% endif %}
     {% endfor %}
   </table>
 </div>

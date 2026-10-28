@@ -4,7 +4,7 @@
 
 Writes `docs/img/assistant-budget.gif` (README; GitHub plays GIFs inline) and
 `src/canonkeeper/preflight/static/assistant-budget.mp4` (the /assistant page, small H.264). The
-scene is played at 1.6x, scaled to 720 px wide. Needs ffmpeg.
+scene is played at 1.6x: the MP4 720 px wide, the GIF 640 px at 6 frames a second. Needs ffmpeg.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GIF = ROOT / "docs/img/assistant-budget.gif"
 MP4 = ROOT / "src/canonkeeper/preflight/static/assistant-budget.mp4"
 SPEED, WIDTH, FPS = 1.6, 720, 8
+GIF_WIDTH, GIF_FPS = 640, 6  # a README GIF under ~3 MB
 
 
 def run(*args: str) -> None:
@@ -32,7 +33,7 @@ def main(scene: str) -> None:
         "-movflags", "+faststart", "-an", str(MP4),
     )  # fmt: skip
     palette = GIF.with_suffix(".palette.png")
-    base = f"{speed},fps={FPS},scale={WIDTH}:-1:flags=lanczos"
+    base = f"{speed},fps={GIF_FPS},scale={GIF_WIDTH}:-1:flags=lanczos"
     run("-i", str(src), "-vf", f"{base},palettegen=max_colors=96", str(palette))
     run(
         "-i", str(src), "-i", str(palette),

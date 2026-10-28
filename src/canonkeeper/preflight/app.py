@@ -709,7 +709,16 @@ def create_app(
     def budget_page(request: Request, budget: Budget, note: str | None = None) -> HTMLResponse:
         jobs = {s["job_id"]: store.get(s["job_id"]) for s in budget.spends}
         now = datetime.now(UTC).isoformat(timespec="seconds")
-        return render(request, "budget.html", budget=budget, jobs=jobs, note=note, now=now)
+        # one ledger in the order things happened (a credit can come before a later spend)
+        moves = sorted(
+            [("spend", m) for m in budget.spends]
+            + [("credit", m) for m in budget.credits]
+            + [("refund", m) for m in budget.refunds],
+            key=lambda km: km[1].get("at", ""),
+        )
+        return render(
+            request, "budget.html", budget=budget, jobs=jobs, note=note, now=now, moves=moves
+        )
 
     @app.get("/budget/{budget_id}", response_class=HTMLResponse)
     def budget_view(request: Request, budget_id: str) -> HTMLResponse:

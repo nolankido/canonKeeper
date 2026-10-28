@@ -32,9 +32,11 @@ titles across four series imprints.
 | 4 | [`preflight/payments.py`](src/canonkeeper/preflight/payments.py) | The money paths: one function pays a job, budgets never overdraw, refunds are recorded before PayPal is asked. |
 | 5 | [The benchmark](#does-it-actually-work-the-seeded-defect-benchmark) | Precision and recall measured on planted errors, misses included. |
 
-![An assistant connected to Preflight over MCP opens a budget, the person approves it on PayPal, then the assistant checks a draft, pays from the budget and reads back the two contradictions](docs/img/assistant-budget.gif)
+![Claude, connected to Preflight over MCP, opens a $20 budget capped at $6 a purchase; the person approves it on PayPal; Claude audits the demo series, asks the person to confirm a finding they say is wrong, checks a draft, and closes the budget with $13.44 refunded](docs/img/assistant-budget.gif)
 
-*An assistant buying a draft check from its budget over MCP, as filmed by `scripts/video/record.py` (sped up).*
+*A real agent session, sped up: Claude (Claude Code, headless) buying from Preflight over MCP
+with a $20 PayPal-sandbox budget it can never overspend; the person approves the payment and
+confirms the one refund. [Transcript and PayPal ids](docs/agent-session/).*
 
 Built during the PayPal AI Hackathon 2026 (the repository starts on Oct 26, 2026).
 

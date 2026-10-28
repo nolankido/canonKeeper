@@ -144,7 +144,7 @@ async def pay_by_card(page: Page) -> None:
     await pop.wait_for_timeout(1500)
     for sel, val in [
         ("#cardNumber", CARD), ("#cardExpiry", "11/29"), ("#cardCvv", "321"),
-        ("#firstName", "Test"), ("#lastName", "Buyer"), ("#billingLine1", "2 Main St"),
+        ("#firstName", "Test"), ("#lastName", "Buyer"), ("#billingLine1", "2211 North First Street"),
         ("#billingCity", "San Jose"), ("#billingPostalCode", "95131"),
         ("#phone", "4085550101"), ("#email", "test-buyer@example.com"),
     ]:  # fmt: skip
@@ -158,7 +158,17 @@ async def pay_by_card(page: Page) -> None:
     await pop.wait_for_timeout(500)
     try:
         await button.click(timeout=20000)  # pay as a guest: never the create-account button
-        await pop.wait_for_event("close", timeout=90000)
+        # PayPal may ask to confirm an address it cannot match: keep the one entered
+        keep = pop.get_by_role("button", name="Continue", exact=True)
+        for _ in range(20):
+            if pop.is_closed():
+                break
+            if await keep.count() and await keep.first.is_visible():
+                await keep.first.click()
+                break
+            await asyncio.sleep(1)
+        if not pop.is_closed():
+            await pop.wait_for_event("close", timeout=90000)
     except Exception:
         shot = Path(f"paypal-popup-{int(time.time())}.png")
         await pop.screenshot(path=str(shot), full_page=True)
