@@ -32,6 +32,25 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 _open = urllib.request.build_opener(_NoRedirect).open
 
 
+def mcp_tools(url: str, timeout: float = 30) -> list[str]:
+    """Names from an MCP tools/list call, the first thing an assistant does after connecting
+    (the hosted endpoint is stateless JSON, so one POST is a whole exchange)."""
+    req = urllib.request.Request(
+        url,
+        data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).encode(),
+        headers={
+            "content-type": "application/json",
+            "accept": "application/json, text/event-stream",
+            "mcp-protocol-version": "2025-06-18",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return [t["name"] for t in json.loads(r.read())["result"]["tools"]]
+    except (OSError, ValueError, KeyError):
+        return []
+
+
 def fetch(
     url: str, data: dict[str, str] | None = None, timeout: float = 30
 ) -> tuple[int, dict[str, str], str]:
@@ -86,8 +105,10 @@ def main(argv: list[str] | None = None) -> int:
         return failures
     assert m is not None
     job = m.group(1)
-    status, _, _ = fetch(f"{base}/mcp")  # a bare GET is not an MCP request: 4xx, not 404
-    check("MCP endpoint at /mcp", status not in (404, 0) and status < 500, f"HTTP {status}")
+    tools = mcp_tools(f"{base}/mcp")
+    check("MCP: an assistant gets the tools", len(tools) >= 10, f"{len(tools)} tools")
+    check("MCP: the budget tools are there", {"open_budget", "pay_with_budget"} <= set(tools))
+    check("MCP: no tool lists other people's jobs", "list_jobs" not in tools)
     if mode in ("sandbox", "live"):
         check("PayPal buttons on the quote page", "paypal.com/sdk/js?client-id=" in text)
         status, _, _ = fetch(f"{base}/paypal/webhook", data={})
