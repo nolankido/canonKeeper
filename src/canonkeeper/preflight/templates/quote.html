@@ -64,4 +64,10 @@
   </form>
   <p class="note">{% if job.kind == 'check' %}Checked against: {% else %}Books in order: {% endif %}{% for b in job.books %}<code>{{ b }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
 </div>
+<details class="mark" data-testid="quote-delete"><summary>Delete these files instead</summary>
+<form action="/jobs/{{ job.id }}/delete" method="post">
+  <p class="note">The uploaded books go now; an unpaid quote is deleted after a day anyway.</p>
+  <label><input type="checkbox" name="confirm" value="yes" required> Delete the uploaded books</label>
+  <button type="submit" class="danger">Delete</button>
+</form></details>
 {% endblock %}

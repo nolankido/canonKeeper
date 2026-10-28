@@ -45,6 +45,7 @@ from canonkeeper.preflight.payments import (
     OPEN,
     QuotaShort,
     close_budget,
+    delete_job_files,
     mark_finding_wrong,
     open_budget,
     place_order,
@@ -436,7 +437,7 @@ class PreflightService:
 
     def delete_job(self, job_id: str) -> dict[str, Any]:
         try:
-            job = self.store.purge(job_id)
+            job = delete_job_files(job_id, self.paypal, self.store)
         except KeyError:
             raise ValueError("unknown job") from None
         return {

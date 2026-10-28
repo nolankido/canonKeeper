@@ -41,6 +41,7 @@ Status = Literal[
     "refunded",
     "deleted",
 ]
+ORDERED_MAX_AGE_DAYS = 7
 DELETABLE: frozenset[str] = frozenset({"quoted", "cancelled", "done", "failed", "refunded"})
 
 
@@ -312,19 +313,24 @@ class JobStore:
         return job
 
     def prune_unpaid(self, max_age_hours: float = 24.0) -> int:
-        """Delete quotes nobody paid for (status quoted or cancelled, older than the limit),
-        uploads included. A public host gives quotes away free; without this every abandoned
+        """Delete quotes nobody paid for (status quoted or cancelled, older than the limit; or a
+        PayPal order nobody approved for a week), uploads included. A public host gives quotes away free; without this every abandoned
         upload stays on disk. Paid jobs are never touched here."""
-        cutoff = datetime.now(UTC).timestamp() - max_age_hours * 3600
+        now = datetime.now(UTC).timestamp()
+        cutoff = now - max_age_hours * 3600
+        # An order nobody approved for a week was abandoned at PayPal's page. Nothing was
+        # captured (no capture was ever attempted: `capturing` is unset), so nothing is owed.
+        ordered_cutoff = now - ORDERED_MAX_AGE_DAYS * 86400
         removed = 0
         for job in self.all():
-            if job.status not in ("quoted", "cancelled"):
+            abandoned = job.status == "ordered" and not job.capturing and not job.paid_at
+            if job.status not in ("quoted", "cancelled") and not abandoned:
                 continue
             try:
                 updated = datetime.fromisoformat(job.updated_at).timestamp()
             except ValueError:
                 continue
-            if updated < cutoff:
+            if updated < (ordered_cutoff if abandoned else cutoff):
                 with self._lock:
                     shutil.rmtree(self.dir(job.id), ignore_errors=True)
                 removed += 1

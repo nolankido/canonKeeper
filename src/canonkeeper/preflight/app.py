@@ -49,6 +49,7 @@ from canonkeeper.preflight.payments import (
     GUARANTEE_USD,
     QuotaShort,
     close_budget,
+    delete_job_files,
     mark_finding_wrong,
     place_order,
     refund,
@@ -898,7 +899,7 @@ def create_app(
         if confirm != "yes":
             raise HTTPException(400, "tick the box to confirm")
         try:
-            store.purge(job_id)
+            delete_job_files(job_id, pp, store)
         except KeyError:
             raise HTTPException(404) from None
         except ValueError as e:

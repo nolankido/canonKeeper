@@ -148,8 +148,41 @@ def test_cancel_and_reorder(client):
     assert client.app.state.store.get(job_id).status == "cancelled"
     r = client.post(f"/jobs/{job_id}/order")  # allowed again
     assert r.status_code == 303
-    # Not while a payment is in flight: the return would capture and run on missing files.
+    # Not once the buyer approved: the return would capture and run on missing files.
+    client.app.state.paypal.approve(client.app.state.store.get(job_id).order_id)
     assert client.post(f"/jobs/{job_id}/delete", data={"confirm": "yes"}).status_code == 409
+
+
+def test_an_order_never_approved_does_not_stop_the_files_being_deleted(client):
+    """Judge review: a buyer who closed PayPal's window could not delete their books, and the
+    unpaid-quote pruning skipped them. The order is released first; approving it later pays
+    nothing, because a deleted job is never captured."""
+    store, pp = client.app.state.store, client.app.state.paypal
+    job_id = _upload(client).text.split('action="/jobs/')[1].split("/order")[0]
+    client.post(f"/jobs/{job_id}/order")
+    order_id = store.get(job_id).order_id
+    assert store.get(job_id).status == "ordered"
+    assert client.post(f"/jobs/{job_id}/delete", data={"confirm": "yes"}).status_code == 303
+    assert store.get(job_id).status == "deleted" and not (store.dir(job_id) / "books").exists()
+    pp.approve(order_id)  # the person approves the old tab anyway
+    client.get(f"/return?token={order_id}")
+    assert pp.get_order(order_id).status != "COMPLETED"  # nothing captured
+    assert store.get(job_id).status == "deleted"
+
+
+def test_a_week_old_unapproved_order_is_pruned_like_a_quote(client):
+    from datetime import UTC, datetime, timedelta
+
+    store = client.app.state.store
+    job_id = _upload(client).text.split('action="/jobs/')[1].split("/order")[0]
+    client.post(f"/jobs/{job_id}/order")
+    import json
+
+    old = (datetime.now(UTC) - timedelta(days=8)).isoformat()
+    path = store.dir(job_id) / "job.json"
+    data = json.loads(path.read_text(encoding="utf-8")) | {"updated_at": old}
+    path.write_text(json.dumps(data), encoding="utf-8")  # (save() would stamp it fresh)
+    assert store.prune_unpaid() == 1 and store.get(job_id) is None
 
 
 def test_upload_requires_files(client):

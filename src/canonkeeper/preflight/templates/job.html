@@ -153,7 +153,7 @@
 </form>
 {% endif %}
 
-{% if job.status in ('quoted', 'cancelled', 'done', 'failed', 'refunded') %}
+{% if job.status in ('quoted', 'ordered', 'cancelled', 'done', 'failed', 'refunded') %}
 <form class="card" action="/jobs/{{ job.id }}/delete" method="post">
   <p class="note">Delete your files: the manuscripts, the bible, the reports and the cached model responses. {% if job.status == 'done' %}Download the report first if you want to keep it. {% endif %}This cannot be undone.</p>
   <label><input type="checkbox" name="confirm" value="yes" required> Delete everything for this job</label>

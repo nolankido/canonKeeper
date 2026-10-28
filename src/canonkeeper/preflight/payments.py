@@ -410,6 +410,21 @@ def _finish_close_if_asked(b: Budget, paypal: PayPal, budgets: BudgetStore) -> s
     return None
 
 
+def delete_job_files(job_id: str, paypal: PayPal, store: JobStore) -> Job:
+    """Delete a job's files, as the home page promises, including a job waiting on a PayPal
+    order the person never approved (the order is released first and simply expires). Raises
+    ValueError while a payment or a run is in flight, KeyError for an unknown job."""
+    job = store.get(job_id)
+    if job is None:
+        raise KeyError(job_id)
+    if job.status == "ordered" and not release_unapproved_order(job, paypal, store):
+        raise ValueError(
+            "PayPal shows this order as approved or being paid: press 'check payment' first; "
+            "once the audit is done (or refunded) its files can be deleted"
+        )
+    return store.purge(job_id)
+
+
 def release_unapproved_order(job: Job, paypal: PayPal, store: JobStore) -> bool:
     """Put a job whose PayPal order the person never approved back to "quoted", so it can be
     paid another way (an assistant's budget). True if released.
