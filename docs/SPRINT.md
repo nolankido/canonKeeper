@@ -42,7 +42,7 @@ sponsor prize. Target: Best Use of Agentic Commerce; sponsor: AG Grid (Render cr
 | T22 | Nov 10 | Hardening: model IDs, fallbacks, error pages, Windows tests, tag v1.0 | Tech | Linux and Windows green; tagged | open |
 | T23 | Nov 11 | Buffer for whatever slipped | — | — | open |
 | T24 | Nov 11 | Submit with Nolan (N6); license visible in the repo's About box; no code changes after this | All | Devpost shows Submitted | open |
-| T25 | Dec 1–15 | Judging operations: deploys frozen, nightly benchmarks paused, daily smoke test (`.github/workflows/live-check.yml`; a failed run emails Nolan) | Design | Hosted demo green every day of judging | smoke test live from Oct 27; freeze Dec 1 |
+| T25 | Nov 12–Dec 15 | Judging operations: deploys frozen from submission (the free instance's disk holds jobs and budgets; a redeploy clears them), nightly benchmarks paused, daily smoke test (`.github/workflows/live-check.yml`; a failed run emails Nolan) | Design | Hosted demo green every day of judging | smoke test live from Oct 27; freeze from Nov 12 |
 
 ## Judge review, 10-27 (a fresh agent scoring the live entry: about 33/50)
 Fixed the same day: the claims it found unbacked (entity count, cost table, PayPal client size,

@@ -225,7 +225,10 @@ writing the next book? ──▶ a draft check ($2 + the same rate on the draft)
   approval link always goes to the person.
 - **Built to last the judging period on free tiers:** kept awake on Render, a quota check that
   refuses an order before PayPal when the day's model quota can't finish it, real Gemini answers
-  for the demo series shipped in the package, and a daily smoke test.
+  for the demo series shipped in the package, and a daily smoke test. Jobs and budgets are JSON
+  files on the instance's disk, which a free Render instance loses when it is redeployed, so
+  deploys are frozen from submission (Nov 12) to the end of judging; a paid deploy would keep
+  them on a persistent disk or in a database (sandbox money only here).
 
 <p align="center">
 <img src="docs/img/preflight-quote.png" width="49%" alt="The live quote page on the PayPal sandbox: the price with its arithmetic, and PayPal's own buttons (PayPal, Venmo, Pay Later, card)">
