@@ -249,6 +249,8 @@ class JobStore:
         if len(data) > MAX_TOTAL_BYTES:
             raise ValueError(f"draft too large ({len(data) / 1e6:.0f} MB)")
         draft_text = decode_upload(data, name)
+        if not draft_text.split():
+            raise ValueError(f"{Path(name).name} is empty")
         src = self.dir(parent_id)
         self.make_room(len(data) + self._size(parent_id))
         job_id = secrets.token_urlsafe(8)
@@ -379,6 +381,9 @@ class JobStore:
                 f"series too large ({total / 1e6:.0f} MB; limit {MAX_TOTAL_BYTES // 10**6} MB)"
             )
         texts = [decode_upload(blob, fname) for fname, blob in files]
+        for (fname, _), text in zip(files, texts, strict=True):
+            if not text.split():
+                raise ValueError(f"{Path(fname).name} is empty")
         series_name = series_name.strip()[:200] or "Untitled series"
         self.make_room(total)
         job_id = secrets.token_urlsafe(8)
@@ -650,6 +655,7 @@ class Runner:
                     back_url=f"/jobs/{job.id}",
                     back_label=back_label_for(job),
                     customer=True,
+                    store=store,
                 )
                 self.store.update(
                     job.id,

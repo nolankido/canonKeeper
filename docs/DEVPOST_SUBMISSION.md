@@ -30,7 +30,8 @@ When the author is writing the next book, they upload the draft on the finished 
 a smaller quote on the draft alone, the same PayPal checkout, and only the places where the
 draft disagrees with what is already published. The same service is an MCP server, hosted at
 `/mcp`, so an author's AI assistant can price, order, check and read the findings as a customer of
-the service, holding no keys. The person either approves each payment on PayPal or funds an
+the service, never holding a PayPal credential (at most a budget's spending key, capped by the
+balance and the person's limits). The person either approves each payment on PayPal or funds an
 assistant budget once through PayPal: the assistant spends it on audits and draft checks, never
 past the balance, every spend on the budget's page, and the unused rest refunds to PayPal.
 
@@ -179,10 +180,15 @@ its bible explorer → buy an audit (real PayPal sandbox checkout) → an AI ass
 PayPal-funded budget, checks the next draft on its own → the guarantee and the budget refund → benchmark →
 close.
 
-## Testing instructions (paste into Devpost; fill the two blanks)
+## Testing instructions (paste into Devpost; fill the two blanks, or drop that line)
 **Hosted (fastest):** open `https://preflight-kq1o.onrender.com`. Press *Try it with the demo series* (an invented
-three-book series with five planted errors and one change only the author can judge), then *Pay with PayPal*. PayPal sandbox buyer:
-`<sandbox buyer email>` / `<password>` — no real money moves. You return to the job page, which
+three-book series with five planted errors and one change only the author can judge), then pay. Two ways, both PayPal's sandbox (test money, nothing real moves):
+- **No login needed:** press PayPal's *Debit or Credit Card* button and pay as a guest with
+  PayPal's published sandbox test card `4012 0000 3333 0026`, any future expiry, any 3-digit CVV,
+  any US name and address. Switch off *Save info & create your PayPal account* and press *Pay Now*.
+- **Or** *Pay with PayPal* as the sandbox buyer `<sandbox buyer email>` / `<password>`.
+
+ You return to the job page, which
 updates itself; the audit takes about a minute (instant if someone ran it before you: demo-series
 responses are shared). Open the report. *See a finished audit* on the home page opens the real
 six-volume Sherlock Holmes audit without paying.

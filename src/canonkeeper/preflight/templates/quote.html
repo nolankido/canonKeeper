@@ -26,6 +26,7 @@
   {% if paypal_client_id and not quota_error %}
   <div id="paypal-buttons" data-testid="paypal-buttons" style="max-width: 420px; margin-top: 18px"></div>
   <p id="paypal-message" class="note" role="status" aria-live="polite"></p>
+  {% if paypal_mode == 'sandbox' %}<p class="note" data-testid="sandbox-card">Sandbox, so test money: with no PayPal sandbox login, press <em>Debit or Credit Card</em> and pay as a guest with PayPal's published test card <code>4012 0000 3333 0026</code>, any future expiry and CVV (switch off <em>Save info &amp; create your PayPal account</em>).</p>{% endif %}
   <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id | urlencode }}&currency={{ currency }}&intent=capture&components=buttons&enable-funding=venmo,paylater"></script>
   <script>
   (function () {

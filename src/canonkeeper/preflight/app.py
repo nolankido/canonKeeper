@@ -141,9 +141,21 @@ def make_paypal(
     return PayPalClient(cid, secret, mode=mode)
 
 
+TEXT_SUFFIXES = (".txt", ".md", ".markdown", ".text")
+
+
 def _refuse_before_reading(files: list[UploadFile]) -> None:
     """Apply the upload limits from the sizes the form already declared, before any file is
-    read into memory. (The store checks again on the bytes; this only saves the memory.)"""
+    read into memory. (The store checks again on the bytes; this only saves the memory.) The
+    page's file picker asks for .txt and .md, but a browser does not enforce that."""
+    for f in files:
+        name = f.filename or ""
+        if not name.lower().endswith(TEXT_SUFFIXES):
+            raise HTTPException(
+                400,
+                f"{name or 'a file'} is not a .txt or .md file: save the book as plain text or "
+                "Markdown and upload that",
+            )
     if len(files) > MAX_BOOKS:
         raise HTTPException(400, f"at most {MAX_BOOKS} books per series")
     total = sum(f.size or 0 for f in files)

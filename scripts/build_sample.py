@@ -84,6 +84,7 @@ def main() -> None:
             back_url="/",
             back_label="← Preflight: audit your own series",
             bible_url="/sample/bible",
+            store=CanonStore.load(a.bible) if a.bible else None,
         )
         shutil.copyfile(html, a.out)
     print(f"wrote {a.out}")

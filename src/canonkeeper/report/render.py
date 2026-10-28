@@ -6,9 +6,11 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
+from canonkeeper.canon import CanonStore
 from canonkeeper.models import AuditReport, Finding
 from canonkeeper.report.bible import GRID_SCRIPT
 from canonkeeper.report.display import _book, check, fact, headline, label, where
+from canonkeeper.report.evidence import telling_passages
 
 _env = Environment(
     loader=PackageLoader("canonkeeper.report", "templates"),
@@ -123,13 +125,18 @@ def write_report(
     back_label: str = "← Back to the job page: rule on items, check a new draft",
     customer: bool = False,
     bible_url: str | None = None,
+    store: CanonStore | None = None,
 ) -> tuple[Path, Path]:
     """`back_url`: where the report's header links back to (its job page on Preflight).
     `customer`: the report a paying author gets (Preflight and its sample): plain model credits
     and no list-price cost tile; the CLI's report keeps both for the person running it.
     `bible_url`: the series bible explorer; by default the `bible-grid.html` written beside the
-    report (or one folder up, for a draft check), linked relatively."""
+    report (or one folder up, for a draft check), linked relatively.
+    `store`: the bible; each finding then shows the copy of its facts whose sentence names the
+    value (`evidence.telling_passages`). Left out where reports are compared or scored."""
     out_dir.mkdir(parents=True, exist_ok=True)
+    if store is not None:
+        telling_passages(report, store)
     if bible_url is None:
         for rel in ("bible-grid.html", "../bible-grid.html"):
             if (out_dir / rel).exists():

@@ -224,3 +224,23 @@ def test_a_quote_has_its_own_address_so_reloading_it_is_safe(tmp_path):
     assert first.status_code == again.status_code == 200
     assert "Pay $5.05 with PayPal" in again.text and ">quote ready</span>" in again.text
     assert len(svc.store.all()) == 1
+
+
+def test_uploads_are_checked_on_the_server_not_only_by_the_file_picker(tmp_path):
+    """Judge review: an empty .txt was quoted at $5.00 for 0 words, and a .docx was accepted."""
+    import pytest
+
+    web, svc = _shop(tmp_path)
+    empty = web.post(
+        "/quote", data={"series_name": "S"}, files=[("files", ("01-a.txt", b"  \n", "text/plain"))]
+    )
+    assert empty.status_code == 400 and "01-a.txt is empty" in empty.text
+    docx = web.post(
+        "/quote",
+        data={"series_name": "S"},
+        files=[("files", ("01-a.docx", b"Ann has green eyes.", "application/octet-stream"))],
+    )
+    assert docx.status_code == 400 and "not a .txt or .md file" in docx.text
+    with pytest.raises(ValueError, match="is empty"):
+        svc.quote_series("S", [{"name": "01-a.txt", "text": ""}])
+    assert svc.store.all() == []
