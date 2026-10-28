@@ -83,6 +83,7 @@ def main() -> None:
             customer=True,
             back_url="/",
             back_label="← Preflight: audit your own series",
+            bible_url="/sample/bible",
         )
         shutil.copyfile(html, a.out)
     print(f"wrote {a.out}")

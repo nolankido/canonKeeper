@@ -62,6 +62,7 @@
     .f, .claim, .stat, section.ent { break-inside: avoid; }
     input, label, .filters { display: none !important; }
   }
+  a.seebible { display: inline-block; margin-top: 10px; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -84,7 +85,7 @@
 
   {% set review = others | selectattr("verdict", "equalto", "ambiguous") | list %}
   {% set cleared = others | rejectattr("verdict", "equalto", "ambiguous") | list %}
-  <nav class="jump"><a href="#contradictions">{{ errors | length }} contradiction{{ '' if errors | length == 1 else 's' }}</a>{% if review %} · <a href="#review">{{ review | length }} need{{ 's' if review | length == 1 else '' }} your judgement</a>{% endif %}{% if cleared %} · <a href="#cleared">{{ cleared | length }} reviewed and cleared</a>{% endif %}</nav>
+  <nav class="jump"><a href="#contradictions">{{ errors | length }} contradiction{{ '' if errors | length == 1 else 's' }}</a>{% if review %} · <a href="#review">{{ review | length }} need{{ 's' if review | length == 1 else '' }} your judgement</a>{% endif %}{% if cleared %} · <a href="#cleared">{{ cleared | length }} reviewed and cleared</a>{% endif %}{% if bible_url %} · <a href="{{ bible_url }}" data-testid="bible-link">explore the series bible</a>{% endif %}</nav>
 
   <h2 id="contradictions">Contradictions</h2>
   {% if not errors %}<p>None found. Either the series is clean or the bible needs more extraction coverage.</p>{% endif %}
@@ -101,6 +102,7 @@
     {% endfor %}
     <p>{{ f.explanation }}</p>
     {% if f.suggested_fix and not (f.author_review and f.author_review.verdict == 'wrong') %}<div class="fix"><b>Suggested fix (later book):</b> {{ f.suggested_fix }}</div>{% endif %}
+    {% if bible_url and f.candidate.claims %}<a class="seebible" href="{{ bible_url }}{{ f | bible_focus }}">Every book's value for this fact, in the bible explorer →</a>{% endif %}
   </div>
   {% endfor %}
 

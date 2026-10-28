@@ -88,6 +88,34 @@
     var total = view === "rows" ? rows.length : matrix.rows.length;
     count.textContent = api.getDisplayedRowCount().toLocaleString() + " of " + total.toLocaleString() + (view === "rows" ? " passages" : " facts");
   }
+  // The view lives in the address, so a link can open the explorer on one finding:
+  // ?view=bybook&disputed=1&q=…&focus=John%20Watson|wound&book=The%20Sign%20of%20the%20Four
+  var params = new URLSearchParams(window.location.search);
+  function remember(extra) {
+    var q = new URLSearchParams();
+    if (view === "matrix") q.set("view", "bybook");
+    var search = document.getElementById("search").value;
+    if (search) q.set("q", search);
+    if (onlyDisputed) q.set("disputed", "1");
+    Object.keys(extra || {}).forEach(function (k) { if (extra[k]) q.set(k, extra[k]); });
+    var s = q.toString();
+    try { history.replaceState(null, "", window.location.pathname + (s ? "?" + s : "")); } catch (e) {}
+  }
+  function focusOn(key, book) {
+    var parts = key.split("|"), node = null, fallback = null;
+    api.forEachNodeAfterFilterAndSort(function (n) {
+      if (!n.data || n.data.entity !== parts[0]) return;
+      if (!fallback) fallback = n;
+      if (!node && (!parts[1] || n.data.fact === parts[1])) node = n;
+    });
+    node = node || fallback;
+    if (!node) return;
+    api.ensureNodeVisible(node, "top");
+    api.flashCells({ rowNodes: [node] });
+    if (view === "rows") return show(node.data);
+    var b = book && node.data.books[book] ? book : matrix.books.find(function (x) { return node.data.books[x]; });
+    showBook(node.data, b || "");
+  }
   function showBook(r, book) {
     var ps = (r.passages && r.passages[book]) || [];
     var parts = [text("div", "loc", r.entity + ", " + r.fact + " in " + book + ": " + (r.books[book] || "not mentioned") + (r.disputed ? " (the books disagree)" : ""))];
@@ -150,25 +178,40 @@
       isExternalFilterPresent: function () { return onlyDisputed; },
       doesExternalFilterPass: function (node) { return !!node.data.disputed; },
       onCellClicked: function (e) {
-        if (view === "rows") return show(e.data);
+        if (view === "rows") { remember({ focus: e.data.entity + "|" + e.data.fact }); return show(e.data); }
         var col = e.column.getColId();
-        showBook(e.data, col.indexOf("book:") === 0 ? col.slice(5) : (matrix.books.find(function (b) { return e.data.books[b]; }) || ""));
+        var book = col.indexOf("book:") === 0 ? col.slice(5) : (matrix.books.find(function (b) { return e.data.books[b]; }) || "");
+        remember({ focus: e.data.entity + "|" + e.data.fact, book: book });
+        showBook(e.data, book);
       },
       onFilterChanged: updateCount,
       onModelUpdated: updateCount
     });
     document.getElementById("search").addEventListener("input", function (e) {
       api.setGridOption("quickFilterText", e.target.value);
+      remember();
     });
     document.getElementById("disputed").addEventListener("change", function (e) {
       onlyDisputed = e.target.checked;
       api.onFilterChanged();
+      remember();
     });
-    document.getElementById("view-rows").addEventListener("click", function () { setView("rows"); });
-    document.getElementById("view-matrix").addEventListener("click", function () { setView("matrix"); });
+    document.getElementById("view-rows").addEventListener("click", function () { setView("rows"); remember(); });
+    document.getElementById("view-matrix").addEventListener("click", function () { setView("matrix"); remember(); });
     document.getElementById("csv").addEventListener("click", function () {
       api.exportDataAsCsv({ fileName: {{ (series ~ " - series bible.csv") | tojson }} });
     });
+    if (params.get("q")) {
+      document.getElementById("search").value = params.get("q");
+      api.setGridOption("quickFilterText", params.get("q"));
+    }
+    if (params.get("disputed") === "1") {
+      onlyDisputed = true;
+      document.getElementById("disputed").checked = true;
+      api.onFilterChanged();
+    }
+    if (params.get("view") === "bybook") setView("matrix");
+    if (params.get("focus")) focusOn(params.get("focus"), params.get("book"));
     updateCount();
   }
   function fail() {

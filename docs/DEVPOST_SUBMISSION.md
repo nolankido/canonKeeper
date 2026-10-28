@@ -91,8 +91,8 @@ injects contradictions into public-domain novels and scores precision/recall.
   until you read that Holmes is in disguise. A screen that over-generates and a judge that
   reads the surrounding chapters beats a clever screen on its own.
 - Measure the pipeline, not the demo. The first benchmark run scored recall 0.05 and pointed
-  at extraction, not judgement; two prompt changes measured by the same harness took recall on
-  planted chunks from 7/20 to 15/20. The README table is generated, never typed.
+  at extraction, not judgement; a narrow second extraction pass and a higher reasoning budget, measured
+  by the same harness, took recall from 0.05 to 0.35–0.40 at precision 0.64–0.80. The README table is generated, never typed.
 - A free tier is a budget, not a limit. Daily caps (and the discovery that 503s count against
   them) turned into a client-side budget guard, a model fallback ladder, a cache that makes
   every run resumable, and `build --dry-run` that says exactly what a run will spend.

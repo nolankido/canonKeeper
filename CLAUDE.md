@@ -88,7 +88,7 @@ canonkeeper serve           # Preflight; PAYPAL_MODE=fake unless PAYPAL_CLIENT_I
 
 - Python 3.11+, ruff (line length 100), mypy clean, pydantic v2.
 - Small focused commits with conventional prefixes (`feat:`, `fix:`, `eval:`, `docs:`).
-- Model IDs (2026-10-26): Gemini `gemini-3.5-flash-lite` / `gemini-3.6-flash` (free; 3.8 Flash is
+- Model IDs (verified 2026-10-27; none has a shutdown date before 2027): Gemini `gemini-3.5-flash-lite` / `gemini-3.6-flash` (free; 3.8 Flash is
   frequently 503 on the free tier), `gemini-4-argon` (paid), per
   https://ai.google.dev/gemini-api/docs/models; Meta `muse-spark-1.3`, `muse-wonder-1.0`.
   Verify before changing.

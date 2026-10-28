@@ -25,7 +25,7 @@ titles across four series imprints.
 | | Where | What to look at |
 |---|---|---|
 | 1 | [preflight-kq1o.onrender.com](https://preflight-kq1o.onrender.com) | *Try it with the demo series*: the price with its arithmetic, PayPal's own buttons (sandbox: test money only), the audit, the report. Nothing reaches a model before PayPal confirms the capture. |
-| 2 | [/sample](https://preflight-kq1o.onrender.com/sample) and [/sample/bible](https://preflight-kq1o.onrender.com/sample/bible) | The real audit of six Sherlock Holmes books, and its bible in AG Grid: choose *Each fact by book* and search "John Watson". |
+| 2 | [/sample](https://preflight-kq1o.onrender.com/sample) and [its bible](https://preflight-kq1o.onrender.com/sample/bible?view=bybook&focus=John%20Watson%7Cwound&book=The%20Sign%20of%20the%20Four) | The real audit of six Sherlock Holmes books. Each finding's *in the bible explorer* link opens AG Grid on that fact, one column per book, with the later book's passage below. |
 | 3 | [/assistant](https://preflight-kq1o.onrender.com/assistant): MCP at `https://preflight-kq1o.onrender.com/mcp` | Add it as a custom connector in an MCP assistant and say "Open a $20 Preflight budget", approve on PayPal, then "Audit the Saltmarsh demo series and pay from the budget". |
 | 4 | [`preflight/payments.py`](src/canonkeeper/preflight/payments.py) | The money paths: one function pays a job, budgets never overdraw, refunds are recorded before PayPal is asked. |
 | 5 | [The benchmark](#does-it-actually-work-the-seeded-defect-benchmark) | Precision and recall measured on planted errors, misses included. |
@@ -180,7 +180,7 @@ free tier, with no hints. Latest run (2026-10-27):
 
 | | |
 |---|---|
-| facts extracted | 3,963 across 624 entities (99.5% of returned claims grounded to a verbatim passage) |
+| facts extracted | 3,963 about 622 characters, places and things (99.5% of returned claims grounded to a verbatim passage) |
 | candidate conflicts screened | 27, all judged with the relevant chapters in context |
 | **contradiction, correct** | **Watson's war wound** — "struck on the shoulder by a Jezail bullet" (*A Study in Scarlet*) vs "sat nursing my wounded leg. I had a Jezail bullet through it" (*The Sign of the Four*). Fix, to the later book: "wounded leg" → "wounded arm". |
 | **contradiction, correct** | **The landlady** — Mrs. Hudson at Baker Street (*The Sign of the Four*), "When Mrs. Turner has brought in the tray" (*A Scandal in Bohemia*): "No explanation or change of staff is given in the text." Fix: "Mrs. Turner" → "Mrs. Hudson". |
@@ -224,8 +224,10 @@ pinned CDN fallback), in two views:
 ![Each fact by book: John Watson's wound moving from the shoulder to the leg across the Holmes books, each change marked](docs/img/bible-by-book.png)
 
 Every finished audit gets its own explorer (`/jobs/<id>/bible-grid.html`, also downloadable as
-one self-contained file), and the Holmes one is at `/sample/bible`. On a phone it keeps who, fact
-and value, and opens the passage below the grid on a tap.
+one self-contained file), and the Holmes one is at `/sample/bible`. The view lives in the
+address (`?view=bybook&disputed=1&q=…&focus=<who>|<fact>&book=<book>`), so every finding in a
+report links to its own row: [Watson's wound](https://preflight-kq1o.onrender.com/sample/bible?view=bybook&focus=John%20Watson%7Cwound&book=The%20Sign%20of%20the%20Four). On a phone it keeps who, fact and value,
+and opens the passage below the grid on a tap.
 
 ## Does it actually work? The seeded-defect benchmark
 
@@ -312,11 +314,14 @@ cached on disk by (model, prompt), so re-running an audit is free.
 `canonkeeper estimate` prints this for your series before you spend anything. On the Gemini
 free tier the answer is $0; at list price for a ~900k-token, six-novel series:
 
-| step | reads | calls | ≈ list price |
+| step | model (default) | measured on Holmes (630k tokens) | ≈ list price |
 |---|---|---|---|
-| extraction (`gemini-3.8-flash`, $0.75/M in) | every token once | ~250 chapters | $0.90 |
-| audit, 40 candidates (`gemini-3.8-flash`) | series once per batch of 8 | 5 | $3.50 |
-| same audit on `gemini-4-argon` ($2/M in) | series once per batch of 8 | 5 | $9 |
+| extraction | `gemini-3.5-flash-lite` ($0.30/M in, $2.50/M out) | 444 calls, every token read once | $1.40 |
+| audit, 27 candidates | `gemini-3.6-flash` ($0.75/M in) | each judged with its chapters in context | $0.15 |
+| same audit on `gemini-4-argon` ($2/M in) | | | about $0.40 |
+
+Preflight's price for that series is $5 + $4 per 100k tokens ≈ $30; the model cost is about a
+twentieth of it, and nothing on the free tier.
 
 Iterate on prompts at the small context cap, run the full-context audit once for the demo,
 and let the disk cache do the rest.
@@ -396,8 +401,9 @@ guarantee, and the budget closed with the unused $5.45 refunded through PayPal (
 Nothing is sent to a model until the order is captured. Jobs persist as JSON on disk, run one
 at a time (free-tier pacing is per project, so parallelism would only contend), and a failed
 job can be retried at no extra cost because every model response is cached. The PayPal client
-is ~100 lines of Orders v2 (OAuth → create with `PAY_NOW` → capture, idempotent on
-`PayPal-Request-Id`); `FakePayPal` mirrors the state machine for tests and demos.
+(`PayPalClient`, about 170 lines) is Orders v2 (OAuth → create with `PAY_NOW` → capture,
+idempotent on `PayPal-Request-Id`), Payments v2 refunds, and webhook verification and
+registration; `FakePayPal` mirrors the state machine for tests and demos.
 
 **Agentic commerce.** `canonkeeper mcp` exposes the same service to an AI assistant over MCP:
 `quote_series → order_audit → (the person approves on PayPal) → confirm_payment → audit_status
@@ -438,9 +444,10 @@ Working offline pipeline; real-model runs on the Gemini free tier. See
 - [x] payment hardening: one `settle()` for every way a payment is noticed, capture must be
       COMPLETED for the quoted amount, "check payment" for a closed tab, refunds for failed
       audits (Payments v2), path-safe job ids, no open redirect; tests on Linux and Windows
-- [ ] capture + refund exercised against the live sandbox (`canonkeeper doctor --round-trip`,
-      needs a person to approve as the sandbox buyer)
-- [ ] full sandbox checkout recorded with a sandbox buyer account (for the video)
+- [x] capture + refund exercised against the live sandbox: a paid audit, a guarantee refund, and a
+      budget funded, spent, credited and closed with the rest refunded (the PayPal ids are in the
+      screenshots above)
+- [x] full sandbox checkout filmed by `scripts/video/record.py` (PayPal's own guest card form)
 - [x] Preflight as an MCP server (`canonkeeper mcp`): an author's assistant quotes, orders,
       hands the person the PayPal approval link, confirms, and reads the findings as data
 - [x] MCP flow exercised end to end from a real MCP client (`scripts/mcp_flow_demo.py`)
