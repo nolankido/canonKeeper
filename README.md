@@ -1,5 +1,7 @@
 # Preflight · continuity audits for book series, paid per audit with PayPal
 
+[![CI](https://github.com/nolankido/canonKeeper/actions/workflows/ci.yml/badge.svg)](https://github.com/nolankido/canonKeeper/actions/workflows/ci.yml) ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Live demo](https://img.shields.io/badge/live%20demo-PayPal%20sandbox-ffc439.svg)](https://preflight-kq1o.onrender.com)
+
 **Book six has to agree with book one. Preflight reads the whole series and shows you, with the
 passages, every place it doesn't.**
 
@@ -55,9 +57,6 @@ rule-based stand-in. Add `GEMINI_API_KEY` for real audits and `PAYPAL_CLIENT_ID`
 
 Entered in the [PayPal AI Hackathon 2026](https://paypalaihackathon.devpost.com/).
 
-[![CI](https://github.com/nolankido/canonKeeper/actions/workflows/ci.yml/badge.svg)](https://github.com/nolankido/canonKeeper/actions/workflows/ci.yml)
-![python](https://img.shields.io/badge/python-3.11%2B-blue)
-![license](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
