@@ -30,8 +30,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-_ROMAN = r"(?:M{0,3}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3}))"
-_NUM = rf"(?:{_ROMAN}|\d{{1,3}}|[A-Z][a-z]+)"  # I / 1 / One
+_ROMAN = r"(?:(?=[MDCLXVI])M{0,3}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3}))"
+_NUM = rf"(?:{_ROMAN}|\d{{1,3}}|[A-Z][a-z]+|[A-Z]{{3,}})"  # I / 1 / One / ONE
 
 _CHAPTER = re.compile(
     rf"^(?:CHAPTER|Chapter|ADVENTURE|Adventure|LETTER|Letter)\s+({_NUM})\b\.?\s*(.*)$"

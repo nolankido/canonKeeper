@@ -228,4 +228,4 @@ def test_short_chapters_keep_their_own_boundaries():
     )
     titles = [c.title for c in chapterize(text)]
     assert len(titles) == 3 and titles[:2] == ["CHAPTER I. THE HARBOUR", "CHAPTER II. THE ANCHOR"]
-    assert titles[2].endswith("CHAPTER III. THE LETTER")  # the part title is not a chapter
+    assert titles[2] == "Part TWO · CHAPTER III. THE LETTER"  # the part title prefixes, not splits
