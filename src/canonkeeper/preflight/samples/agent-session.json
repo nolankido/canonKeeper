@@ -18,7 +18,7 @@
     },
     {
      "kind": "ai",
-     "text": "The $20 budget is set up, with a $6 cap per purchase. It isn't active until you approve the payment.\n\n1. Approve the payment in PayPal: https://www.sandbox.paypal.com/checkoutnow?token=4WL50938YT831963J\n2. You can see every spend, and close the budget, on your budget page: http://127.0.0.1:8791/budget/ELDBSJlVZ-J0rupg\n\nTell me once you've approved and I'll confirm the budget."
+     "text": "Your $20 budget is set up, with a $6 cap per purchase. It isn't funded until you approve it.\n\n1. Open this link and approve the PayPal payment: https://www.sandbox.paypal.com/checkoutnow?token=53J38858875010816\n2. Tell me once you've approved, and I'll confirm the budget.\n\nYou can see every spend and close the budget at http://127.0.0.1:8791/budget/VOqtzofzSOLxr-GK."
     }
    ],
    "then": "You approve the $20 on PayPal (sandbox, test money)."
@@ -30,12 +30,8 @@
      "kind": "call",
      "name": "confirm_budget",
      "args": {
-      "budget_id": "ELDBSJlVZ-J0rupg"
+      "budget_id": "VOqtzofzSOLxr-GK"
      }
-    },
-    {
-     "kind": "result",
-     "text": "status: active"
     },
     {
      "kind": "call",
@@ -44,17 +40,21 @@
     },
     {
      "kind": "result",
+     "text": "status: active"
+    },
+    {
+     "kind": "result",
      "text": "price: 5.05"
     },
     {
      "kind": "ai",
-     "text": "The price is $5.05, under the $6 cap, so I'll pay it from the budget."
+     "text": "Price $5.05 is under the $6 cap and within the balance. Paying."
     },
     {
      "kind": "call",
      "name": "pay_with_budget",
      "args": {
-      "job_id": "sc4eKCg65Rc",
+      "job_id": "nzkckRojZ8g",
       "budget_key": "pfk_…"
      }
     },
@@ -66,7 +66,7 @@
      "kind": "call",
      "name": "audit_status",
      "args": {
-      "job_id": "sc4eKCg65Rc"
+      "job_id": "nzkckRojZ8g"
      }
     },
     {
@@ -77,7 +77,7 @@
      "kind": "call",
      "name": "get_findings",
      "args": {
-      "job_id": "sc4eKCg65Rc"
+      "job_id": "nzkckRojZ8g"
      }
     },
     {
@@ -86,7 +86,7 @@
     },
     {
      "kind": "ai",
-     "text": "The Saltmarsh audit is done. It cost $5.05, and $14.95 is left in the budget. It found 5 contradictions, and in each case the fix is to change the later passage in *The Return* to match the earlier book:\n\n- **Oswin Reed (high):** He dies in *The Wreck* but walks to Saltmarsh in *The Return*.\n- **Tobias Crane's name (high):** He is \"Toby\" in *The Harbour* and \"Tom\" in *The Return*.\n- **Ivy Marlowe's eyes (medium):** Green in *The Harbour*, blue in *The Return*.\n- **Hester Vale's birthplace (medium):** Saltmarsh in *The Harbour*, Dunmere in *The Return*.\n- **Tobias Crane's wound (medium):** Shoulder in *The Harbour*, leg in *The Return*.\n\nOne item needs your call: Ivy's hair is red in *The Harbour* and grey in *The Return*. That could be fine if enough years pass between the books. Is it intentional? I can record your ruling.\n\nThe full report is at http://127.0.0.1:8791/jobs/sc4eKCg65Rc/report."
+     "text": "The Saltmarsh audit found 5 contradictions. I paid $5.05 from the budget, so $14.95 is left. Every suggested fix targets the later book, The Return.\n\n1. **Tobias Crane's wound** (high): shot in the shoulder in The Harbour, in the leg in The Return.\n2. **Hester Vale's birthplace** (high): Saltmarsh in The Harbour, Dunmere in The Return.\n3. **Oswin Reed** (high): he dies in The Wreck, then \"walked to Saltmarsh\" in The Return.\n4. **Ivy Marlowe's eyes** (medium): green in The Harbour, blue in The Return.\n5. **Ivy Marlowe's hair** (medium): red in The Harbour, grey in The Return.\n\nThe audit's explanations cite different chapter numbers than the quotes show (for example, Chapter II instead of Chapter I). Check the report before you act on the chapter references.\n\nFull report: http://127.0.0.1:8791/jobs/nzkckRojZ8g/report"
     }
    ]
   },
@@ -97,9 +97,9 @@
      "kind": "call",
      "name": "mark_finding_wrong",
      "args": {
-      "job_id": "sc4eKCg65Rc",
-      "finding_index": 0,
-      "note": "Oswin Reed only faked his death in The Wreck, so his appearance in The Return is not a contradiction."
+      "job_id": "nzkckRojZ8g",
+      "finding_index": 2,
+      "note": "Oswin Reed only faked his death in The Wreck, so appearing in The Return is not a contradiction."
      }
     },
     {
@@ -108,7 +108,7 @@
     },
     {
      "kind": "ai",
-     "text": "I've prepared the Oswin Reed flag, but it isn't marked yet. You need to confirm it yourself by pressing \"Mark it wrong\" here:\n\nhttp://127.0.0.1:8791/jobs/sc4eKCg65Rc?mark=0&note=Oswin+Reed+only+faked+his+death+in+The+Wreck%2C+so+his+appearance+in+The+Return+is+not+a+contradiction.#mark-0\n\nOnce you confirm, the finding is noted on the report and $0.50 comes back to you."
+     "text": "It isn't marked yet. You need to confirm it yourself: open this link and press \"Mark it wrong\":\n\nhttp://127.0.0.1:8791/jobs/nzkckRojZ8g?mark=2&note=Oswin+Reed+only+faked+his+death+in+The+Wreck%2C+so+appearing+in+The+Return+is+not+a+contradiction.#mark-2\n\nOnce you confirm, the note goes on the report and $0.50 comes back to you."
     }
    ],
    "then": "You confirm it on your job page: $0.50 back to the budget."
@@ -129,8 +129,8 @@
      "kind": "call",
      "name": "check_draft",
      "args": {
-      "job_id": "sc4eKCg65Rc",
-      "name": "04-the-ledger.txt"
+      "job_id": "nzkckRojZ8g",
+      "name": "draft-04-the-ledger.txt"
      }
     },
     {
@@ -139,13 +139,13 @@
     },
     {
      "kind": "ai",
-     "text": "The price is $2.01, under the $6 cap and within the $14.95 balance."
+     "text": "$2.01 is under the $6 cap and within the $14.95 left. Paying."
     },
     {
      "kind": "call",
      "name": "pay_with_budget",
      "args": {
-      "job_id": "mgcnISaOI30",
+      "job_id": "gXUfp9ca9hM",
       "budget_key": "pfk_…"
      }
     },
@@ -157,7 +157,7 @@
      "kind": "call",
      "name": "audit_status",
      "args": {
-      "job_id": "mgcnISaOI30"
+      "job_id": "gXUfp9ca9hM"
      }
     },
     {
@@ -168,7 +168,7 @@
      "kind": "call",
      "name": "get_findings",
      "args": {
-      "job_id": "mgcnISaOI30"
+      "job_id": "gXUfp9ca9hM"
      }
     },
     {
@@ -177,7 +177,7 @@
     },
     {
      "kind": "ai",
-     "text": "I checked the draft *The Ledger* against the audit. It cost $2.01, and $13.44 is left in the budget. It found 2 contradictions, and the fix for both is to change the draft:\n\n- **Ivy Marlowe's eyes:** The draft says brown, but *The Harbour* says green and *The Return* says blue. The two published books already disagree with each other (the audit's earlier finding), so you need to settle which colour is right before fixing the draft.\n- **Tobias Crane's birthplace:** The draft says Portmouth, but *The Harbour* says Kelby.\n\nThe check passed Hester Vale's brown eyes in Chapter II without a flag, and the draft explains the \"grey\" as tinted glasses. The Oswin Reed finding you disputed doesn't affect this draft.\n\nThe full report is at http://127.0.0.1:8791/jobs/mgcnISaOI30/report."
+     "text": "The draft check found 2 contradictions. It cost $2.01 and the budget now shows $13.44. That is $0.50 more than I expected, which suggests your Oswin refund went through.\n\n1. **Tobias Crane's birthplace** (high): The Harbour says Kelby, and the draft says Portmouth. The fix is to change the draft line to \"born in Kelby.\"\n2. **Ivy Marlowe's eyes** (medium): the draft says brown. The series already conflicts: green in The Harbour, blue in The Return. The fix is to change the draft to green. The Return's blue is the existing error from the first audit.\n\nTwo things in the draft passed:\n- **Hester Vale's brown eyes:** the draft explains them with tinted glasses.\n- **Ivy walking to Kelby and Saltmarsh:** this wasn't flagged.\n\nFull report: http://127.0.0.1:8791/jobs/gXUfp9ca9hM/report"
     }
    ]
   },
@@ -188,6 +188,18 @@
      "kind": "call",
      "name": "close_budget",
      "args": {
+      "budget_id": "VOqtzofzSOLxr-GK"
+     }
+    },
+    {
+     "kind": "result",
+     "text": "Error executing tool close_budget: 1 validation error for close_budgetArguments\nbudget_key\n  Field required [t"
+    },
+    {
+     "kind": "call",
+     "name": "close_budget",
+     "args": {
+      "budget_id": "VOqtzofzSOLxr-GK",
       "budget_key": "pfk_…"
      }
     },
@@ -197,11 +209,11 @@
     },
     {
      "kind": "ai",
-     "text": "The budget is closed, and the unused $13.44 was refunded to your PayPal. You spent $7.06 in total: $5.05 on the series audit and $2.01 on the draft check.\n\nThe record also shows a $0.50 credit for the Oswin Reed finding you marked wrong."
+     "text": "The budget is closed, and the unused $13.44 has been refunded to your PayPal. The refund shows as completed.\n\n- **Spent:** $7.06 in total. That was $5.05 for the audit and $2.01 for the draft check.\n- **Credit:** $0.50 came back for the Oswin Reed finding you marked wrong."
     }
    ]
   }
  ],
- "recorded_at": "2026-10-27 17:00",
- "budget_url": "http://127.0.0.1:8791/budget/ELDBSJlVZ-J0rupg"
+ "recorded_at": "2026-10-27 21:40",
+ "budget_url": "http://127.0.0.1:8791/budget/VOqtzofzSOLxr-GK"
 }

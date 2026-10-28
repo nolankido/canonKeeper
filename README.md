@@ -44,8 +44,8 @@ every payment and to confirm every refund.
 
 *A real agent session, sped up: Claude (Claude Code, headless) buying from Preflight over MCP
 with a $20 PayPal-sandbox budget it can never overspend; the person approves the payment and
-confirms the one refund. Real sandbox transactions on a local copy of Preflight, whose demo
-answers came from its rule-based stand-in. [Transcript and PayPal ids](docs/agent-session/).*
+confirms the one refund. Real sandbox transactions on a local copy of Preflight; the demo series'
+findings are real Gemini answers, recorded and replayed. [Transcript and PayPal ids](docs/agent-session/).*
 
 Built during the PayPal AI Hackathon 2026 (the repository starts on Oct 26, 2026).
 
