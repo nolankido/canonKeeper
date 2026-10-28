@@ -103,7 +103,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) (sub
 ## Status, item by item
 
 Working offline pipeline; real-model runs on the Gemini free tier. See
-[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) for the demo plan and the roadmap below for what lands when.
+[docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md) for the demo plan and the roadmap below for what lands when.
 
 - [x] corpus loading, chapterizing, provenance offsets
 - [x] claim extraction with quote grounding

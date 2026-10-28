@@ -73,7 +73,10 @@ stable prefix. PayPal Orders v2 in the sandbox: OAuth → create (PAY_NOW) → t
 buttons (or PayPal's page) → capture → job runs in a background thread, persisted as JSON. A verified
 PayPal webhook and a "check payment" button finish a payment whose buyer closed the tab; all three
 routes go through one settle() that pays a job only on a completed capture of the quoted amount. A seeded-defect benchmark
-injects contradictions into public-domain novels and scores precision/recall.
+injects contradictions into public-domain books and scores precision/recall.
+
+Built from scratch inside the submission period: the repository's first commit is October 26,
+2026, and its whole history is public.
 
 ## Challenges
 - Telling an error from a reveal needs the surrounding chapters, not just the two sentences.
