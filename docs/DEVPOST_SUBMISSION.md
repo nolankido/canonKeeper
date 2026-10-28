@@ -149,6 +149,13 @@ agent) working in this repository, directed and reviewed by the author; commits 
 `Co-Authored-By` line. The prompts the product sends to Gemini, and every number in the README,
 come from runs in this repository (the benchmark's files are committed).
 
+## Image gallery (upload in this order; 3:2, 2250x1500)
+
+`docs/gallery/01-report.png` … `05-job.png`, one claim per image with the screen that backs it:
+the report's Watson finding, the quote with PayPal's buttons, the assistant budget (a real sandbox
+funding, spend, credit and refund), the AG Grid bible, the receipt with a finding marked wrong.
+Rebuild with `scripts/gallery.py` (see its docstring).
+
 ## Video beats (< 3:00)
 See docs/DEMO_SCRIPT.md (v2): problem, audience and value in 15 seconds → the Holmes audit and
 its bible explorer → buy an audit (real PayPal sandbox checkout) → an AI assistant, given a
