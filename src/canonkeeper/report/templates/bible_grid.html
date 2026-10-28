@@ -142,6 +142,8 @@
       { field: "quote", headerName: "Passage", flex: 1, minWidth: 260, hide: narrow, tooltipField: "quote", filter: "agTextColumnFilter" }
     ];
   }
+  // a wrapped cell's lines sit together (the grid's row line-height would space them a row apart)
+  var WRAPPED = { lineHeight: "1.35", paddingTop: "6px", paddingBottom: "6px" };
   function short(b) {  // "The Sign of the Four" -> "Sign of the Four", for a phone's width
     return b.replace(/^(The|A|An) /, "").replace(/ of Sherlock Holmes$/, "");
   }
@@ -159,9 +161,9 @@
       // a phone has no room for a column per book: one column, each book's value on its own
       // line in reading order, the changed ones marked; a tap opens the passages below
       cols.splice(0, 3,
-        { field: "entity", headerName: "Who", pinned: "left", width: 96, wrapText: true, autoHeight: true, filter: "agTextColumnFilter" },
-        { field: "fact", headerName: "Fact", width: 86, wrapText: true, autoHeight: true, filter: "agTextColumnFilter" });
-      cols.push({ colId: "bybook", headerName: "Each book, in order", flex: 1, minWidth: 150, wrapText: true, autoHeight: true,
+        { field: "entity", headerName: "Who", pinned: "left", width: 90, wrapText: true, autoHeight: true, filter: "agTextColumnFilter", cellStyle: WRAPPED },
+        { field: "fact", headerName: "Fact", width: 100, wrapText: true, autoHeight: true, filter: "agTextColumnFilter", cellStyle: WRAPPED });
+      cols.push({ colId: "bybook", headerName: "Each book, in order", wrapHeaderText: true, autoHeaderHeight: true, flex: 1, minWidth: 150, wrapText: true, autoHeight: true,
         filter: "agTextColumnFilter",
         valueGetter: function (p) {
           if (!p.data || !p.data.books) return "";
@@ -180,7 +182,7 @@
           });
           return box;
         },
-        cellStyle: { lineHeight: "1.35", paddingTop: "6px", paddingBottom: "6px" } });
+        cellStyle: WRAPPED });
       return cols;
     }
     var perBook = [];
@@ -231,7 +233,8 @@
   function chart() {
     // AG Charts Community, from this site or the pinned CDN copy; the page works without it
     var data = matrix.books.map(function (b) {
-      return { book: short(b), full: b, changes: matrix.rows.filter(function (r) { return changes(r, b); }).length };
+      // a phone has room for one word a bar ("Sign", "Hound"); the tooltip has the full title
+      return { book: narrow ? short(b).split(" ")[0] : short(b), full: b, changes: matrix.rows.filter(function (r) { return changes(r, b); }).length };
     }).filter(function (d, i) { return i > 0; });  // the first book changes nothing yet
     if (!data.some(function (d) { return d.changes; })) return;
     var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;

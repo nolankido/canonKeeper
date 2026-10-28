@@ -75,3 +75,12 @@ def test_the_bible_explorer_charts_what_each_book_changes_and_filters_by_it():
     assert (
         (static / "AG-CHARTS-LICENSE.txt").read_text(encoding="utf-8").startswith("The MIT License")
     )
+
+
+def test_the_sample_bible_links_back_and_uses_ag_charts_14_axes():
+    """Judge review 4: the sample explorer was a dead end, and the chart's axes were an array,
+    which AG Charts 14 ignores with a warning (so the phone's label size never applied)."""
+    grid = (SAMPLES / "sherlock-holmes-bible-grid.html").read_text(encoding="utf-8")
+    assert 'href="/sample" data-testid="back-to-job">← The audit report' in grid
+    assert "axes: { x: {" in grid and "axes: [" not in grid
+    assert "headerName: short(b)" in grid and "wrapHeaderText: true" in grid
