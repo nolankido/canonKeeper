@@ -7,7 +7,7 @@
 <style>
   :root {
     --bg: #faf8f3; --fg: #1d1a16; --muted: #6b655c; --card: #ffffff; --line: #e6e1d7;
-    --warn: #b26a00; --warn-bg: #fbf1e1; --accent: #3b4f8a;
+    --warn: #8f5400; --warn-bg: #fbf1e1; --accent: #3b4f8a;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   }
@@ -99,9 +99,8 @@
       { field: "entity", headerName: "Who / what", pinned: narrow ? null : "left", width: narrow ? 130 : 200, filter: "agTextColumnFilter" },
       { field: "fact", headerName: "Fact", width: narrow ? 100 : 150, filter: "agTextColumnFilter" },
       { field: "value", headerName: "Value", width: narrow ? 110 : 170, filter: "agTextColumnFilter" },
-      { colId: "flag", headerName: "", width: narrow ? 40 : 64, cellClass: "flag", cellDataType: "text",
-        valueGetter: function (p) { return p.data && p.data.disputed ? "⚠" : ""; },
-        headerTooltip: "Disputed: the books give two different values" },
+      { colId: "flag", headerName: "⚠", headerTooltip: "Disputed: the books give two different values", width: narrow ? 40 : 64, cellClass: "flag", cellDataType: "text",
+        valueGetter: function (p) { return p.data && p.data.disputed ? "⚠" : ""; } },
       { field: "book", headerName: "Book", width: 210, hide: narrow, filter: "agTextColumnFilter" },
       { field: "chapter", headerName: "Chapter", width: 190, hide: narrow, filter: "agTextColumnFilter" },
       { field: "quote", headerName: "Passage", flex: 1, minWidth: 260, hide: narrow, tooltipField: "quote", filter: "agTextColumnFilter" }
@@ -114,7 +113,7 @@
     var cols = [
       { field: "entity", headerName: "Who / what", pinned: narrow ? null : "left", width: narrow ? 120 : 190, filter: "agTextColumnFilter" },
       { field: "fact", headerName: "Fact", pinned: narrow ? null : "left", width: narrow ? 90 : 130, filter: "agTextColumnFilter" },
-      { colId: "flag", headerName: "", width: 56, cellClass: "flag", cellDataType: "text",
+      { colId: "flag", headerName: "⚠", headerTooltip: "Disputed: the books give two different values", width: 56, cellClass: "flag", cellDataType: "text",
         valueGetter: function (p) { return p.data && p.data.disputed ? "⚠" : ""; } }
     ];
     matrix.books.forEach(function (b) {
