@@ -245,3 +245,23 @@ def test_uploads_are_checked_on_the_server_not_only_by_the_file_picker(tmp_path)
     with pytest.raises(ValueError, match="is empty"):
         svc.quote_series("S", [{"name": "01-a.txt", "text": ""}])
     assert svc.store.all() == []
+
+
+def test_versioned_scripts_are_cached_for_good_and_other_static_files_for_an_hour(tmp_path):
+    """The 500 KB grid and chart scripts carry their version in their names: a judge's second
+    page view should not fetch them again."""
+    from canonkeeper.config import Settings
+    from canonkeeper.preflight.app import create_app
+    from canonkeeper.preflight.paypal import FakePayPal
+
+    app = create_app(
+        settings=Settings(provider="mock", workdir=tmp_path / "w", _env_file=None),
+        paypal=FakePayPal(),
+        workdir=tmp_path / "pf",
+    )
+    web = TestClient(app)
+    grid = web.get("/static/ag-grid-community-36.2.0.min.js")
+    assert grid.headers["cache-control"] == "public, max-age=31536000, immutable"
+    clip = web.get("/static/assistant-budget.jpg")
+    assert clip.headers["cache-control"] == "public, max-age=3600"
+    assert "cache-control" not in web.get("/").headers  # pages are never cached

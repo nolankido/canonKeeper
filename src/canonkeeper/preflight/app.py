@@ -143,6 +143,7 @@ def make_paypal(
     return PayPalClient(cid, secret, mode=mode)
 
 
+_VERSIONED = re.compile(r"-\d+\.\d+\.\d+\.min\.js$")  # ag-grid-community-36.2.0.min.js
 TEXT_SUFFIXES = (".txt", ".md", ".markdown", ".text", ".docx")
 
 
@@ -321,6 +322,15 @@ def create_app(
             response.headers.setdefault(k, v)
         if base.startswith("https://"):
             response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+        path = request.url.path
+        if path.startswith("/static/") and response.status_code == 200:
+            # the grid and chart scripts carry their version in the name: cache them for good;
+            # the rest (the assistant clip, its poster) may be replaced, so for an hour
+            pinned = _VERSIONED.search(path) is not None
+            response.headers.setdefault(
+                "Cache-Control",
+                "public, max-age=31536000, immutable" if pinned else "public, max-age=3600",
+            )
         return response
 
     app.state.mcp_service = service
