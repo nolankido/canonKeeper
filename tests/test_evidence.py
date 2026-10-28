@@ -66,3 +66,34 @@ def test_a_shared_role_shows_the_sentence_that_names_the_person(tmp_path):
     report = _report(store, [hudson, a], "role_collision")
     assert telling_passages(report, store) == 1
     assert report.findings[0].candidate.claims[1].provenance.quote.startswith("When Mrs. Turner")
+
+
+def test_two_screens_raising_the_same_disagreement_make_one_finding(tmp_path):
+    from canonkeeper.report.evidence import merge_duplicates
+
+    store = CanonStore(tmp_path / "b.jsonl")
+    german = _claim("Dr. Becher", "nationality", "german", "01-a", "is Dr. Becher a German?", 0)
+    english = _claim(
+        "Dr. Becher", "nationality", "englishman", "01-a", "Dr. Becher is an Englishman", 40
+    )
+    longer = _claim(
+        "Dr. Becher",
+        "nationality",
+        "englishman",
+        "01-a",
+        "No, sir, Dr. Becher is an Englishman",
+        30,
+    )
+    a = _report(store, [german, english], "origin_mismatch").findings[0]
+    b = _report(store, [german, longer], "slot_mismatch").findings[0]
+    for f in (a, b):
+        f.verdict = "ambiguous"
+    report = _report(store, [german, english], "origin_mismatch")
+    report.findings = [a, b]
+    assert merge_duplicates(report) == 1 and len(report.findings) == 1
+    quotes = [c.provenance.quote for c in report.findings[0].candidate.claims]
+    assert quotes == [
+        "is Dr. Becher a German?",
+        "Dr. Becher is an Englishman",
+        "No, sir, Dr. Becher is an Englishman",
+    ]

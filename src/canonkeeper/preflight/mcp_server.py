@@ -14,7 +14,7 @@ Tools
   audit_status(job_id)                     → quoted / ordered / paid / running / done / failed
   get_findings(job_id)                     → the contradictions and verdicts, as data
   check_draft(job_id, draft)               → quote a check of one new draft against an audit
-  refund_failed_audit(job_id)              → full refund, only for a failed audit
+  refund_failed_audit(job_id)              → a link where the person confirms a failed audit's refund
   delete_job(job_id)                       → delete the uploads and results, keep a receipt
   open_budget(amount_usd)                  → the person funds a budget once, on PayPal
   confirm_budget(budget_id)                → captures it; the budget becomes spendable
@@ -435,6 +435,24 @@ class PreflightService:
             "refund": {"id": job.refund_id, "amount": f"{job.quote_usd} {CURRENCY}"},
         }
 
+    def ask_to_refund(self, job_id: str) -> dict[str, Any]:
+        """What the assistant's tool does: as with mark_finding_wrong, money moves only on the
+        person's click (the job page's refund button). Nothing changes here."""
+        job = self.store.get(job_id)
+        if job is None:
+            raise ValueError("unknown job")
+        if job.status != "failed":
+            return {"job_id": job_id, "refunded": False,
+                    "reason": f"only a failed audit is refunded (this one is {job.status})"}  # fmt: skip
+        return {
+            "job_id": job_id,
+            "refunded": False,
+            "confirm_url": f"{self.base}/jobs/{job.id}#refund",
+            "amount": f"{job.quote_usd} {CURRENCY}",
+            "next": "give the person confirm_url: they confirm the refund there (or press Retry "
+            "for a free second run). You cannot do it for them.",
+        }
+
     def delete_job(self, job_id: str) -> dict[str, Any]:
         try:
             job = delete_job_files(job_id, self.paypal, self.store)
@@ -548,7 +566,7 @@ TOOL_HINTS: dict[str, tuple[str, dict[str, bool]]] = {
     "get_findings": ("Read the findings", {"ro": True}),
     "check_draft": ("Quote a check of a new draft", {}),
     "delete_job": ("Delete the books and everything derived", {"destroy": True}),
-    "refund_failed_audit": ("Refund a failed audit", {"destroy": True, "world": True}),
+    "refund_failed_audit": ("Ask the person to confirm a refund", {"ro": True}),
     "list_jobs": ("List jobs", {"ro": True}),
 }
 
@@ -758,12 +776,13 @@ def build_server(service: PreflightService, *, hosted: bool = False):  # noqa: A
 
     @tool(
         description=(
-            "Refund the full payment for an audit that failed (status 'failed'), back to the "
-            "person's PayPal account. Only when the person asks for it instead of a retry."
+            "When an audit failed (status 'failed') and the person wants their money back instead "
+            "of a free retry: returns a link where THEY confirm the full refund (to their PayPal, "
+            "or into the budget that paid). You cannot refund for them."
         )
     )
     def refund_failed_audit(job_id: str) -> dict[str, Any]:
-        return service.refund_failed_audit(job_id)
+        return service.ask_to_refund(job_id)
 
     if not hosted:
 

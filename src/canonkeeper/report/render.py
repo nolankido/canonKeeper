@@ -10,7 +10,7 @@ from canonkeeper.canon import CanonStore
 from canonkeeper.models import AuditReport, Finding
 from canonkeeper.report.bible import GRID_SCRIPT
 from canonkeeper.report.display import _book, check, fact, headline, label, where
-from canonkeeper.report.evidence import telling_passages
+from canonkeeper.report.evidence import merge_duplicates, telling_passages
 
 _env = Environment(
     loader=PackageLoader("canonkeeper.report", "templates"),
@@ -140,6 +140,7 @@ def write_report(
     value (`evidence.telling_passages`). Left out where reports are compared or scored."""
     out_dir.mkdir(parents=True, exist_ok=True)
     if store is not None:
+        merge_duplicates(report)
         telling_passages(report, store)
     if bible_url is None:
         for rel in ("bible-grid.html", "../bible-grid.html"):

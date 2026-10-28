@@ -113,10 +113,11 @@ def headline(c: Candidate) -> str:
         parts = [f"{' / '.join(vals)} in {book}" for book, vals in by_book.items()]
         if len(parts) == 2:
             return head + " vs ".join(parts)
-        more = f", and {len(parts) - 3} more" if len(parts) > 3 else ""
-        return head + ", ".join(parts[:3]) + more
-    if c.heuristic == "origin_mismatch" and len(c.claims) == 2:
-        a, b = c.claims
+        # the first change is the finding; later books are listed on the card
+        rest = len(parts) - 2
+        return head + " vs ".join(parts[:2]) + f" (and {rest} more book{'s' if rest > 1 else ''})"
+    if c.heuristic == "origin_mismatch" and len(c.claims) >= 2:
+        a, b = c.claims[0], c.claims[1]
         second = value(b) if b.predicate == a.predicate else f"{label(b.predicate)} {value(b)}"
         where_b = "the same book" if _book(a) == _book(b) else _book(b)
         return (

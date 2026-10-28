@@ -57,3 +57,22 @@ def test_the_assistant_gets_a_link_and_the_person_confirms(tmp_path):
     assert svc.store.get(job).guarantee[0]["amount"] == "0.50"
     again = svc.ask_to_mark_wrong(job, first)
     assert again["reason"] == "already marked wrong"
+
+
+def test_a_failed_audits_refund_is_confirmed_by_the_person_too(tmp_path):
+    """Judge review: refund_failed_audit refunded on the assistant's say-so."""
+    settings = Settings(provider="mock", workdir=tmp_path / "w", _env_file=None)
+    app = create_app(settings=settings, paypal=FakePayPal(), workdir=tmp_path / "pf",
+                     public_base_url="http://preflight.test")  # fmt: skip
+    svc = app.state.mcp_service
+    job = svc.quote_series("The Saltmarsh Chronicles", BOOKS)["job_id"]
+    assert "only a failed audit" in svc.ask_to_refund(job)["reason"]
+    svc.store.update(job, status="failed", order_id="O1", capture_id="C1")
+    asked = svc.ask_to_refund(job)
+    assert (
+        asked["refunded"] is False
+        and asked["confirm_url"] == f"http://preflight.test/jobs/{job}#refund"
+    )
+    assert svc.store.get(job).status == "failed" and svc.store.get(job).refund_id is None
+    page = TestClient(app).get(f"/jobs/{job}").text
+    assert 'id="refund"' in page

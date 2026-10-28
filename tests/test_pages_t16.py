@@ -73,7 +73,7 @@ def test_a_customers_report_credits_the_models_plainly_and_shows_no_cost_tile(tm
         "gemini-3.5-flash-lite." in html
     )
     assert (
-        'href="/jobs/x" data-testid="back-to-job"' in html and "possible conflicts checked" in html
+        'href="/jobs/x" data-testid="back-to-job"' in html and "possible conflicts, each judged" in html
     )
     cli = write_report(r, tmp_path / "d")[0].read_text(encoding="utf-8")
     assert "read $1.40 · judge $0.15" in cli and "Models:" in cli  # the CLI keeps both

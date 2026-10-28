@@ -62,3 +62,32 @@ def telling_passages(report: AuditReport, store: CanonStore) -> int:
                 claims[i] = better[0]
                 swapped += 1
     return swapped
+
+
+def merge_duplicates(report: AuditReport) -> int:
+    """Two screens can raise the same disagreement (Dr. Becher's "German?" / "an Englishman" was
+    both an origin check and a differing detail): one finding per (call, character, set of
+    fact values), with every passage either one quoted. Returns how many were merged away."""
+    seen: dict[tuple[str, str, frozenset[tuple[str, str]]], int] = {}
+    kept: list = []
+    merged = 0
+    for f in report.findings:
+        claims = f.candidate.claims
+        if not claims:
+            kept.append(f)
+            continue
+        key = (
+            f.verdict,
+            claims[0].subject.lower(),
+            frozenset((c.predicate, _norm(c.object)) for c in claims),
+        )
+        if key in seen:
+            first = kept[seen[key]]
+            quotes = {c.provenance.quote for c in first.candidate.claims}
+            first.candidate.claims.extend(c for c in claims if c.provenance.quote not in quotes)
+            merged += 1
+            continue
+        seen[key] = len(kept)
+        kept.append(f)
+    report.findings = kept
+    return merged

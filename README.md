@@ -99,12 +99,12 @@ free tier, with no hints. Latest run (2026-10-27):
 | | |
 |---|---|
 | facts extracted | 3,963 about 622 characters, places and things (99.5% of returned claims grounded to a verbatim passage) |
-| candidate conflicts screened | 27, all judged with the relevant chapters in context |
-| **contradiction, correct** | **Watson's war wound** — "struck on the shoulder by a Jezail bullet" (*A Study in Scarlet*) vs "sat nursing my wounded leg. I had a Jezail bullet through it" (*The Sign of the Four*). Fix, to the later book: "wounded leg" → "wounded arm". |
+| candidate conflicts screened | 27, all judged with the relevant chapters in context (two screens raised the same Dr. Becher question; the report shows it once, so 26 findings) |
+| **contradiction, correct** | **Watson's war wound** — "struck on the shoulder by a Jezail bullet" (*A Study in Scarlet*) vs "sat nursing my wounded leg" (*The Sign of the Four*). Fix, to the later book: "wounded leg" → "wounded arm". |
 | **contradiction, correct** | **The landlady** — Mrs. Hudson at Baker Street (*The Sign of the Four*), "When Mrs. Turner has brought in the tray" (*A Scandal in Bohemia*): "No explanation or change of staff is given in the text." Fix: "Mrs. Turner" → "Mrs. Hudson". |
 | contradiction, wrong | Holmes's "keen dark eyes" in *The Sign of the Four* — he is disguised as an old sailor in that scene (an earlier run ruled this deliberate); Mrs. Barclay vs "Nancy Devoy", which is her maiden name |
 | cleared, each on a quoted passage | 18 — e.g. Holmes "dying" at the Reichenbach Falls and then acting in *The Hound* ("I have arrived at a point in my narrative where I am compelled … to trust once more to my recollections, aided by the diary which I kept at the time": *The Hound* is set earlier); Jefferson Hope's hair ("his black hair turned grizzled"); two different Lucys; wounds from different cases |
-| needs your judgement | 5 — the model would not clear them and would not call them errors (Dr. Becher, "is he a German?" / "an Englishman") |
+| needs your judgement | 4 — the model would not clear them and would not call them errors (Dr. Becher, "is he a German?" / "an Englishman") |
 | list-price cost | about $1.40 to read (444 extraction calls, estimated from the request log) and $0.15 to judge; $0 on the free tier |
 
 The two best-known continuity errors in the canon, found unassisted, each with its passages on
@@ -147,7 +147,7 @@ filterable and searchable; clicking a row opens that finding's card with its pas
 also where they work: an item left to them is ruled on in the *Author* cell (saved at once, shown on
 the card), and *mark wrong…* on a contradiction opens the job page row where its refund is
 confirmed. On the
-Holmes sample that is 27 findings, four of them contradictions.
+Holmes sample that is 26 findings, four of them contradictions.
 
 Every finished audit gets its own explorer (`/jobs/<id>/bible-grid.html`, also downloadable as
 one self-contained file), and the Holmes one is at `/sample/bible`. The view lives in the

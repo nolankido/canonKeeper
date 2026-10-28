@@ -83,10 +83,14 @@
 
   <div class="stats">
     <div class="stat"><b>{{ "{:,}".format(r.claims_total) }}</b><span>facts in the series bible</span></div>
-    <div class="stat"><b>{{ "{:,}".format(r.candidates_total) }}</b><span>possible conflicts checked</span></div>
+    <div class="stat"><b>{{ "{:,}".format(r.findings | length) }}</b><span>possible conflicts, each judged</span></div>
     {% set wrong = r.findings | selectattr('author_review') | selectattr('author_review.verdict', 'equalto', 'wrong') | list %}
     <div class="stat"><b>{{ errors | length }}</b><span>contradictions{% if wrong %} · {{ wrong | length }} marked wrong by the author{% endif %}</span></div>
-    <div class="stat"><b>{{ r.findings | selectattr('verdict', 'equalto', 'deliberate') | list | length }}</b><span>explained in the text</span></div>
+    {% set n_judge = r.findings | selectattr('verdict', 'equalto', 'ambiguous') | list | length %}
+    {% set n_deliberate = r.findings | selectattr('verdict', 'equalto', 'deliberate') | list | length %}
+    {% set n_cleared = n_deliberate + (r.findings | selectattr('verdict', 'equalto', 'not_conflict') | list | length) %}
+    <div class="stat"><b>{{ n_judge }}</b><span>need{{ 's' if n_judge == 1 else '' }} your judgement</span></div>
+    <div class="stat"><b>{{ n_cleared }}</b><span>cleared on a quoted passage{% if n_deliberate %} · {{ n_deliberate }} explained by the story{% endif %}</span></div>
     {% if customer %}{# a customer's report shows what they paid for, not our costs #}
     {% elif r.read_cost_usd is not none and r.judge_cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % (r.read_cost_usd + r.judge_cost_usd) }}</b><span>list-price API cost (read ${{ '%.2f' % r.read_cost_usd }} · judge ${{ '%.2f' % r.judge_cost_usd }})</span></div>
     {% elif r.cost_usd is not none %}<div class="stat"><b>${{ '%.2f' % (r.judge_cost_usd if r.judge_cost_usd is not none else r.cost_usd) }}</b><span>list-price cost to judge (reading the books not included)</span></div>{% endif %}

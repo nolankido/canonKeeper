@@ -53,7 +53,7 @@
   <p class="note">You were charged; the run can be retried at no extra cost (responses are cached, so a retry resumes where it stopped).</p>
   <form action="/jobs/{{ job.id }}/retry" method="post"><button type="submit">Retry</button></form>
   {% if job.order_id or job.budget_id %}
-  <form action="/jobs/{{ job.id }}/refund" method="post">
+  <form action="/jobs/{{ job.id }}/refund" method="post" id="refund">
     <p class="note">Or take your money back: the full ${{ job.quote_usd }} {% if job.budget_id %}goes back into your assistant's budget (or to your PayPal account if the budget is closed){% else %}is refunded to your PayPal account{% endif %}.</p>
     <label><input type="checkbox" name="confirm" value="yes"> Refund instead of retrying</label>
     <button type="submit" class="secondary">Refund my payment</button>
