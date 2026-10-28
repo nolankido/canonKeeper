@@ -93,6 +93,10 @@ def main(argv: list[str] | None = None) -> int:
     check("home page", status == 200 and "Preflight" in text, f"HTTP {status}")
     status, _, text = fetch(f"{base}/sample")
     check("sample report", status == 200 and "<html" in text.lower(), f"HTTP {status}")
+    status, _, text = fetch(f"{base}/sample/bible")
+    check("sample bible links back to its report", status == 200 and 'href="/sample"' in text)
+    status, _, text = fetch(f"{base}/assistant")
+    check("assistant page", status == 200 and "/static/assistant-budget.jpg" in text)
 
     status, headers, text = fetch(f"{base}/quote-demo", data={})
     if status == 303 and headers.get("location", headers.get("Location", "")).startswith("/jobs/"):
