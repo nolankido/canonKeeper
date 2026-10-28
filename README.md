@@ -5,6 +5,8 @@
 **Book six has to agree with book one. Preflight reads the whole series and shows you, with the
 passages, every place it doesn't.**
 
+[![A finding from the Sherlock Holmes audit: Watson's wound in the shoulder in A Study in Scarlet and in the leg in The Sign of the Four, both passages quoted, with a fix to the later book](docs/gallery/01-report.png)](https://preflight-kq1o.onrender.com/sample)
+
 Series authors publish books years apart, and readers track every detail: an eye colour that
 drifts, a character who dies and keeps talking, a birthplace that moves between book two and book
 five. Today the only tool for this is a spreadsheet and a good memory. Preflight is built on
