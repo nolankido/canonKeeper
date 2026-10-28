@@ -65,6 +65,8 @@ def main() -> None:
             n_claims=len(store),
             card_view=None,
             csv=None,
+            back_url="/sample",
+            back_label="← The audit report these facts came from",
         )
         print(f"wrote {grid}")
     report = AuditReport.model_validate_json(a.report.read_text(encoding="utf-8"))

@@ -185,6 +185,7 @@ def write_bible_grid(
     card_view: str | None = "bible.html",
     csv: str | None = "bible.csv",
     back_url: str | None = None,
+    back_label: str | None = None,
 ) -> Path:
     """The bible as an AG Grid (Community, MIT): every fact sortable, filterable and searchable,
     disputed facts highlighted, the passage one click away, CSV out of whatever is shown."""
@@ -201,6 +202,7 @@ def write_bible_grid(
             n_entities=len(views),
             n_disputed=sum(1 for r in rows if r["disputed"]),
             back_url=back_url,
+            back_label=back_label,
             books=books,
             matrix=matrix,
             card_view=card_view,

@@ -207,7 +207,7 @@ async def scene_card(page: Page, out: Path, name: str, body: str, secs: float) -
 async def scene_holmes(page: Page) -> None:
     await page.goto(f"{BASE}/sample")
     await page.evaluate("document.body.style.zoom = '0.72'")  # a whole finding fits on screen
-    await caption(page, "Six Sherlock Holmes novels, read by the Gemini free tier.", 3.5)
+    await caption(page, "Six Sherlock Holmes books, read by the Gemini free tier.", 3.5)
     await caption(
         page, "3,963 facts in the series bible, each tied to the exact passage that states it.", 3.5
     )
@@ -268,6 +268,8 @@ async def click_bar(page: Page, label: str) -> None:
     )
     n = max(1, len(books) - 1)
     k = next((i for i, b in enumerate(books[1:]) if label in b), n - 1)
+    await page.evaluate("window.scrollTo({top: 0, behavior: 'smooth'})")  # the link scrolled
+    await page.wait_for_timeout(900)  # down to Watson's passage; the chart is at the top
     box = await page.locator("#chart").bounding_box()
     assert box, "the bible page drew no chart"
     left, right = box["x"] + 30, box["x"] + box["width"] - 8
@@ -559,7 +561,7 @@ async def main() -> None:
             a.out,
             "honest",
             "<p class='big'>Measured, not eyeballed.</p>"
-            f"<p>{html.escape(a.bench) or 'Contradictions are planted in the six Holmes novels and the whole pipeline is scored: precision 0.80, recall 0.40 on the last run, misses listed in the README.'}</p>"
+            f"<p>{html.escape(a.bench) or 'Contradictions are planted in the six Holmes books and the whole pipeline is scored: precision 0.64–0.80, recall 0.35–0.40 on the last run (as run, and rescored), every miss listed in the README.'}</p>"
             "<p>Private manuscripts run on a local model: nothing leaves the machine.</p>",
             7,
         )

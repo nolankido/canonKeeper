@@ -157,7 +157,7 @@ cached on disk by (model, prompt), so re-running an audit is free.
 ### What it costs
 
 `canonkeeper estimate` prints this for your series before you spend anything. On the Gemini
-free tier the answer is $0; at list price, measured on the six Holmes novels:
+free tier the answer is $0; at list price, measured on the six Holmes volumes:
 
 | step | model (default) | measured on Holmes (630k tokens) | ≈ list price |
 |---|---|---|---|

@@ -47,7 +47,7 @@
 </head>
 <body>
 <main>
-  {% if back_url %}<div class="topbar"><b>Preflight</b><a href="{{ back_url }}" data-testid="back-to-job">← Back to the job page</a></div>{% endif %}
+  {% if back_url %}<div class="topbar"><b>Preflight</b><a href="{{ back_url }}" data-testid="back-to-job">{{ back_label or "← Back to the job page" }}</a></div>{% endif %}
   <h1>{{ series }}</h1>
   <div class="sub">Series bible explorer · {{ "{:,}".format(n_claims) }} sourced facts about {{ "{:,}".format(n_entities) }} characters, places and things · {{ "{:,}".format(n_disputed) }} passages on details where the books disagree{% if card_view %} · <a href="{{ card_view }}">card view</a>{% endif %}{% if csv %} · <a href="{{ csv }}">spreadsheet (CSV)</a>{% endif %}</div>
   <div class="toolbar">
@@ -185,7 +185,9 @@
     }
     var perBook = [];
     matrix.books.forEach(function (b) {
-      perBook.push({ colId: "book:" + b, headerName: b, headerTooltip: b, width: 150, minWidth: 110, flex: 1, filter: "agTextColumnFilter",
+      // short titles that wrap ("Sign of the Four"), the full title on hover
+      perBook.push({ colId: "book:" + b, headerName: short(b), headerTooltip: b, wrapHeaderText: true, autoHeaderHeight: true,
+        width: 150, minWidth: 110, flex: 1, filter: "agTextColumnFilter",
         cellDataType: "text",
         valueGetter: function (p) { return (p.data && p.data.books && p.data.books[b]) || ""; },
         cellClassRules: { changed: function (p) { var v = p.value; return !!v && !!p.data && p.data.disputed && v !== first(p.data); } } });
@@ -244,8 +246,9 @@
                  fill: "#b06f12", cornerRadius: 3,
                  tooltip: { renderer: function (p) { return { heading: p.datum.full, data: [{ label: "facts it changes", value: String(p.datum.changes) }] }; } },
                  listeners: { seriesNodeClick: function (e) { showChanged(e.datum.full); } } }],
-      axes: [{ type: "category", position: "bottom", label: { fontSize: narrow ? 9 : 11 } },
-             { type: "number", position: "left", label: { fontSize: 10 } }],
+      axes: { x: { type: "category", position: "bottom", label: { fontSize: narrow ? 9 : 11, autoRotate: false, avoidCollisions: true } },
+              y: { type: "number", position: "left", label: { fontSize: 10 }, interval: { step: 1 },
+                   title: { text: "facts changed", fontSize: 11 } } },
       legend: { enabled: false }
     });
   }
@@ -306,7 +309,13 @@
     }
     if (params.get("view") === "bybook") setView("matrix");
     if (params.get("changed")) showChanged(params.get("changed"));
-    if (params.get("focus")) focusOn(params.get("focus"), params.get("book"));
+    if (params.get("focus")) {
+      focusOn(params.get("focus"), params.get("book"));
+      // a finding's link is for its passage: bring the panel below the grid into view
+      setTimeout(function () {
+        if (detail.getBoundingClientRect().bottom > window.innerHeight) detail.scrollIntoView({ behavior: "smooth", block: "end" });
+      }, 700);
+    }
     loadScripts(chartSources, function () { if (window.agCharts) chart(); }, function () {});
     updateCount();
   }

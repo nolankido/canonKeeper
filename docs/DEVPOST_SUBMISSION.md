@@ -54,8 +54,8 @@ doesn't: both passages, and a fix aimed at the later book (the earlier ones are 
   ([Sudowrite](https://sudowrite.com/blog/where-writers-keep-track-of-characters-and-world-details/)).
   Preflight starts from the finished, published books, and every fact and every finding comes
   with the sentence behind it.
-- **A price an author can say yes to:** about $10.50 for a novel, $30 for six, a draft check
-  from $2; the model cost is about a twentieth of that, so it works as a business.
+- **A price an author can say yes to:** about $10.50 for a novel, $30 for the six Holmes books (458,000
+  words), a draft check from $2; the model cost is about a twentieth of that, so it works as a business.
 - **The agent budget is a pattern, not a feature.** Any pay-per-use AI service could let
   assistants buy the same way: the person funds a capped balance once through PayPal, the
   assistant spends inside limits only the person can tighten, every movement is on a receipt,
@@ -96,8 +96,10 @@ injects contradictions into public-domain novels and scores precision/recall.
   opens a budget, the person approves it once on PayPal, and the assistant then buys audits and
   draft checks on its own, never past the balance; closing refunds the unused rest as a partial
   refund of the funding capture. An independent review of every money path (double spend,
-  races, timeouts, webhook shapes) found six defects; each is now a regression test, and no
-  lock is ever held across a PayPal call.
+  races, timeouts, webhook shapes) found six defects; each is now a regression test
+  ([`tests/test_review_*.py`](https://github.com/nolankido/canonKeeper/tree/main/tests), fixed in
+  [76a28d4](https://github.com/nolankido/canonKeeper/commit/76a28d4)), and no lock is ever held
+  across a PayPal call.
 - Benchmark (seeded defects, 6 volumes, 20 planted contradictions): precision 0.80, recall
   0.40, F1 0.53 (0.64 / 0.35 / 0.45 as first scored; both kept, with the files to reproduce
   them). The first run scored 1.00 / 0.05; the harness pointed straight at extraction, and the
@@ -230,8 +232,9 @@ responses are shared). Open the report. *See a finished audit* on the home page 
 six-volume Sherlock Holmes audit without paying.
 
 **As an AI assistant's customer:** in Claude Desktop, Settings → Connectors → Add custom
-connector → `https://preflight-kq1o.onrender.com/mcp`. Ask: "Open a $20 Preflight budget." Approve the link it gives
-you with the sandbox buyer, then: "Audit the Saltmarsh demo series and pay from the budget."
+connector → `https://preflight-kq1o.onrender.com/mcp`. Ask: "Open a $20 Preflight budget." Open the link it gives
+you and approve the $20 on PayPal's page, as the sandbox buyer or as a guest with the test card
+above, then: "Audit the Saltmarsh demo series and pay from the budget."
 When it is done: "Check the demo series' next draft against it." Finally: "Close the budget": the
 unused balance goes back to PayPal. The page `/assistant` on the site has the address, these prompts, what
 the assistant can and cannot do, and its tool list.

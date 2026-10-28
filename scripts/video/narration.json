@@ -1,6 +1,6 @@
 [
  {"cue": "scene:problem", "after": 0.4, "text": "Book six has to agree with book one. Preflight reads the whole series and shows every contradiction."},
- {"cue": "Six Sherlock", "text": "Here it is on all six Sherlock Holmes novels: nearly four thousand facts, each tied to the sentence that states it."},
+ {"cue": "Six Sherlock", "text": "Here it is on all six Sherlock Holmes books: nearly four thousand facts, each tied to the sentence that states it."},
  {"cue": "Every finding in one grid", "text": "Every finding sits in one grid, with the author's own rulings beside the model's."},
  {"cue": "Watson's war wound", "text": "Watson's war wound moves from his shoulder to his leg. The fix goes to the later book: the earlier one is already in print."},
  {"cue": "And the landlady", "text": "And the landlady is Mrs. Hudson, then Mrs. Turner."},
@@ -19,6 +19,6 @@
  {"cue": "turn:4", "text": "Then it checks my next draft against the published books, again from the budget."},
  {"cue": "turn:5", "text": "When I close the budget, the rest goes straight back to PayPal."},
  {"cue": "budget", "text": "Every spend and refund is on the budget's page, and the assistant never holds a PayPal credential."},
- {"cue": "scene:honest", "after": 0.3, "text": "It is measured: errors are planted in the Sherlock Holmes novels, and every miss is listed."},
+ {"cue": "scene:honest", "after": 0.3, "text": "It is measured: errors are planted in the Holmes books and scored: precision up to point eight, recall up to point four, and every miss is listed."},
  {"cue": "scene:close", "after": 0.3, "text": "That is Preflight: pay for the audit, get the proof."}
 ]
