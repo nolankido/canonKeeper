@@ -39,6 +39,32 @@ doesn't: both passages, and a fix aimed at the later book (the earlier ones are 
   with its passages), the series bible as an AG Grid explorer and a spreadsheet, the findings as
   JSON, and a read-only link to share with an editor.
 
+## Why it matters (impact)
+- **The people it is for earn from series.** Written Word Media's 2025 survey of 1,346 indie
+  authors finds the ones earning $1,000+ a month have "more books (often 10+, and very often
+  series)" ([source](https://www.writtenwordmedia.com/2025-indie-author-survey-results/)). A
+  series is where continuity breaks, and readers of book six remember book one.
+- **Nothing else reads the whole series for them.** A copyeditor works on one book at
+  2.0–2.7¢ a word for fiction, about $2,000–$2,700 for a 100,000-word novel, and the EFA's rate
+  chart has no line for continuity at all
+  ([EFA 2026](https://www.the-efa.org/wp-content/uploads/2026/03/2026-Rate-Chart.pdf)).
+  Writing tools keep a story bible the author fills in or imports to draft with: Sudowrite's
+  Story Bible, Novelcrafter's Codex, Plottr for planning. Sudowrite's own guide describes no
+  systematic check of finished books against each other
+  ([Sudowrite](https://sudowrite.com/blog/where-writers-keep-track-of-characters-and-world-details/)).
+  Preflight starts from the finished, published books, and every fact and every finding comes
+  with the sentence behind it.
+- **A price an author can say yes to:** about $10.50 for a novel, $30 for six, a draft check
+  from $2; the model cost is about a twentieth of that, so it works as a business.
+- **The agent budget is a pattern, not a feature.** Any pay-per-use AI service could let
+  assistants buy the same way: the person funds a capped balance once through PayPal, the
+  assistant spends inside limits only the person can tighten, every movement is on a receipt,
+  refunds go back the way the money came, and nothing is approved or refunded without the
+  person.
+- **Honest about the gap:** the hosted demo takes public-domain books only (a free AI tier may
+  train on uploads); private books run on the author's own computer today (`/private`), and a
+  commercial Preflight would run the same code on a billed tier that does not train on them.
+
 ## How we built it
 Python. Extraction with a cheap long-context model under a strict schema with mandatory
 verbatim quotes (claims whose quote isn't in the source are dropped). Local heuristics find
