@@ -5,6 +5,8 @@
 **Book six has to agree with book one. Preflight reads the whole series and shows you, with the
 passages, every place it doesn't.**
 
+**Source-linked case and author:** [Nolan Kido's Preflight continuity audit](https://nolankido.com/technology/ai-book-continuity-checker/) examines the published Sherlock Holmes demonstration, supporting passages, correct and incorrect flags, missed details, and benchmark limits. [About Nolan Kido](https://nolankido.com/about/). This historical case does not certify the current hosted service or guarantee that it catches every contradiction.
+
 [![A finding from the Sherlock Holmes audit: Watson's wound in the shoulder in A Study in Scarlet and in the leg in The Sign of the Four, both passages quoted, with a fix to the later book](docs/gallery/01-report.png)](https://preflight-kq1o.onrender.com/sample)
 
 Series authors publish books years apart, and readers track every detail: an eye colour that
